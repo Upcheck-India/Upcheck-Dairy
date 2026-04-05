@@ -16,6 +16,33 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
+## Artifacts
+
+### ThulirFarm (`artifacts/thulirafarm`)
+- **Type**: Expo React Native mobile app
+- **Preview Path**: `/`
+- **Description**: Voice-first, Tamil-bilingual dairy farm management app for Indian farmers
+- **Tech**: Expo Router, React Native, AsyncStorage, @tanstack/react-query
+- **Features**:
+  - 4-tab navigation: My Animals (என் மாடுகள்), Problems & Help (உதவி), Money (பணம்), Today (இன்று)
+  - Central floating microphone button for voice commands
+  - Animal profiles (cows/buffaloes/calves) with health status tracking
+  - Milk logging with morning/evening sessions, fat% tracking
+  - 7-day milk trend bar chart per animal
+  - Symptom-based diagnosis with Tamil/English advice
+  - Emergency contact quick-dial (1962 vet helpline)
+  - Financial tracking: income with expected vs received reconciliation, expenses by category
+  - Daily task system with morning/evening context awareness
+  - Celebration confetti overlay on milking success & all-tasks-done
+  - Earth green color palette (#2E7D32 primary) with 56px+ touch targets
+  - Tamil/English bilingual UI throughout
+
+### API Server (`artifacts/api-server`)
+- Express 5 backend serving `/api`
+
+### Canvas / Mockup Sandbox (`artifacts/mockup-sandbox`)
+- Design mockup sandbox serving `/__mockup`
+
 ## Key Commands
 
 - `pnpm run typecheck` — full typecheck across all packages

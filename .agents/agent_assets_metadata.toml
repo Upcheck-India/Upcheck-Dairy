@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "vXmQCfVQ96Awiuca9MgWl"
+uri = "file://artifacts/thulirafarm/assets/images/icon.png"
+type = "image"
+title = "generated_image"
