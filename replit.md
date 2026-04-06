@@ -26,6 +26,10 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ### Features
 - **4-tab navigation**: Animals (என் மாடுகள்), Help (பிரச்சனை & உதவி), Money (பணம்), Today (இன்று)
+- **Login/Signup screens** with farmer profile collection (name, phone, village, district, farm name, 4-digit PIN)
+- **Auth guard** — redirects to login screen when no profile exists; skippable for guest mode
+- **Multilingual** — Tamil (default), English, Hindi with AsyncStorage persistence; switch in Profile or login screen
+- **Farmer Profile page** — avatar with initials, editable personal details, stats (total/healthy/attention animals), language switcher, logout; accessible via profile avatar button in Animals & Today headers
 - **Central voice mic button** (VoiceModal) — records audio via expo-av → OpenAI Whisper STT → GPT command parser → executes action (milk log, health report, expense entry, navigation)
 - **Animal management**: CRUD with health status, breed, tag#, photo capture via camera/gallery (expo-image-picker)
 - **Milk anomaly detection**: 3-day rolling average, 15% = attention, 30% = critical — banner alerts on Animals tab
@@ -41,8 +45,9 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Sync status indicator** — synced/pending/offline badge
 - **Earth-green palette** (#16a34a primary, #fefce8 background, #d97706 accent)
 - **56px+ touch targets** throughout
-- **Tamil/English bilingual UI** — all labels, greetings, status in Tamil first
-- **AsyncStorage persistence** for all data
+- **Feather icons** properly loaded via useFonts + expo-font plugin for correct Android rendering
+- **AsyncStorage persistence** for all data (farmer profile, language, animals, milk logs, finances, tasks)
+- **Play Store ready** — bundle ID com.thulirafarm.app, versionCode 1, all Android/iOS permissions declared
 
 ### API Server (`artifacts/api-server`)
 - Express 5 backend serving `/api`

@@ -17,6 +17,7 @@ import AnimalCard from "@/components/AnimalCard";
 import MilkLogModal from "@/components/MilkLogModal";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
 import { Animal, useApp } from "@/context/AppContext";
+import { useFarmer } from "@/context/FarmerContext";
 import { useColors } from "@/hooks/useColors";
 
 const FILTER_OPTIONS = [
@@ -32,6 +33,7 @@ export default function AnimalsTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { animals, milkAnomalies, syncStatus } = useApp();
+  const { farmer } = useFarmer();
   const [addVisible, setAddVisible] = useState(false);
   const [milkAnimal, setMilkAnimal] = useState<Animal | null>(null);
   const [filter, setFilter] = useState("all");
@@ -84,6 +86,17 @@ export default function AnimalsTab() {
               <View style={[styles.syncDot, { backgroundColor: syncDot }]} />
               <Text style={[styles.syncText, { color: syncDot }]}>{syncLabel}</Text>
             </View>
+            <Pressable
+              style={styles.profileBtn}
+              onPress={() => router.push("/profile")}
+              hitSlop={8}
+            >
+              <View style={[styles.profileCircle, { backgroundColor: farmer?.avatarColor ?? colors.primary }]}>
+                <Text style={styles.profileInitial}>
+                  {farmer?.name ? farmer.name.trim()[0]!.toUpperCase() : "?"}
+                </Text>
+              </View>
+            </Pressable>
             <Pressable
               style={[styles.addBtn, { backgroundColor: colors.primary }]}
               onPress={() => {
@@ -276,6 +289,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  profileBtn: { padding: 2 },
+  profileCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileInitial: { color: "#fff", fontSize: 15, fontWeight: "700" },
   filterScroll: { marginTop: 4 },
   filterChip: {
     paddingHorizontal: 14,

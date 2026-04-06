@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
+import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -18,6 +19,7 @@ import CelebrationOverlay from "@/components/CelebrationOverlay";
 import StatCard from "@/components/StatCard";
 import TaskItem from "@/components/TaskItem";
 import { useApp } from "@/context/AppContext";
+import { useFarmer } from "@/context/FarmerContext";
 import { useColors } from "@/hooks/useColors";
 
 Notifications.setNotificationHandler({
@@ -96,6 +98,7 @@ export default function TodayTab() {
   const insets = useSafeAreaInsets();
   const { tasks, generateDailyTasks, getTodayMilkTotal, getTodayIncome, getTodayExpenses, animals, syncStatus, milkAnomalies } =
     useApp();
+  const { farmer } = useFarmer();
   const [celebration, setCelebration] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
   const progressAnim = useMemo(() => new Animated.Value(0), []);
@@ -161,9 +164,20 @@ export default function TodayTab() {
       >
         {/* Greeting + Date + Sync */}
         <View style={styles.greetingRow}>
-          <View style={{ flex: 1 }}>
+          <Pressable
+            style={styles.todayProfileBtn}
+            onPress={() => router.push("/profile")}
+            hitSlop={8}
+          >
+            <View style={[styles.todayProfileCircle, { backgroundColor: farmer?.avatarColor ?? colors.primary }]}>
+              <Text style={styles.todayProfileInitial}>
+                {farmer?.name ? farmer.name.trim()[0]!.toUpperCase() : "?"}
+              </Text>
+            </View>
+          </Pressable>
+          <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={[styles.greeting, { color: colors.foreground }]}>
-              {greeting.tamil}
+              {farmer?.name ? `வணக்கம், ${farmer.name.split(" ")[0]}!` : greeting.tamil}
             </Text>
             <Text style={[styles.greetingSub, { color: colors.mutedForeground }]}>
               {hint}
@@ -316,8 +330,17 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 16, gap: 14 },
   greetingRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
-  greeting: { fontSize: 22, fontWeight: "700" },
-  greetingSub: { fontSize: 12, marginTop: 4, maxWidth: 210, lineHeight: 18 },
+  greeting: { fontSize: 20, fontWeight: "700" },
+  greetingSub: { fontSize: 12, marginTop: 4, lineHeight: 18 },
+  todayProfileBtn: { padding: 2 },
+  todayProfileCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  todayProfileInitial: { color: "#fff", fontSize: 17, fontWeight: "700" },
   dateText: { fontSize: 12, fontWeight: "500" },
   weatherBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   weatherText: { fontSize: 11 },

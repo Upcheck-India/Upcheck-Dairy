@@ -1,53 +1,40 @@
 import { BlurView } from "expo-blur";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
-import { SymbolView } from "expo-symbols";
+import { Tabs, router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
 
 import VoiceButton from "@/components/VoiceButton";
 import VoiceModal from "@/components/VoiceModal";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
+import { useFarmer } from "@/context/FarmerContext";
 
-function NativeTabLayout() {
-  const [voiceVisible, setVoiceVisible] = useState(false);
+function ProfileAvatar() {
+  const { farmer } = useFarmer();
+  const initials = farmer?.name
+    ? farmer.name.trim().split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)
+    : "?";
   return (
-    <>
-      <NativeTabs>
-        <NativeTabs.Trigger name="index">
-          <Icon sf={{ default: "hare", selected: "hare.fill" }} />
-          <Label>என் மாடுகள்</Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="help">
-          <Icon sf={{ default: "cross.circle", selected: "cross.circle.fill" }} />
-          <Label>உதவி</Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="voice">
-          <Icon sf="mic.fill" />
-          <Label>குரல்</Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="money">
-          <Icon sf={{ default: "indianrupeesign.circle", selected: "indianrupeesign.circle.fill" }} />
-          <Label>பணம்</Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="today">
-          <Icon sf={{ default: "calendar", selected: "calendar.badge.checkmark" }} />
-          <Label>இன்று</Label>
-        </NativeTabs.Trigger>
-      </NativeTabs>
-      <VoiceModal visible={voiceVisible} onClose={() => setVoiceVisible(false)} />
-    </>
+    <Pressable
+      style={styles.avatarBtn}
+      onPress={() => router.push("/profile")}
+      hitSlop={8}
+    >
+      <View style={[styles.avatarCircle, { backgroundColor: farmer?.avatarColor ?? "#16a34a" }]}>
+        <Text style={styles.avatarText}>{initials}</Text>
+      </View>
+    </Pressable>
   );
 }
 
-function ClassicTabLayout() {
+export default function TabLayout() {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
+  const { t } = useLanguage();
   const [voiceVisible, setVoiceVisible] = useState(false);
 
   return (
@@ -87,25 +74,20 @@ function ClassicTabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: "என் மாடுகள்",
-            tabBarIcon: ({ color, size }) =>
-              isIOS ? (
-                <SymbolView name="pawprint" tintColor={color} size={size} />
-              ) : (
-                <Feather name="grid" size={22} color={color} />
-              ),
+            title: t.tabAnimals,
+            tabBarIcon: ({ color, focused }) => (
+              <Feather name={focused ? "grid" : "grid"} size={22} color={color} />
+            ),
+            headerRight: () => <ProfileAvatar />,
           }}
         />
         <Tabs.Screen
           name="help"
           options={{
-            title: "உதவி",
-            tabBarIcon: ({ color, size }) =>
-              isIOS ? (
-                <SymbolView name="cross.circle" tintColor={color} size={size} />
-              ) : (
-                <Feather name="alert-circle" size={22} color={color} />
-              ),
+            title: t.tabHelp,
+            tabBarIcon: ({ color }) => (
+              <Feather name="alert-circle" size={22} color={color} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -127,29 +109,20 @@ function ClassicTabLayout() {
         <Tabs.Screen
           name="money"
           options={{
-            title: "பணம்",
-            tabBarIcon: ({ color, size }) =>
-              isIOS ? (
-                <SymbolView
-                  name="indianrupeesign.circle"
-                  tintColor={color}
-                  size={size}
-                />
-              ) : (
-                <Feather name="dollar-sign" size={22} color={color} />
-              ),
+            title: t.tabMoney,
+            tabBarIcon: ({ color }) => (
+              <Feather name="dollar-sign" size={22} color={color} />
+            ),
           }}
         />
         <Tabs.Screen
           name="today"
           options={{
-            title: "இன்று",
-            tabBarIcon: ({ color, size }) =>
-              isIOS ? (
-                <SymbolView name="calendar" tintColor={color} size={size} />
-              ) : (
-                <Feather name="calendar" size={22} color={color} />
-              ),
+            title: t.tabToday,
+            tabBarIcon: ({ color }) => (
+              <Feather name="calendar" size={22} color={color} />
+            ),
+            headerRight: () => <ProfileAvatar />,
           }}
         />
       </Tabs>
@@ -161,9 +134,14 @@ function ClassicTabLayout() {
   );
 }
 
-export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
-}
+const styles = StyleSheet.create({
+  avatarBtn: { marginRight: 16 },
+  avatarCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+});
