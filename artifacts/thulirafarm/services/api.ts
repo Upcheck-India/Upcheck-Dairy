@@ -81,6 +81,46 @@ export async function transcribeAudio(audioUri: string, mimeType?: string): Prom
   return data.transcript;
 }
 
+export interface SendOtpResponse {
+  success: boolean;
+  message: string;
+  demoOtp?: string;
+  expiresIn: number;
+}
+
+export interface VerifyOtpResponse {
+  success: boolean;
+  verified: boolean;
+}
+
+export async function sendOtp(phone: string): Promise<SendOtpResponse> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/send-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+  });
+  const data = await response.json() as SendOtpResponse & { error?: string };
+  if (!response.ok) {
+    throw new Error(data.error ?? `Failed to send OTP: ${response.status}`);
+  }
+  return data;
+}
+
+export async function verifyOtp(phone: string, otp: string): Promise<VerifyOtpResponse> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/verify-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, otp }),
+  });
+  const data = await response.json() as VerifyOtpResponse & { error?: string };
+  if (!response.ok) {
+    throw new Error(data.error ?? `OTP verification failed: ${response.status}`);
+  }
+  return data;
+}
+
 export async function parseVoiceCommand(request: VoiceCommandRequest): Promise<VoiceCommandResponse> {
   const base = getApiBase();
   const response = await fetch(`${base}/farm/voice-command`, {

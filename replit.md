@@ -26,9 +26,9 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ### Features
 - **4-tab navigation**: Animals (என் மாடுகள்), Help (பிரச்சனை & உதவி), Money (பணம்), Today (இன்று)
-- **Login/Signup screens** with farmer profile collection (name, phone, village, district, farm name, 4-digit PIN)
+- **OTP-based Authentication** — 3-step flow: phone entry → 6-digit OTP verification → profile completion (name, village, district, farm name); no PIN needed
 - **Auth guard** — redirects to login screen when no profile exists; skippable for guest mode
-- **Multilingual** — Tamil (default), English, Hindi with AsyncStorage persistence; switch in Profile or login screen
+- **Multilingual** — 6 South Indian languages: Tamil (default), Telugu, Kannada, Malayalam, Hindi, English — all with full translations, AsyncStorage persistence, and live switching in login screen language grid
 - **Farmer Profile page** — avatar with initials, editable personal details, stats (total/healthy/attention animals), language switcher, logout; accessible via profile avatar button in Animals & Today headers
 - **Central voice mic button** (VoiceModal) — records audio via expo-av → OpenAI Whisper STT → GPT command parser → executes action (milk log, health report, expense entry, navigation)
 - **Animal management**: CRUD with health status, breed, tag#, photo capture via camera/gallery (expo-image-picker)
@@ -51,8 +51,10 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ### API Server (`artifacts/api-server`)
 - Express 5 backend serving `/api`
-- **POST /api/farm/diagnose** — GPT-5.2 veterinary diagnosis from symptoms array
-- **POST /api/farm/voice-command** — GPT-5.2 NLP command parser for Tamil/English voice commands
+- **POST /api/auth/send-otp** — generates 6-digit OTP (in-memory, 5-min expiry), returns `demoOtp` for dev testing; production-ready hook for MSG91/Fast2SMS integration
+- **POST /api/auth/verify-otp** — verifies OTP with attempt limiting (max 5 tries); clears after use
+- **POST /api/farm/diagnose** — GPT veterinary diagnosis from symptoms array
+- **POST /api/farm/voice-command** — GPT NLP command parser for Tamil/English voice commands
 - **POST /api/farm/transcribe** — OpenAI Whisper audio transcription (multipart/form-data via multer)
 - **AI Integration**: `@workspace/integrations-openai-ai-server` (Replit AI Integrations proxy)
 
