@@ -14,14 +14,56 @@ import {
 import { chatWithGauGuru, type ChatMessage } from "@/services/api";
 import { useLanguage } from "@/context/LanguageContext";
 
-const QUICK_QUESTIONS: Array<{ q: string; qTa: string }> = [
-  { q: "How do I detect heat in cows?", qTa: "மாடு ஈட்டில் இருக்கிறதா என்று எவ்வாறு அறிவது?" },
-  { q: "What is good FAT% for cow milk?", qTa: "பசும்பால் நல்ல FAT% என்ன?" },
-  { q: "FMD vaccine schedule for cattle?", qTa: "கோமாரி தடுப்பூசி எப்போது போட வேண்டும்?" },
-  { q: "Cow not eating, what to do?", qTa: "மாடு சாப்பிடவில்லை, என்ன செய்வது?" },
-  { q: "How much green fodder per day?", qTa: "ஒரு மாட்டிற்கு ஒரு நாளில் எவ்வளவு பச்சை தீவனம்?" },
-  { q: "Signs of calving approaching?", qTa: "குட்டி போட இருக்கிறது என்று தெரிவது எப்படி?" },
-];
+const QUICK_QUESTIONS: Record<string, string[]> = {
+  ta: [
+    "மாடு ஈட்டில் இருக்கிறதா என்று எவ்வாறு அறிவது?",
+    "பசும்பால் நல்ல FAT% என்ன?",
+    "கோமாரி தடுப்பூசி எப்போது போட வேண்டும்?",
+    "மாடு சாப்பிடவில்லை, என்ன செய்வது?",
+    "ஒரு மாட்டிற்கு ஒரு நாளில் எவ்வளவு பச்சை தீவனம்?",
+    "குட்டி போட இருக்கிறது என்று தெரிவது எப்படி?",
+  ],
+  te: [
+    "ఆవు వేడిలో ఉందని ఎలా తెలుసుకోవాలి?",
+    "ఆవు పాలకు మంచి FAT% ఎంత?",
+    "FMD టీకా షెడ్యూల్ ఏమిటి?",
+    "ఆవు తినడం లేదు, ఏం చేయాలి?",
+    "రోజుకు ఎంత పచ్చి మేత ఇవ్వాలి?",
+    "ప్రసవం దగ్గర పడుతుందని తెలిసే సంకేతాలు?",
+  ],
+  kn: [
+    "ಹಸು ಉಷ್ಣದಲ್ಲಿದೆ ಎಂದು ಹೇಗೆ ತಿಳಿಯುವುದು?",
+    "ಹಸುವಿನ ಹಾಲಿಗೆ ಉತ್ತಮ FAT% ಎಷ್ಟು?",
+    "FMD ಲಸಿಕೆ ವೇಳಾಪಟ್ಟಿ ಏನು?",
+    "ಹಸು ತಿನ್ನುತ್ತಿಲ್ಲ, ಏನು ಮಾಡಬೇಕು?",
+    "ದಿನಕ್ಕೆ ಎಷ್ಟು ಹಸಿ ಮೇವು ನೀಡಬೇಕು?",
+    "ಹೆರಿಗೆ ಹತ್ತಿರ ಬರುತ್ತಿದೆ ಎಂದು ತಿಳಿಯುವ ಲಕ್ಷಣಗಳು?",
+  ],
+  ml: [
+    "പശു ചൂടിലാണോ എന്ന് എങ്ങനെ അറിയാം?",
+    "പശുവിൻ പാലിന് നല്ല FAT% എത്ര?",
+    "FMD വാക്‌സിൻ ഷെഡ്യൂൾ എന്താണ്?",
+    "പശു തിന്നുന്നില്ല, എന്ത് ചെയ്യണം?",
+    "ഒരു ദിവസം എത്ര പച്ചപ്പുല്ല് നൽകണം?",
+    "ഈനൽ അടുക്കുന്നതിന്റെ ലക്ഷണങ്ങൾ?",
+  ],
+  hi: [
+    "गाय गर्मी में है, यह कैसे पता करें?",
+    "गाय के दूध में अच्छा FAT% कितना होना चाहिए?",
+    "FMD टीका कार्यक्रम क्या है?",
+    "गाय खाना नहीं खा रही, क्या करें?",
+    "प्रतिदिन कितना हरा चारा देना चाहिए?",
+    "ब्याने के करीब आने के संकेत क्या हैं?",
+  ],
+  en: [
+    "How do I detect heat in cows?",
+    "What is good FAT% for cow milk?",
+    "FMD vaccine schedule for cattle?",
+    "Cow not eating, what to do?",
+    "How much green fodder per day?",
+    "Signs of calving approaching?",
+  ],
+};
 
 const WELCOME: Record<string, string> = {
   ta: "வணக்கம்! நான் GauGuru, உங்கள் AI பண்ணை உதவியாளர். பால் உற்பத்தி, கால்நடை ஆரோக்கியம், இனப்பெருக்கம் — எந்த கேள்வியும் கேளுங்கள்! 🐄",
@@ -33,12 +75,13 @@ const WELCOME: Record<string, string> = {
 };
 
 export default function GauGuruChat() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  const isTa = language === "ta";
+
+  const quickQs = QUICK_QUESTIONS[language] ?? QUICK_QUESTIONS.en!;
 
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -57,18 +100,13 @@ export default function GauGuruChat() {
       const assistantMsg: ChatMessage = { role: "assistant", content: response };
       setMessages([...newHistory, assistantMsg]);
     } catch {
-      const errMsg: ChatMessage = {
-        role: "assistant",
-        content: isTa
-          ? "மன்னிக்கவும், பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்."
-          : "Sorry, there was an error. Please try again.",
-      };
+      const errMsg: ChatMessage = { role: "assistant", content: t.errorMsg };
       setMessages([...newHistory, errMsg]);
     } finally {
       setLoading(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
     }
-  }, [messages, loading, language, isTa]);
+  }, [messages, loading, language, t]);
 
   const clearChat = () => setMessages([]);
 
@@ -78,14 +116,13 @@ export default function GauGuruChat() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={120}
     >
-      {/* Header */}
       <View style={styles.chatHeader}>
         <View style={styles.avatarWrap}>
           <Text style={styles.avatarEmoji}>🐄</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.chatName}>GauGuru AI</Text>
-          <Text style={styles.chatSub}>{isTa ? "24/7 பண்ணை உதவியாளர்" : "24/7 Dairy Advisor"}</Text>
+          <Text style={styles.chatSub}>{t.gauguruSubtitle}</Text>
         </View>
         {messages.length > 0 && (
           <Pressable onPress={clearChat} style={styles.clearBtn}>
@@ -94,36 +131,32 @@ export default function GauGuruChat() {
         )}
       </View>
 
-      {/* Messages */}
       <ScrollView
         ref={scrollRef}
         style={styles.messagesArea}
         contentContainerStyle={styles.messagesContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Welcome message */}
         <View style={styles.assistantBubble}>
           <Text style={styles.assistantText}>{WELCOME[language] ?? WELCOME.en}</Text>
         </View>
 
-        {/* Quick question chips */}
         {messages.length === 0 && (
           <View style={styles.quickQSection}>
-            <Text style={styles.quickQLabel}>{isTa ? "⚡ விரைவு கேள்விகள்" : "⚡ Quick Questions"}</Text>
-            {QUICK_QUESTIONS.map((q, i) => (
+            <Text style={styles.quickQLabel}>{t.quickQuestions}</Text>
+            {quickQs.map((q, i) => (
               <Pressable
                 key={i}
                 style={styles.quickQChip}
-                onPress={() => sendMessage(isTa ? q.qTa : q.q)}
+                onPress={() => sendMessage(q)}
               >
-                <Text style={styles.quickQText}>{isTa ? q.qTa : q.q}</Text>
+                <Text style={styles.quickQText}>{q}</Text>
                 <Feather name="arrow-right" size={14} color="#16a34a" />
               </Pressable>
             ))}
           </View>
         )}
 
-        {/* Chat messages */}
         {messages.map((msg, i) => (
           <View
             key={i}
@@ -142,25 +175,23 @@ export default function GauGuruChat() {
           </View>
         ))}
 
-        {/* Loading dots */}
         {loading && (
           <View style={styles.assistantBubbleWrap}>
             <View style={styles.assistantAvatar}><Text style={{ fontSize: 14 }}>🐄</Text></View>
             <View style={[styles.assistantBubble, styles.loadingBubble]}>
               <ActivityIndicator size="small" color="#16a34a" />
-              <Text style={styles.loadingText}>{isTa ? "யோசிக்கிறேன்..." : "Thinking..."}</Text>
+              <Text style={styles.loadingText}>{t.thinking}</Text>
             </View>
           </View>
         )}
       </ScrollView>
 
-      {/* Input */}
       <View style={styles.inputArea}>
         <TextInput
           style={styles.textInput}
           value={input}
           onChangeText={setInput}
-          placeholder={isTa ? "கேள்வி கேளுங்கள்..." : "Ask anything about dairy..."}
+          placeholder={t.chatPlaceholder}
           placeholderTextColor="#9ca3af"
           multiline
           maxLength={500}

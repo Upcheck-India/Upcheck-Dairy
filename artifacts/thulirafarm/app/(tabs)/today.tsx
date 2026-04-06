@@ -33,24 +33,25 @@ Notifications.setNotificationHandler({
   }),
 });
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 5) return { tamil: "🌙 இரவு வணக்கம், விவசாயி!", english: "Good Night, Farmer!" };
-  if (h < 12) return { tamil: "🌅 காலை வணக்கம், விவசாயி!", english: "Good Morning, Farmer!" };
-  if (h < 17) return { tamil: "☀️ மதிய வணக்கம்", english: "Good Afternoon" };
-  return { tamil: "🌆 மாலை வணக்கம்", english: "Good Evening" };
-}
+const CONTEXT_HINTS: Record<string, string[]> = {
+  ta: ["காலை கறவை நேரம் — பால் பதிவு செய்யவும்", "மதிய நேர கவனிப்பு — தண்ணீர் மற்றும் தீவனம்", "மாலை கறவை நேரம் — இன்றைய கணக்கு பதிவு"],
+  te: ["ఉదయం పాలు పిండే సమయం — పాలు నమోదు చేయండి", "మధ్యాహ్నం తనిఖీ — నీరు మరియు మేత", "సాయంత్రం పాలు పిండే సమయం — లెక్కలు నమోదు"],
+  kn: ["ಬೆಳಿಗ್ಗೆ ಹಾಲು ಕರೆಯುವ ಸಮಯ — ದಾಖಲಿಸಿ", "ಮಧ್ಯಾಹ್ನ ತಪಾಸಣೆ — ನೀರು ಮತ್ತು ಮೇವು", "ಸಂಜೆ ಹಾಲು ಕರೆಯುವ ಸಮಯ — ಲೆಕ್ಕ ದಾಖಲಿಸಿ"],
+  ml: ["രാവിലെ പാൽ കറക്കൽ — രേഖ", "ഉച്ചനേരം — വെള്ളം & തീറ്റ", "വൈകുന്നേരം പാൽ കറക്കൽ — കണക്ക് നൽകൂ"],
+  hi: ["सुबह दूध दोहने का समय — दूध दर्ज करें", "दोपहर की जाँच — पानी और चारा", "शाम दूध दोहने का समय — आज का हिसाब लिखें"],
+  en: ["Morning milking time — log your milk", "Afternoon check — water & feed", "Evening milking time — record today's accounts"],
+};
 
-function getContextHint(language: string) {
+const HELLO_LABELS: Record<string, string> = {
+  ta: "வணக்கம்,", te: "నమస్కారం,", kn: "ನಮಸ್ಕಾರ,", ml: "നമസ്കാരം,", hi: "नमस्ते,", en: "Hello,",
+};
+
+function getContextHint(language: string): string {
   const h = new Date().getHours();
-  if (language === "ta") {
-    if (h < 10) return "காலை கறவை நேரம் — பால் பதிவு செய்யவும்";
-    if (h < 15) return "மதிய நேர கவனிப்பு — தண்ணீர் மற்றும் தீவனம் சரிபாருங்கள்";
-    return "மாலை கறவை நேரம் — இன்றைய கணக்கு பதிவு செய்யவும்";
-  }
-  if (h < 10) return "Morning milking time — log your milk";
-  if (h < 15) return "Afternoon check — water & feed";
-  return "Evening milking time — record today's accounts";
+  const hints = CONTEXT_HINTS[language] ?? CONTEXT_HINTS.en!;
+  if (h < 10) return hints[0]!;
+  if (h < 15) return hints[1]!;
+  return hints[2]!;
 }
 
 function getWeatherMock() {
@@ -88,7 +89,7 @@ async function setupDailyNotification() {
 export default function TodayTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const {
     tasks, generateDailyTasks, getTodayMilkTotal, getTodayIncome, getTodayExpenses,
     animals, syncStatus, milkAnomalies, smartAlerts,
@@ -98,13 +99,12 @@ export default function TodayTab() {
   const [notifEnabled, setNotifEnabled] = useState(false);
   const progressAnim = useMemo(() => new Animated.Value(0), []);
 
-  const isTa = language === "ta";
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
 
   const today = new Date().toISOString().split("T")[0]!;
-  const todayTasks = tasks.filter((t) => t.date === today);
-  const completedCount = todayTasks.filter((t) => t.completed).length;
+  const todayTasks = tasks.filter((task) => task.date === today);
+  const completedCount = todayTasks.filter((task) => task.completed).length;
   const totalCount = todayTasks.length;
   const progress = totalCount > 0 ? completedCount / totalCount : 0;
 
@@ -121,27 +121,38 @@ export default function TodayTab() {
   const milkTotal = getTodayMilkTotal();
   const income = getTodayIncome();
   const expenses = getTodayExpenses();
-
-  const greeting = getGreeting();
   const hint = getContextHint(language);
   const weather = getWeatherMock();
 
-  const morningTasks = todayTasks.filter((t) => t.session === "morning");
-  const eveningTasks = todayTasks.filter((t) => t.session === "evening");
+  // Greeting text using t keys
+  const h = new Date().getHours();
+  const greetingText = h < 5 ? t.goodNight : h < 12 ? t.goodMorning : h < 17 ? t.goodAfternoon : t.goodEvening;
+
+  const morningTasks = todayTasks.filter((task) => task.session === "morning");
+  const eveningTasks = todayTasks.filter((task) => task.session === "evening");
 
   const healthyCount = animals.filter((a) => a.healthStatus === "healthy").length;
   const needsAttention = animals.filter((a) => a.healthStatus !== "healthy").length;
 
   const syncDot = syncStatus === "synced" ? "#22c55e" : syncStatus === "pending" ? "#f97316" : "#ef4444";
   const syncLabel = syncStatus === "synced"
-    ? (isTa ? "✓ சேமிக்கப்பட்டது" : "✓ Saved")
+    ? `✓ ${t.savedLabel}`
     : syncStatus === "pending"
-    ? (isTa ? "⏳ சேமிக்கிறது..." : "⏳ Saving...")
+    ? `⏳ ${t.savingLabel}`
     : "⚠ offline";
 
   const criticalAlerts = smartAlerts.filter((a) => a.priority === "critical");
   const highAlerts = smartAlerts.filter((a) => a.priority === "high");
   const normalAlerts = smartAlerts.filter((a) => a.priority === "normal");
+
+  const getAlertMessage = (alert: SmartAlert) =>
+    language === "ta" ? alert.messageTamil : alert.message;
+
+  const getHealthLabel = (status: string) => {
+    if (status === "healthy") return t.healthy;
+    if (status === "critical") return t.critical;
+    return t.attention;
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -160,7 +171,9 @@ export default function TodayTab() {
           </Pressable>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={[styles.greeting, { color: colors.foreground }]}>
-              {farmer?.name ? `${isTa ? "வணக்கம்," : "Hello,"} ${farmer.name.split(" ")[0]}!` : greeting.tamil}
+              {farmer?.name
+                ? `${HELLO_LABELS[language] ?? HELLO_LABELS.en} ${farmer.name.split(" ")[0]}!`
+                : greetingText}
             </Text>
             <Text style={[styles.greetingSub, { color: colors.mutedForeground }]}>{hint}</Text>
           </View>
@@ -182,19 +195,23 @@ export default function TodayTab() {
           {!notifEnabled && Platform.OS !== "web" && (
             <Pressable
               style={[styles.notifBtn, { backgroundColor: colors.accent + "20" }]}
-              onPress={async () => { await setupDailyNotification(); setNotifEnabled(true); Alert.alert("✓", isTa ? "நினைவூட்டல் அமைக்கப்பட்டது!" : "Reminders set!"); }}
+              onPress={async () => {
+                await setupDailyNotification();
+                setNotifEnabled(true);
+                Alert.alert("✓", t.remindersSet);
+              }}
             >
               <Feather name="bell" size={12} color={colors.accent} />
-              <Text style={[styles.notifBtnText, { color: colors.accent }]}>{isTa ? "நினைவூட்டல்" : "Reminders"}</Text>
+              <Text style={[styles.notifBtnText, { color: colors.accent }]}>{t.reminders}</Text>
             </Pressable>
           )}
         </View>
 
-        {/* ── SMART ALERTS ──────────────────────────────────────────────── */}
+        {/* Smart Alerts */}
         {smartAlerts.length > 0 && (
           <View style={styles.alertsSection}>
             <Text style={[styles.alertsSectionTitle, { color: colors.foreground }]}>
-              🔔 {isTa ? "இன்றைய எச்சரிக்கைகள்" : "Today's Alerts"} ({smartAlerts.length})
+              🔔 {t.todayAlerts} ({smartAlerts.length})
             </Text>
 
             {[...criticalAlerts, ...highAlerts, ...normalAlerts].map((alert) => {
@@ -207,24 +224,22 @@ export default function TodayTab() {
                 >
                   <View style={styles.smartAlertLeft}>
                     <Text style={styles.smartAlertEmoji}>{cfg.emoji}</Text>
-                    {alert.priority === "critical" && (
-                      <View style={styles.criticalDot} />
-                    )}
+                    {alert.priority === "critical" && <View style={styles.criticalDot} />}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.smartAlertAnimal, { color: cfg.textColor }]}>{alert.animalName}</Text>
                     <Text style={[styles.smartAlertMsg, { color: cfg.textColor }]}>
-                      {isTa ? alert.messageTamil : alert.message}
+                      {getAlertMessage(alert)}
                     </Text>
                   </View>
                   {alert.priority === "critical" && (
                     <View style={styles.urgentBadge}>
-                      <Text style={styles.urgentBadgeText}>{isTa ? "அவசரம்" : "URGENT"}</Text>
+                      <Text style={styles.urgentBadgeText}>{t.urgentLabel}</Text>
                     </View>
                   )}
                   {alert.priority === "high" && (
                     <View style={styles.highBadge}>
-                      <Text style={styles.highBadgeText}>{isTa ? "முக்கியம்" : "HIGH"}</Text>
+                      <Text style={styles.highBadgeText}>{t.highLabel}</Text>
                     </View>
                   )}
                 </Pressable>
@@ -239,11 +254,11 @@ export default function TodayTab() {
             <Feather name="alert-triangle" size={16} color="#ef4444" />
             <View style={{ flex: 1 }}>
               <Text style={[styles.alertTitle, { color: "#dc2626" }]}>
-                ⚠ {isTa ? "பால் குறைவு எச்சரிக்கை" : "Milk Drop Alert"}
+                ⚠ {t.milkDropAlert}
               </Text>
               {milkAnomalies.map((a) => (
                 <Text key={a.animalId} style={styles.alertItem}>
-                  • {a.animalName}: {a.dropPercent}% {isTa ? "குறைந்தது" : "drop"} ({a.todayTotal.toFixed(1)}L vs {isTa ? "சராசரி" : "avg"} {a.avgTotal.toFixed(1)}L)
+                  • {a.animalName}: {a.dropPercent}% {t.milkDropSuffix} ({a.todayTotal.toFixed(1)}L vs {t.avgPrefix} {a.avgTotal.toFixed(1)}L)
                 </Text>
               ))}
             </View>
@@ -252,10 +267,10 @@ export default function TodayTab() {
 
         {/* Stats row */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 8 }}>
-          <StatCard icon="droplet" label="Milk Today" labelTamil="இன்று பால்" value={`${milkTotal.toFixed(1)}L`} iconColor={colors.primary} trend={milkTotal > 10 ? "up" : "neutral"} sub={`${animals.length} மாடுகள்`} />
+          <StatCard icon="droplet" label="Milk Today" labelTamil="இன்று பால்" value={`${milkTotal.toFixed(1)}L`} iconColor={colors.primary} trend={milkTotal > 10 ? "up" : "neutral"} sub={`${animals.length} ${t.animalsCountSuffix}`} />
           <StatCard icon="trending-up" label="Income" labelTamil="வருமானம்" value={`₹${income.toLocaleString("en-IN")}`} iconColor="#22c55e" trend={income > 0 ? "up" : "neutral"} />
           <StatCard icon="package" label="Expenses" labelTamil="செலவு" value={`₹${expenses.toLocaleString("en-IN")}`} iconColor={colors.warning} trend="neutral" />
-          <StatCard icon="heart" label="Health" labelTamil="உடல்நிலை" value={`${healthyCount}/${animals.length}`} iconColor={needsAttention > 0 ? colors.destructive : "#22c55e"} sub={needsAttention > 0 ? `${needsAttention} ${isTa ? "கவனிக்கவும்" : "need attention"}` : (isTa ? "அனைத்தும் நலம்" : "All healthy")} />
+          <StatCard icon="heart" label="Health" labelTamil="உடல்நிலை" value={`${healthyCount}/${animals.length}`} iconColor={needsAttention > 0 ? colors.destructive : "#22c55e"} sub={needsAttention > 0 ? `${needsAttention} ${t.attention}` : t.healthy} />
           <StatCard icon="check-circle" label="Tasks" labelTamil="பணிகள்" value={`${completedCount}/${totalCount}`} iconColor={completedCount === totalCount && totalCount > 0 ? "#22c55e" : colors.accent} />
         </ScrollView>
 
@@ -263,7 +278,7 @@ export default function TodayTab() {
         {totalCount > 0 && (
           <View style={[styles.progressCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.progressHeader}>
-              <Text style={[styles.progressLabel, { color: colors.foreground }]}>{isTa ? "இன்றைய முன்னேற்றம்" : "Today's Progress"}</Text>
+              <Text style={[styles.progressLabel, { color: colors.foreground }]}>{t.progress}</Text>
               <Text style={[styles.progressPct, { color: colors.primary }]}>{Math.round(progress * 100)}%</Text>
             </View>
             <View style={[styles.progressBg, { backgroundColor: colors.muted }]}>
@@ -278,7 +293,7 @@ export default function TodayTab() {
               />
             </View>
             <Text style={[styles.progressSub, { color: colors.mutedForeground }]}>
-              {completedCount} / {totalCount} {isTa ? "பணிகள் முடிந்தன" : "tasks done"}
+              {completedCount} / {totalCount} {t.tasks}
             </Text>
           </View>
         )}
@@ -288,9 +303,9 @@ export default function TodayTab() {
           <>
             <View style={styles.sessionHeader}>
               <Feather name="sun" size={16} color={colors.accent} />
-              <Text style={[styles.sessionLabel, { color: colors.foreground }]}>🌅 {isTa ? "காலை பணிகள்" : "Morning Tasks"}</Text>
+              <Text style={[styles.sessionLabel, { color: colors.foreground }]}>🌅 {t.morningTasks}</Text>
             </View>
-            {morningTasks.map((t) => <TaskItem key={t.id} task={t} />)}
+            {morningTasks.map((task) => <TaskItem key={task.id} task={task} />)}
           </>
         )}
 
@@ -299,9 +314,9 @@ export default function TodayTab() {
           <>
             <View style={[styles.sessionHeader, { marginTop: 12 }]}>
               <Feather name="moon" size={16} color={colors.primary} />
-              <Text style={[styles.sessionLabel, { color: colors.foreground }]}>🌆 {isTa ? "மாலை பணிகள்" : "Evening Tasks"}</Text>
+              <Text style={[styles.sessionLabel, { color: colors.foreground }]}>🌆 {t.eveningTasks}</Text>
             </View>
-            {eveningTasks.map((t) => <TaskItem key={t.id} task={t} />)}
+            {eveningTasks.map((task) => <TaskItem key={task.id} task={task} />)}
           </>
         )}
 
@@ -309,7 +324,7 @@ export default function TodayTab() {
           <View style={styles.empty}>
             <Feather name="calendar" size={48} color={colors.border} />
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              {isTa ? "பணிகள் ஏற்றப்படுகின்றன..." : "Loading tasks..."}
+              {t.loadingTasks}
             </Text>
           </View>
         )}
@@ -318,23 +333,21 @@ export default function TodayTab() {
         {animals.length > 0 && (
           <>
             <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 20 }]}>
-              {isTa ? "மாடுகள் நிலை 🐄" : "Herd Status 🐄"}
+              {t.herdStatus}
             </Text>
             {animals.map((a) => {
               const sc = a.healthStatus === "healthy" ? "#22c55e" : a.healthStatus === "critical" ? "#ef4444" : "#f97316";
-              const sl = isTa
-                ? (a.healthStatus === "healthy" ? "ஆரோக்கியம்" : a.healthStatus === "critical" ? "அவசரம்" : "கவனிக்கவும்")
-                : a.healthStatus;
+              const sl = getHealthLabel(a.healthStatus);
               return (
                 <View key={a.id} style={[styles.animalStatusRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Text style={styles.animalEmoji}>{a.type === "buffalo" ? "🐃" : a.type === "calf" ? "🐮" : "🐄"}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.animalName, { color: colors.foreground }]}>{a.name}</Text>
                     {a.isPregnant && a.expectedCalvingDate && (
-                      <Text style={styles.animalSubInfo}>🤰 {isTa ? "கர்ப்பம்" : "Pregnant"} · {isTa ? "குட்டி:" : "Calving:"} {a.expectedCalvingDate}</Text>
+                      <Text style={styles.animalSubInfo}>🤰 {t.pregnantLabel} · {t.calvingExpected} {a.expectedCalvingDate}</Text>
                     )}
                     {a.lactationNumber != null && (
-                      <Text style={styles.animalSubInfo}>L{a.lactationNumber} {isTa ? "கறவை" : "lactation"}</Text>
+                      <Text style={styles.animalSubInfo}>L{a.lactationNumber} {t.milkToday}</Text>
                     )}
                   </View>
                   <View style={[styles.statusPill, { backgroundColor: sc + "20" }]}>
@@ -355,7 +368,7 @@ export default function TodayTab() {
 
       <CelebrationOverlay
         visible={celebration}
-        message="All tasks done!"
+        message={t.allTasksDone}
         messageTamil="அனைத்து பணிகளும் முடிந்தது! 🎉"
         onHide={() => setCelebration(false)}
       />

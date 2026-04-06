@@ -68,13 +68,13 @@ function FinancialChart({ data }: { data: DayData[] }) {
   );
 }
 
-const EXPENSE_CATEGORIES = [
-  { key: "feed", label: "🌾 தீவனம்", icon: "package" },
-  { key: "medicine", label: "💊 மருந்து", icon: "activity" },
-  { key: "labor", label: "👷 தொழிலாளர்", icon: "users" },
-  { key: "equipment", label: "🔧 உபகரணம்", icon: "tool" },
-  { key: "other", label: "📦 மற்றவை", icon: "more-horizontal" },
-];
+const EXPENSE_CAT_LABELS: Record<string, Record<string, string>> = {
+  feed: { ta: "🌾 தீவனம்", te: "🌾 మేత", kn: "🌾 ಮೇವು", ml: "🌾 തീറ്റ", hi: "🌾 चारा", en: "🌾 Feed" },
+  medicine: { ta: "💊 மருந்து", te: "💊 మందు", kn: "💊 ಔಷಧ", ml: "💊 മരുന്ന്", hi: "💊 दवाई", en: "💊 Medicine" },
+  labor: { ta: "👷 தொழிலாளர்", te: "👷 కూలీ", kn: "👷 ಕಾರ್ಮಿಕ", ml: "👷 തൊഴിലാളി", hi: "👷 मजदूरी", en: "👷 Labor" },
+  equipment: { ta: "🔧 உபகரணம்", te: "🔧 పరికరాలు", kn: "🔧 ಸಾಧನ", ml: "🔧 ഉപകരണം", hi: "🔧 उपकरण", en: "🔧 Equipment" },
+  other: { ta: "📦 மற்றவை", te: "📦 ఇతరాలు", kn: "📦 ಇತರ", ml: "📦 മറ്റുള്ളവ", hi: "📦 अन्य", en: "📦 Other" },
+};
 
 const CATEGORY_COLORS: Record<InventoryItem["category"], string> = {
   feed: "#16a34a", medicine: "#0284c7", supplement: "#7c3aed",
@@ -90,7 +90,7 @@ type MoneyTab = "income" | "expense" | "inventory";
 export default function MoneyTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const {
     incomeEntries, expenseEntries, addIncomeEntry, addExpenseEntry, get7DayFinancials,
     inventoryItems, deleteInventoryItem, adjustInventoryQuantity,
@@ -111,9 +111,11 @@ export default function MoneyTab() {
   const [expDesc, setExpDesc] = useState("");
   const [expAmount, setExpAmount] = useState("");
 
-  const isTa = language === "ta";
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
+
+  // Helper for inline multilingual records
+  const lx = (r: Record<string, string>) => r[language] ?? r.en ?? "";
 
   const totalIncome = useMemo(() => incomeEntries.reduce((s, e) => s + e.totalReceived, 0), [incomeEntries]);
   const totalExpenses = useMemo(() => expenseEntries.reduce((s, e) => s + e.amount, 0), [expenseEntries]);
@@ -134,15 +136,19 @@ export default function MoneyTab() {
     const r = parseFloat(rate);
     const rec = parseFloat(received);
     if (!buyer.trim() || isNaN(q) || isNaN(r) || isNaN(rec)) {
-      Alert.alert(isTa ? "தவறு" : "Error", isTa ? "அனைத்து தகவல்களையும் உள்ளிடவும்" : "Please fill all fields");
+      Alert.alert(t.error, lx({ ta: "அனைத்து தகவல்களையும் உள்ளிடவும்", te: "అన్ని వివరాలు నమోదు చేయండి", kn: "ಎಲ್ಲ ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ", ml: "എല്ലാ വിവരങ്ങളും നൽകൂ", hi: "सभी जानकारी भरें", en: "Please fill all fields" }));
       return;
     }
     const expected = q * r;
     addIncomeEntry({ id: generateId(), date: getTodayString(), buyer: buyer.trim(), quantitySold: q, ratePerLitre: r, totalExpected: expected, totalReceived: rec, fatPercentage: fatPct ? parseFloat(fatPct) : undefined });
     const diff = expected - rec;
     if (Math.abs(diff) > 5) {
-      Alert.alert(diff > 0 ? (isTa ? "⚠ குறைவாக கிடைத்தது!" : "⚠ Underpaid!") : (isTa ? "✓ அதிகமாக கிடைத்தது" : "✓ Overpaid"),
-        `${isTa ? "எதிர்பார்த்தது" : "Expected"}: ${formatRupeeFull(expected)}\n${isTa ? "கிடைத்தது" : "Received"}: ${formatRupeeFull(rec)}`);
+      Alert.alert(
+        diff > 0
+          ? lx({ ta: "⚠ குறைவாக கிடைத்தது!", te: "⚠ తక్కువ వచ్చింది!", kn: "⚠ ಕಡಿಮೆ ಬಂದಿದೆ!", ml: "⚠ കുറഞ്ഞ ലഭ്യം!", hi: "⚠ कम भुगतान!", en: "⚠ Underpaid!" })
+          : lx({ ta: "✓ அதிகமாக கிடைத்தது", te: "✓ అదనంగా వచ్చింది", kn: "✓ ಹೆಚ್ಚು ಬಂದಿದೆ", ml: "✓ അധികം ലഭ്യം", hi: "✓ अधिक भुगतान", en: "✓ Overpaid" }),
+        `${lx({ ta: "எதிர்பார்த்தது", te: "అంచనా", kn: "ನಿರೀಕ್ಷಿತ", ml: "പ്രതീക്ഷ", hi: "अनुमान", en: "Expected" })}: ${formatRupeeFull(expected)}\n${lx({ ta: "கிடைத்தது", te: "అందింది", kn: "ಸ್ವೀಕರಿಸಿದ", ml: "ലഭിച്ചത്", hi: "प्राप्त", en: "Received" })}: ${formatRupeeFull(rec)}`
+      );
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setBuyer(""); setQty(""); setRate("42"); setReceived(""); setFatPct("");
@@ -151,7 +157,10 @@ export default function MoneyTab() {
 
   const handleAddExpense = () => {
     const amt = parseFloat(expAmount);
-    if (!expDesc.trim() || isNaN(amt)) { Alert.alert(isTa ? "தவறு" : "Error", isTa ? "தகவல்கள் உள்ளிடவும்" : "Please fill all fields"); return; }
+    if (!expDesc.trim() || isNaN(amt)) {
+      Alert.alert(t.error, lx({ ta: "தகவல்கள் உள்ளிடவும்", te: "వివరాలు నమోదు చేయండి", kn: "ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ", ml: "വിവരങ്ങൾ നൽകൂ", hi: "जानकारी भरें", en: "Please fill all fields" }));
+      return;
+    }
     addExpenseEntry({ id: generateId(), date: getTodayString(), category: expCategory, description: expDesc.trim(), amount: amt });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setExpDesc(""); setExpAmount("");
@@ -160,35 +169,40 @@ export default function MoneyTab() {
 
   const handleDeleteInventory = (item: InventoryItem) => {
     Alert.alert(
-      isTa ? "நீக்கு?" : "Delete?",
-      isTa ? `${item.name} நீக்கவும்?` : `Delete ${item.name}?`,
-      [{ text: isTa ? "ரத்து" : "Cancel", style: "cancel" }, { text: isTa ? "நீக்கு" : "Delete", style: "destructive", onPress: () => deleteInventoryItem(item.id) }]
+      t.deleteConfirmTitle,
+      `${t.deleteItemBodyPrefix} ${item.name}?`,
+      [{ text: t.cancel, style: "cancel" }, { text: t.deleteConfirmBtn, style: "destructive", onPress: () => deleteInventoryItem(item.id) }]
     );
   };
 
-  const MONEY_TABS: Array<{ id: MoneyTab; label: string; labelEn: string; emoji: string }> = [
-    { id: "income", label: "வருமானம்", labelEn: "Income", emoji: "📈" },
-    { id: "expense", label: "செலவுகள்", labelEn: "Expenses", emoji: "📉" },
-    { id: "inventory", label: "இருப்பு", labelEn: "Inventory", emoji: "📦" },
+  const MONEY_TABS: Array<{ id: MoneyTab; label: string; emoji: string }> = [
+    { id: "income", label: t.incomeTab, emoji: "📈" },
+    { id: "expense", label: t.expenseTab, emoji: "📉" },
+    { id: "inventory", label: t.inventoryTab, emoji: "📦" },
   ];
+
+  const getExpCatLabel = (key: string) => {
+    const rec = EXPENSE_CAT_LABELS[key];
+    if (!rec) return key;
+    return rec[language] ?? rec.en ?? key;
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>{isTa ? "பணம் 💰" : "Finances 💰"}</Text>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t.financeTitle}</Text>
 
-        {/* Summary cards */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: "#16a34a" }]}>
-            <Text style={styles.statCardLabel}>{isTa ? "மொத்த வருமானம்" : "Income"}</Text>
+            <Text style={styles.statCardLabel}>{t.totalIncome}</Text>
             <Text style={styles.statCardValue}>{formatRupee(totalIncome)}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: "#ef4444" }]}>
-            <Text style={styles.statCardLabel}>{isTa ? "மொத்த செலவு" : "Expenses"}</Text>
+            <Text style={styles.statCardLabel}>{t.totalExpense}</Text>
             <Text style={styles.statCardValue}>{formatRupee(totalExpenses)}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: profit >= 0 ? "#0284c7" : "#7c3aed" }]}>
-            <Text style={styles.statCardLabel}>{isTa ? "லாபம்" : "Profit"}</Text>
+            <Text style={styles.statCardLabel}>{t.profit}</Text>
             <Text style={styles.statCardValue}>{formatRupee(profit)}</Text>
           </View>
         </View>
@@ -198,10 +212,16 @@ export default function MoneyTab() {
         {/* 7-day chart */}
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.chartHeader}>
-            <Text style={[styles.chartTitle, { color: colors.foreground }]}>{isTa ? "7 நாட்கள் நிதி" : "7-Day Financials"}</Text>
+            <Text style={[styles.chartTitle, { color: colors.foreground }]}>{t.sevenDayFinancials}</Text>
             <View style={styles.chartLegend}>
-              <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: "#22c55e" }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>{isTa ? "வரும்" : "Income"}</Text></View>
-              <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: "#ef4444" }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>{isTa ? "செலவு" : "Expense"}</Text></View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: "#22c55e" }]} />
+                <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{t.income}</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: "#ef4444" }]} />
+                <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{t.expense}</Text>
+              </View>
             </View>
           </View>
           <FinancialChart data={chartData} />
@@ -212,7 +232,7 @@ export default function MoneyTab() {
           <Pressable style={styles.lowStockBanner} onPress={() => setActiveTab("inventory")}>
             <Feather name="alert-triangle" size={16} color="#c2410c" />
             <Text style={styles.lowStockText}>
-              {lowStockItems.length} {isTa ? "பொருட்கள் குறைந்தவை" : "items low on stock"}: {lowStockItems.map((i) => i.name).join(", ")}
+              {lowStockItems.length} {t.lowStockItems}: {lowStockItems.map((i) => i.name).join(", ")}
             </Text>
             <Feather name="chevron-right" size={14} color="#c2410c" />
           </Pressable>
@@ -220,15 +240,15 @@ export default function MoneyTab() {
 
         {/* Tab row */}
         <View style={[styles.tabRow, { borderColor: colors.border }]}>
-          {MONEY_TABS.map((t) => (
+          {MONEY_TABS.map((tab) => (
             <Pressable
-              key={t.id}
-              style={[styles.tabBtn, { borderBottomColor: activeTab === t.id ? colors.primary : "transparent", borderBottomWidth: 2 }]}
-              onPress={() => { setActiveTab(t.id); Haptics.selectionAsync(); }}
+              key={tab.id}
+              style={[styles.tabBtn, { borderBottomColor: activeTab === tab.id ? colors.primary : "transparent", borderBottomWidth: 2 }]}
+              onPress={() => { setActiveTab(tab.id); Haptics.selectionAsync(); }}
             >
-              <Text style={styles.tabEmoji}>{t.emoji}</Text>
-              <Text style={[styles.tabLabel, { color: activeTab === t.id ? colors.primary : colors.mutedForeground }]}>
-                {isTa ? t.label : t.labelEn}
+              <Text style={styles.tabEmoji}>{tab.emoji}</Text>
+              <Text style={[styles.tabLabel, { color: activeTab === tab.id ? colors.primary : colors.mutedForeground }]}>
+                {tab.label}
               </Text>
             </Pressable>
           ))}
@@ -239,7 +259,9 @@ export default function MoneyTab() {
           incomeEntries.length === 0 ? (
             <View style={styles.empty}>
               <Feather name="dollar-sign" size={48} color={colors.border} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{isTa ? "வருமானம் இல்லை" : "No income yet"}</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                {lx({ ta: "வருமானம் இல்லை", te: "ఆదాయం లేదు", kn: "ಆದಾಯ ಇಲ್ಲ", ml: "വരുമാനം ഇല്ല", hi: "कोई आय नहीं", en: "No income yet" })}
+              </Text>
             </View>
           ) : (
             incomeEntries.map((e) => {
@@ -251,11 +273,19 @@ export default function MoneyTab() {
                     <Text style={[styles.entryTitle, { color: colors.foreground }]}>{e.buyer}</Text>
                     <Text style={[styles.entrySub, { color: colors.mutedForeground }]}>{e.quantitySold}L × ₹{e.ratePerLitre}/L • {e.date}</Text>
                     {e.fatPercentage && <Text style={[styles.entrySub, { color: colors.mutedForeground }]}>FAT: {e.fatPercentage}%</Text>}
-                    {hasDiscrepancy && <Text style={[styles.discrepancy, { color: diff < 0 ? colors.destructive : colors.success }]}>{diff < 0 ? `⚠ ${isTa ? "இழப்பு" : "Under"}: ${formatRupeeFull(-diff)}` : `✓ ${isTa ? "கூடுதல்" : "Over"}: ${formatRupeeFull(diff)}`}</Text>}
+                    {hasDiscrepancy && (
+                      <Text style={[styles.discrepancy, { color: diff < 0 ? colors.destructive : colors.success }]}>
+                        {diff < 0
+                          ? `⚠ ${lx({ ta: "இழப்பு", te: "నష్టం", kn: "ಕಡಿಮೆ", ml: "കുറഞ്ഞ", hi: "कम", en: "Under" })}: ${formatRupeeFull(-diff)}`
+                          : `✓ ${lx({ ta: "கூடுதல்", te: "అదనం", kn: "ಹೆಚ್ಚು", ml: "അധിക", hi: "अधिक", en: "Over" })}: ${formatRupeeFull(diff)}`}
+                      </Text>
+                    )}
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     <Text style={[styles.entryAmount, { color: colors.foreground }]}>{formatRupeeFull(e.totalReceived)}</Text>
-                    <Text style={[styles.expectedAmount, { color: colors.mutedForeground }]}>{isTa ? "எதிர்" : "Exp"}: {formatRupeeFull(e.totalExpected)}</Text>
+                    <Text style={[styles.expectedAmount, { color: colors.mutedForeground }]}>
+                      {lx({ ta: "எதிர்", te: "అంచనా", kn: "ನಿರೀಕ್ಷಿತ", ml: "പ്രതീക്ഷ", hi: "अनुमान", en: "Exp" })}: {formatRupeeFull(e.totalExpected)}
+                    </Text>
                   </View>
                 </View>
               );
@@ -268,16 +298,16 @@ export default function MoneyTab() {
           <>
             {Object.keys(expenseSummary).length > 0 && (
               <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.chartTitle, { color: colors.foreground }]}>{isTa ? "செலவு வகைகள்" : "Expense Breakdown"}</Text>
-                {EXPENSE_CATEGORIES.filter((c) => expenseSummary[c.key] != null && expenseSummary[c.key]! > 0).map((c) => {
-                  const pct = Math.round((expenseSummary[c.key]! / totalExpenses) * 100);
+                <Text style={[styles.chartTitle, { color: colors.foreground }]}>{t.expenseBreakdown}</Text>
+                {Object.keys(EXPENSE_CAT_LABELS).filter((k) => expenseSummary[k] != null && expenseSummary[k]! > 0).map((key) => {
+                  const pct = Math.round((expenseSummary[key]! / totalExpenses) * 100);
                   return (
-                    <View key={c.key} style={styles.breakdownRow}>
-                      <Text style={[styles.breakdownLabel, { color: colors.foreground }]}>{c.label}</Text>
+                    <View key={key} style={styles.breakdownRow}>
+                      <Text style={[styles.breakdownLabel, { color: colors.foreground }]}>{getExpCatLabel(key)}</Text>
                       <View style={[styles.breakdownBarBg, { backgroundColor: colors.muted }]}>
                         <View style={[styles.breakdownBarFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
                       </View>
-                      <Text style={[styles.breakdownValue, { color: colors.accent }]}>{formatRupee(expenseSummary[c.key]!)}</Text>
+                      <Text style={[styles.breakdownValue, { color: colors.accent }]}>{formatRupee(expenseSummary[key]!)}</Text>
                     </View>
                   );
                 })}
@@ -286,24 +316,23 @@ export default function MoneyTab() {
             {expenseEntries.length === 0 ? (
               <View style={styles.empty}>
                 <Feather name="credit-card" size={48} color={colors.border} />
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{isTa ? "செலவுகள் இல்லை" : "No expenses yet"}</Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                  {lx({ ta: "செலவுகள் இல்லை", te: "వ్యయాలు లేవు", kn: "ವೆಚ್ಚಗಳಿಲ್ಲ", ml: "ചെലവ് ഇല്ല", hi: "कोई खर्च नहीं", en: "No expenses yet" })}
+                </Text>
               </View>
             ) : (
-              expenseEntries.map((e) => {
-                const cat = EXPENSE_CATEGORIES.find((c) => c.key === e.category);
-                return (
-                  <View key={e.id} style={[styles.entryRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <View style={[styles.expIcon, { backgroundColor: colors.warning + "18" }]}>
-                      <Feather name={(cat?.icon ?? "more-horizontal") as any} size={16} color={colors.warning} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.entryTitle, { color: colors.foreground }]}>{e.description}</Text>
-                      <Text style={[styles.entrySub, { color: colors.mutedForeground }]}>{cat?.label} • {e.date}</Text>
-                    </View>
-                    <Text style={[styles.expAmount, { color: colors.destructive }]}>-{formatRupeeFull(e.amount)}</Text>
+              expenseEntries.map((e) => (
+                <View key={e.id} style={[styles.entryRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={[styles.expIcon, { backgroundColor: colors.warning + "18" }]}>
+                    <Feather name="tag" size={16} color={colors.warning} />
                   </View>
-                );
-              })
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.entryTitle, { color: colors.foreground }]}>{e.description}</Text>
+                    <Text style={[styles.entrySub, { color: colors.mutedForeground }]}>{getExpCatLabel(e.category)} • {e.date}</Text>
+                  </View>
+                  <Text style={[styles.expAmount, { color: colors.destructive }]}>-{formatRupeeFull(e.amount)}</Text>
+                </View>
+              ))
             )}
           </>
         )}
@@ -313,7 +342,7 @@ export default function MoneyTab() {
           <>
             {inventoryValue > 0 && (
               <View style={styles.inventoryValueCard}>
-                <Text style={styles.inventoryValueLabel}>{isTa ? "மொத்த இருப்பு மதிப்பு" : "Total Inventory Value"}</Text>
+                <Text style={styles.inventoryValueLabel}>{t.totalInventoryValue}</Text>
                 <Text style={styles.inventoryValueAmount}>{formatRupeeFull(inventoryValue)}</Text>
               </View>
             )}
@@ -321,11 +350,9 @@ export default function MoneyTab() {
             {inventoryItems.length === 0 ? (
               <View style={styles.empty}>
                 <Text style={{ fontSize: 48 }}>📦</Text>
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                  {isTa ? "இருப்பு பதிவு இல்லை" : "No inventory items yet"}
-                </Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t.noInventory}</Text>
                 <Pressable style={styles.addFirstBtn} onPress={() => { setEditInventoryItem(undefined); setInventoryModal(true); }}>
-                  <Text style={styles.addFirstBtnText}>{isTa ? "+ பொருள் சேர்க்கவும்" : "+ Add First Item"}</Text>
+                  <Text style={styles.addFirstBtnText}>{t.addFirstItem}</Text>
                 </Pressable>
               </View>
             ) : (
@@ -361,7 +388,6 @@ export default function MoneyTab() {
                       </View>
                     </View>
 
-                    {/* Stock level */}
                     <View style={styles.stockRow}>
                       <View style={styles.stockQtyRow}>
                         <Pressable style={styles.qtyBtn} onPress={() => adjustInventoryQuantity(item.id, -1)}>
@@ -389,7 +415,7 @@ export default function MoneyTab() {
                       <View style={styles.lowStockTag}>
                         <Feather name="alert-triangle" size={12} color="#dc2626" />
                         <Text style={styles.lowStockTagText}>
-                          {isTa ? `குறைவு! குறைந்தபட்சம்: ${item.minQuantity} ${item.unit}` : `Low stock! Min: ${item.minQuantity} ${item.unit}`}
+                          {lx({ ta: "குறைவு!", te: "తక్కువ!", kn: "ಕಡಿಮೆ!", ml: "കുറവ്!", hi: "कम!", en: "Low stock!" })} {lx({ ta: "குறைந்தபட்சம்", te: "కనిష్ట", kn: "ಕನಿಷ್ಠ", ml: "ഏറ്റവും കുറഞ്ഞ", hi: "न्यूनतम", en: "Min" })}: {item.minQuantity} {item.unit}
                         </Text>
                       </View>
                     )}
@@ -418,16 +444,24 @@ export default function MoneyTab() {
       <Modal visible={incomeModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setIncomeModal(false)}>
           <Pressable style={[styles.modalBox, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{isTa ? "வருமானம் சேர் 📈" : "Add Income 📈"}</Text>
-            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={buyer} onChangeText={setBuyer} placeholder={isTa ? "கொள்முதல்காரர் பெயர்" : "Buyer / Cooperative name"} placeholderTextColor={colors.mutedForeground} />
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t.addIncome} 📈</Text>
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={buyer} onChangeText={setBuyer}
+              placeholder={lx({ ta: "கொள்முதல்காரர் பெயர்", te: "కొనుగోలుదారు పేరు", kn: "ಖರೀದಿದಾರ ಹೆಸರು", ml: "വാങ്ങുന്നയാൾ", hi: "खरीदार का नाम", en: "Buyer / Cooperative name" })}
+              placeholderTextColor={colors.mutedForeground} />
             <View style={{ flexDirection: "row", gap: 10 }}>
-              <TextInput style={[styles.input, { flex: 1, borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={qty} onChangeText={setQty} placeholder={isTa ? "அளவு (L)" : "Qty (L)"} keyboardType="decimal-pad" placeholderTextColor={colors.mutedForeground} />
+              <TextInput style={[styles.input, { flex: 1, borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={qty} onChangeText={setQty}
+                placeholder={lx({ ta: "அளவு (L)", te: "పరిమాణం (L)", kn: "ಪ್ರಮಾಣ (L)", ml: "അളവ് (L)", hi: "मात्रा (L)", en: "Qty (L)" })}
+                keyboardType="decimal-pad" placeholderTextColor={colors.mutedForeground} />
               <TextInput style={[styles.input, { flex: 1, borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={rate} onChangeText={setRate} placeholder="₹/L (42)" keyboardType="decimal-pad" placeholderTextColor={colors.mutedForeground} />
             </View>
-            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={received} onChangeText={setReceived} placeholder={isTa ? "கிடைத்த தொகை ₹" : "Amount received ₹"} keyboardType="decimal-pad" placeholderTextColor={colors.mutedForeground} />
-            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={fatPct} onChangeText={setFatPct} placeholder={isTa ? "கொழுப்பு % (விருப்பம்)" : "FAT % (optional)"} keyboardType="decimal-pad" placeholderTextColor={colors.mutedForeground} />
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={received} onChangeText={setReceived}
+              placeholder={lx({ ta: "கிடைத்த தொகை ₹", te: "అందిన మొత్తం ₹", kn: "ಸ್ವೀಕರಿಸಿದ ₹", ml: "ലഭിച്ച തുക ₹", hi: "प्राप्त राशि ₹", en: "Amount received ₹" })}
+              keyboardType="decimal-pad" placeholderTextColor={colors.mutedForeground} />
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={fatPct} onChangeText={setFatPct}
+              placeholder={lx({ ta: "கொழுப்பு % (விருப்பம்)", te: "కొవ్వు % (ఐచ్ఛికం)", kn: "ಕೊಬ್ಬು % (ಐಚ್ಛಿಕ)", ml: "കൊഴുപ്പ് % (ഐഛിക)", hi: "FAT % (वैकल्पिक)", en: "FAT % (optional)" })}
+              keyboardType="decimal-pad" placeholderTextColor={colors.mutedForeground} />
             <Pressable style={[styles.saveBtn, { backgroundColor: colors.primary }]} onPress={handleAddIncome}>
-              <Text style={styles.saveBtnText}>{isTa ? "சேமி" : "Save"}</Text>
+              <Text style={styles.saveBtnText}>{t.save}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -437,18 +471,22 @@ export default function MoneyTab() {
       <Modal visible={expenseModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setExpenseModal(false)}>
           <Pressable style={[styles.modalBox, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{isTa ? "செலவு சேர் 📉" : "Add Expense 📉"}</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t.addExpense} 📉</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 8 }}>
-              {EXPENSE_CATEGORIES.map((c) => (
-                <Pressable key={c.key} style={[styles.catChip, { backgroundColor: expCategory === c.key ? colors.primary : colors.muted, borderColor: expCategory === c.key ? colors.primary : colors.border }]} onPress={() => setExpCategory(c.key as ExpenseEntry["category"])}>
-                  <Text style={[styles.catLabel, { color: expCategory === c.key ? "#fff" : colors.mutedForeground }]}>{c.label}</Text>
+              {Object.keys(EXPENSE_CAT_LABELS).map((key) => (
+                <Pressable key={key} style={[styles.catChip, { backgroundColor: expCategory === key ? colors.primary : colors.muted, borderColor: expCategory === key ? colors.primary : colors.border }]} onPress={() => setExpCategory(key as ExpenseEntry["category"])}>
+                  <Text style={[styles.catLabel, { color: expCategory === key ? "#fff" : colors.mutedForeground }]}>{getExpCatLabel(key)}</Text>
                 </Pressable>
               ))}
             </ScrollView>
-            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={expDesc} onChangeText={setExpDesc} placeholder={isTa ? "விவரம்" : "Description"} placeholderTextColor={colors.mutedForeground} />
-            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={expAmount} onChangeText={setExpAmount} placeholder={isTa ? "தொகை ₹" : "Amount ₹"} keyboardType="decimal-pad" placeholderTextColor={colors.mutedForeground} />
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={expDesc} onChangeText={setExpDesc}
+              placeholder={lx({ ta: "விவரம்", te: "వివరణ", kn: "ವಿವರಣೆ", ml: "വിവരണം", hi: "विवरण", en: "Description" })}
+              placeholderTextColor={colors.mutedForeground} />
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={expAmount} onChangeText={setExpAmount}
+              placeholder={lx({ ta: "தொகை ₹", te: "మొత్తం ₹", kn: "ಮೊತ್ತ ₹", ml: "തുക ₹", hi: "राशि ₹", en: "Amount ₹" })}
+              keyboardType="decimal-pad" placeholderTextColor={colors.mutedForeground} />
             <Pressable style={[styles.saveBtn, { backgroundColor: colors.primary }]} onPress={handleAddExpense}>
-              <Text style={styles.saveBtnText}>{isTa ? "சேமி" : "Save"}</Text>
+              <Text style={styles.saveBtnText}>{t.save}</Text>
             </Pressable>
           </Pressable>
         </Pressable>

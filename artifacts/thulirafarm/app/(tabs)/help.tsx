@@ -25,17 +25,19 @@ import { diagnoseSymptoms, type DiagnoseResponse } from "@/services/api";
 
 type HelpSubTab = "diagnose" | "gauguru" | "emergency";
 
-const SYMPTOMS = [
-  { id: "fever", label: "காய்ச்சல்", english: "Fever", icon: "thermometer" },
-  { id: "notEating", label: "சாப்பிடவில்லை", english: "Not Eating", icon: "x-circle" },
-  { id: "lessMilk", label: "குறைந்த பால்", english: "Less Milk", icon: "droplet" },
-  { id: "limping", label: "கால் வலி", english: "Limping", icon: "activity" },
-  { id: "diarrhea", label: "வயிற்றுப்போக்கு", english: "Diarrhea", icon: "alert-triangle" },
-  { id: "bloating", label: "வயிறு வீக்கம்", english: "Bloating", icon: "circle" },
-  { id: "coughing", label: "இருமல்", english: "Coughing", icon: "wind" },
-  { id: "eyeDischarge", label: "கண் சொறிவு", english: "Eye Discharge", icon: "eye" },
-  { id: "injury", label: "காயம்", english: "Injury", icon: "scissors" },
-  { id: "inHeat", label: "ஈட்டிலிருக்கிறது", english: "In Heat", icon: "heart" },
+type Symptom = { id: string; icon: string; english: string; labels: Record<string, string> };
+
+const SYMPTOMS: Symptom[] = [
+  { id: "fever", icon: "thermometer", english: "Fever", labels: { ta: "காய்ச்சல்", te: "జ్వరం", kn: "ಜ್ವರ", ml: "പനി", hi: "बुखार", en: "Fever" } },
+  { id: "notEating", icon: "x-circle", english: "Not Eating", labels: { ta: "சாப்பிடவில்லை", te: "తినడం లేదు", kn: "ತಿನ್ನುತ್ತಿಲ್ಲ", ml: "തിന്നുന്നില്ല", hi: "खाना नहीं", en: "Not Eating" } },
+  { id: "lessMilk", icon: "droplet", english: "Less Milk", labels: { ta: "குறைந்த பால்", te: "పాలు తక్కువ", kn: "ಹಾಲು ಕಡಿಮೆ", ml: "പാൽ കുറവ്", hi: "कम दूध", en: "Less Milk" } },
+  { id: "limping", icon: "activity", english: "Limping", labels: { ta: "கால் வலி", te: "కుంటుతోంది", kn: "ಕುಂಟುತ್ತಿದೆ", ml: "മുടന്ത്", hi: "लंगड़ापन", en: "Limping" } },
+  { id: "diarrhea", icon: "alert-triangle", english: "Diarrhea", labels: { ta: "வயிற்றுப்போக்கு", te: "విరేచనాలు", kn: "ಅತಿಸಾರ", ml: "വയറിളക്കം", hi: "दस्त", en: "Diarrhea" } },
+  { id: "bloating", icon: "circle", english: "Bloating", labels: { ta: "வயிறு வீக்கம்", te: "ఉబ్బరం", kn: "ಉಬ್ಬರ", ml: "വയർ വീക്കം", hi: "पेट फूलना", en: "Bloating" } },
+  { id: "coughing", icon: "wind", english: "Coughing", labels: { ta: "இருமல்", te: "దగ్గు", kn: "ಕೆಮ್ಮು", ml: "ചുമ", hi: "खाँसी", en: "Coughing" } },
+  { id: "eyeDischarge", icon: "eye", english: "Eye Discharge", labels: { ta: "கண் சொறிவு", te: "కంటి స్రావం", kn: "ಕಣ್ಣು ಸ್ರಾವ", ml: "കണ്ണ് ഡിസ്ചാർജ്", hi: "आँख स्राव", en: "Eye Discharge" } },
+  { id: "injury", icon: "scissors", english: "Injury", labels: { ta: "காயம்", te: "గాయం", kn: "ಗಾಯ", ml: "മുറിവ്", hi: "चोट", en: "Injury" } },
+  { id: "inHeat", icon: "heart", english: "In Heat", labels: { ta: "ஈட்டிலிருக்கிறது", te: "వేడిలో ఉంది", kn: "ಉಷ್ಣದಲ್ಲಿದೆ", ml: "ചൂടിലാണ്", hi: "गर्मी में", en: "In Heat" } },
 ];
 
 const EMERGENCY_CONTACTS = [
@@ -48,21 +50,30 @@ const EMERGENCY_CONTACTS = [
 const RISK_COLORS: Record<string, string> = {
   low: "#22c55e", medium: "#f97316", high: "#ef4444", critical: "#dc2626",
 };
-const RISK_LABELS: Record<string, string> = {
-  low: "குறைந்த ஆபத்து", medium: "நடுத்தர ஆபத்து", high: "அதிக ஆபத்து", critical: "அவசர நிலை!",
+
+const RISK_LABELS_MULTI: Record<string, Record<string, string>> = {
+  ta: { low: "குறைந்த ஆபத்து", medium: "நடுத்தர ஆபத்து", high: "அதிக ஆபத்து", critical: "அவசர நிலை!" },
+  te: { low: "తక్కువ ప్రమాదం", medium: "మధ్యస్థ ప్రమాదం", high: "అధిక ప్రమాదం", critical: "అత్యవసరం!" },
+  kn: { low: "ಕಡಿಮೆ ಅಪಾಯ", medium: "ಮಧ್ಯಮ ಅಪಾಯ", high: "ಹೆಚ್ಚಿನ ಅಪಾಯ", critical: "ತುರ್ತು!" },
+  ml: { low: "കുറഞ്ഞ അപകടം", medium: "മധ്യ അപകടം", high: "ഉയർന്ന അപകടം", critical: "അടിയന്തര!" },
+  hi: { low: "कम जोखिम", medium: "मध्यम जोखिम", high: "उच्च जोखिम", critical: "अत्यावश्यक!" },
+  en: { low: "Low Risk", medium: "Moderate Risk", high: "High Risk", critical: "Critical!" },
 };
 
-const SUB_TABS: Array<{ id: HelpSubTab; emoji: string; label: string; labelEn: string }> = [
-  { id: "diagnose", emoji: "🔬", label: "நோய் கண்டறி", labelEn: "Diagnose" },
-  { id: "gauguru", emoji: "🤖", label: "கோ குரு AI", labelEn: "GauGuru AI" },
-  { id: "emergency", emoji: "🚨", label: "அவசரம்", labelEn: "Emergency" },
-];
+const FIRST_AID_MULTI: Record<string, string[]> = {
+  ta: ["மாடு விழுந்தால் — தண்ணீர் தடவி, நிழல் பக்கம் வை, vet அழை", "வீக்கம் — இடது பக்கம் திருப்பி, நடக்க வை, தண்ணீர்", "குட்டி போடும் — தலை வரும்படி சரிபாருங்கள், vet அழை", "பால் காய்ந்தால் — சூடான ஒத்தடம், vet அழை"],
+  te: ["ఆవు పడిపోతే — నీళ్ళు, నీడ, వెంటనే వైద్యుని పిలవండి", "ఉబ్బరం — ఎడమకు తిప్పి, నడిపించి, వైద్యుని పిలవండి", "కష్టమైన ప్రసవం — దూడ స్థానం చూడండి, వైద్యుని పిలవండి", "మాస్టిటిస్ — వేడి కంప్రెస్, తరచుగా పిండండి"],
+  kn: ["ಹಸು ಬಿದ್ದರೆ — ನೀರು, ನೆರಳು, ಪಶು ವೈದ್ಯರನ್ನು ಕರೆಯಿರಿ", "ಉಬ್ಬರ — ಎಡಕ್ಕೆ ತಿರುಗಿ, ನಡೆಸಿ, ವೈದ್ಯರನ್ನು ಕರೆಯಿರಿ", "ಕಷ್ಟಕರ ಹೆರಿಗೆ — ಕರು ಸ್ಥಿತಿ ಪರಿಶೀಲಿಸಿ, ವೈದ್ಯರನ್ನು ಕರೆಯಿರಿ", "ಮಾಸ್ಟಿಟಿಸ್ — ಬಿಸಿ ಸಂಕ್ಷೇಪಣ, ಹಾಲು ಹಿಂಡಿ"],
+  ml: ["പശു വീണാൽ — വെള്ളം, നിഴൽ, ഡോക്ടറെ വിളിക്കൂ", "വയർ വീക്കം — ഇടതുവശം, നടത്തൂ, ഡോക്ടർ", "ബുദ്ധിമുട്ടുള്ള ഈനൽ — കിടാവ് നില പരിശോധിക്കൂ, ഡോക്ടർ", "മാസ്റ്റൈറ്റിസ് — ചൂടൻ കംപ്രസ്, പാൽ കറക്കൂ"],
+  hi: ["गाय गिर जाए — पानी, छाया, तुरंत डॉक्टर बुलाएं", "पेट फूलना — बाईं तरफ घुमाएं, चलाएं, पानी दें", "मुश्किल ब्याह — बछड़े की स्थिति देखें, डॉक्टर बुलाएं", "मास्टाइटिस — गर्म सेक, बार-बार दूध दुहें"],
+  en: ["Cow down — water, shade, call vet immediately", "Bloat — turn left, walk, water, call vet", "Difficult calving — check calf position, call vet", "Mastitis — hot compress, milk frequently, call vet"],
+};
 
 export default function HelpTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { animals } = useApp();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [subTab, setSubTab] = useState<HelpSubTab>("diagnose");
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [selectedAnimalId, setSelectedAnimalId] = useState<string | null>(null);
@@ -74,9 +85,20 @@ export default function HelpTab() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseOpacity = useRef(new Animated.Value(0.5)).current;
 
-  const isTa = language === "ta";
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
+
+  // Small helper for inline multilingual records
+  const lx = (r: Record<string, string>) => r[language] ?? r.en ?? "";
+
+  const SUB_TABS: Array<{ id: HelpSubTab; emoji: string; label: string }> = [
+    { id: "diagnose", emoji: "🔬", label: t.diagnoseTab },
+    { id: "gauguru", emoji: "🤖", label: t.gauguruTab },
+    { id: "emergency", emoji: "🚨", label: t.emergencyTab },
+  ];
+
+  const riskLabels = RISK_LABELS_MULTI[language] ?? RISK_LABELS_MULTI.en!;
+  const firstAidTips = FIRST_AID_MULTI[language] ?? FIRST_AID_MULTI.en!;
 
   useEffect(() => {
     const pulse = Animated.loop(
@@ -103,7 +125,7 @@ export default function HelpTab() {
 
   const handleDiagnose = async () => {
     if (selectedSymptoms.length === 0) {
-      Alert.alert(isTa ? "அறிகுறி தேர்வு" : "Select Symptoms", isTa ? "ஒரு அறிகுறியையாவது தேர்வு செய்யவும்" : "Please select at least one symptom");
+      Alert.alert(t.symptoms, lx({ ta: "ஒரு அறிகுறியையாவது தேர்வு செய்யவும்", te: "కనీసం ఒక లక్షణం ఎంచుకోండి", kn: "ಕನಿಷ್ಠ ಒಂದು ಲಕ್ಷಣ ಆರಿಸಿ", ml: "ഒരു ലക്ഷണമെങ്കിലും തിരഞ്ഞെടുക്കൂ", hi: "कम से कम एक लक्षण चुनें", en: "Please select at least one symptom" }));
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -118,19 +140,20 @@ export default function HelpTab() {
         animalType: selectedAnimal?.type,
       });
       setDiagnosis(result);
-      if (result.tamilAdvice) setTimeout(() => speakTamil(result.tamilAdvice), 500);
+      if (result.tamilAdvice) setTimeout(() => speakDiagnosis(result.tamilAdvice), 500);
     } catch {
-      Alert.alert(isTa ? "நெட்வொர்க் பிழை" : "Error", isTa ? "AI நோயறிதல் கிடைக்கவில்லை" : "Diagnosis unavailable. Check your connection.");
+      Alert.alert(t.error, lx({ ta: "AI நோயறிதல் கிடைக்கவில்லை", te: "AI రోగ నిర్ధారణ అందుబాటులో లేదు", kn: "AI ರೋಗ ನಿರ್ಣಯ ಲಭ್ಯವಿಲ್ಲ", ml: "AI രോഗ നിർണ്ണയം ലഭ്യമല്ല", hi: "AI निदान उपलब्ध नहीं", en: "Diagnosis unavailable. Check connection." }));
     } finally {
       setLoading(false);
     }
   };
 
-  const speakTamil = async (text: string) => {
+  const speakDiagnosis = async (text: string) => {
     try {
       if (await Speech.isSpeakingAsync()) { await Speech.stop(); setIsSpeaking(false); return; }
       setIsSpeaking(true);
-      await Speech.speak(text, { language: "ta-IN", pitch: 1.0, rate: 0.85, onDone: () => setIsSpeaking(false), onError: () => setIsSpeaking(false) });
+      const langCode = language === "ta" ? "ta-IN" : language === "hi" ? "hi-IN" : "en-IN";
+      await Speech.speak(text, { language: langCode, pitch: 1.0, rate: 0.85, onDone: () => setIsSpeaking(false), onError: () => setIsSpeaking(false) });
     } catch { setIsSpeaking(false); }
   };
 
@@ -139,15 +162,14 @@ export default function HelpTab() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <View style={styles.headerTitleRow}>
           <View>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-              {isTa ? "பிரச்சனை & உதவி" : "Help & Advice"}
+              {t.helpTitle}
             </Text>
             <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
-              {isTa ? "AI கால்நடை உதவியாளர்" : "AI Dairy Assistant"}
+              {t.aiDairyAssistant}
             </Text>
           </View>
           {subTab === "emergency" && (
@@ -161,7 +183,6 @@ export default function HelpTab() {
           )}
         </View>
 
-        {/* Sub-tabs */}
         <View style={styles.subTabRow}>
           {SUB_TABS.map((tab) => {
             const active = subTab === tab.id;
@@ -173,7 +194,7 @@ export default function HelpTab() {
               >
                 <Text style={styles.subTabEmoji}>{tab.emoji}</Text>
                 <Text style={[styles.subTabLabel, { color: active ? colors.primary : colors.mutedForeground }]}>
-                  {isTa ? tab.label : tab.labelEn}
+                  {tab.label}
                 </Text>
               </Pressable>
             );
@@ -188,7 +209,6 @@ export default function HelpTab() {
           contentContainerStyle={[styles.content, { paddingBottom: isWeb ? 120 : 100 }]}
           showsVerticalScrollIndicator={false}
         >
-          {/* SOS Button */}
           <View style={styles.sosContainer}>
             <Animated.View style={[styles.sosPulse, { transform: [{ scale: pulseAnim }], opacity: pulseOpacity, backgroundColor: colors.destructive }]} />
             <Pressable
@@ -196,26 +216,25 @@ export default function HelpTab() {
               onPress={() => {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                 Alert.alert(
-                  isTa ? "அவசர உதவி" : "Emergency Help",
-                  isTa ? "கால்நடை மருத்துவர் helpline-ஐ அழைக்கவுமா?" : "Call Vet Helpline 1962?",
+                  lx({ ta: "அவசர உதவி", te: "అత్యవసర సహాయం", kn: "ತುರ್ತು ಸಹಾಯ", ml: "അടിയന്തര സഹായം", hi: "आपातकालीन सहायता", en: "Emergency Help" }),
+                  lx({ ta: "கால்நடை மருத்துவர் helpline-ஐ அழைக்கவுமா?", te: "పశు వైద్య హెల్ప్‌లైన్ పిలవాలా?", kn: "ಪಶು ವೈದ್ಯ ಹೆಲ್ಪ್‌ಲೈನ್ ಕರೆಯಬೇಕೇ?", ml: "വെറ്ററിനറി ഹെൽപ്‌ലൈൻ വിളിക്കണോ?", hi: "पशु चिकित्सक हेल्पलाइन 1962 पर कॉल करें?", en: "Call Vet Helpline 1962?" }),
                   [
-                    { text: isTa ? "ரத்து" : "Cancel", style: "cancel" },
-                    { text: isTa ? "அழை (1962)" : "Call 1962", style: "destructive", onPress: () => Linking.openURL("tel:1962") },
+                    { text: t.cancel, style: "cancel" },
+                    { text: lx({ ta: "அழை (1962)", te: "పిలవండి (1962)", kn: "ಕರೆಯಿರಿ (1962)", ml: "വിളിക്കൂ (1962)", hi: "कॉल करें (1962)", en: "Call 1962" }), style: "destructive", onPress: () => Linking.openURL("tel:1962") },
                   ]
                 );
               }}
             >
               <Feather name="alert-octagon" size={36} color="#fff" />
-              <Text style={styles.sosText}>{isTa ? "ஏதாவது தவறா?" : "Emergency?"}</Text>
-              <Text style={styles.sosSub}>{isTa ? "அழுத்தி அழைக்கவும்" : "Tap to call vet"}</Text>
+              <Text style={styles.sosText}>{t.emergencySosBtn}</Text>
+              <Text style={styles.sosSub}>{t.emergencySosSub}</Text>
             </Pressable>
           </View>
 
-          {/* Animal selector */}
           {cowAnimals.length > 0 && (
             <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                {isTa ? "எந்த மாடு? (விருப்பம்)" : "Which animal? (optional)"}
+                {t.whichAnimal}
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 8 }}>
                 {cowAnimals.map((a) => (
@@ -233,7 +252,7 @@ export default function HelpTab() {
           )}
 
           <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 16 }]}>
-            {isTa ? "அறிகுறிகள் தேர்வு" : "Select Symptoms"}
+            {t.symptoms}
           </Text>
           <View style={styles.symptomsGrid}>
             {SYMPTOMS.map((s) => {
@@ -245,7 +264,9 @@ export default function HelpTab() {
                   onPress={() => toggleSymptom(s.id)}
                 >
                   <Feather name={s.icon as any} size={20} color={selected ? "#fff" : colors.mutedForeground} />
-                  <Text style={[styles.symptomLabel, { color: selected ? "#fff" : colors.foreground }]}>{s.label}</Text>
+                  <Text style={[styles.symptomLabel, { color: selected ? "#fff" : colors.foreground }]}>
+                    {s.labels[language] ?? s.labels.en ?? s.english}
+                  </Text>
                   <Text style={[styles.symptomSub, { color: selected ? "rgba(255,255,255,0.8)" : colors.mutedForeground }]}>{s.english}</Text>
                 </Pressable>
               );
@@ -256,7 +277,7 @@ export default function HelpTab() {
             style={[styles.noteInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
             value={customNote}
             onChangeText={setCustomNote}
-            placeholder={isTa ? "கூடுதல் குறிப்புகள்... (விருப்பம்)" : "Additional notes... (optional)"}
+            placeholder={t.additionalNotes}
             placeholderTextColor={colors.mutedForeground}
             multiline
             numberOfLines={2}
@@ -268,12 +289,12 @@ export default function HelpTab() {
             disabled={selectedSymptoms.length === 0 || loading}
           >
             {loading ? (
-              <Text style={[styles.diagnoseBtnText, { color: "#fff" }]}>{isTa ? "AI பகுப்பாய்கிறது..." : "AI analyzing..."}</Text>
+              <Text style={[styles.diagnoseBtnText, { color: "#fff" }]}>{t.diagnosing}</Text>
             ) : (
               <>
                 <Feather name="cpu" size={18} color={selectedSymptoms.length > 0 ? "#fff" : colors.mutedForeground} />
                 <Text style={[styles.diagnoseBtnText, { color: selectedSymptoms.length > 0 ? "#fff" : colors.mutedForeground }]}>
-                  {isTa ? "AI ஆலோசனை பெறவும்" : "Get AI Diagnosis"}
+                  {t.diagnose}
                 </Text>
               </>
             )}
@@ -283,28 +304,32 @@ export default function HelpTab() {
             <View style={[styles.diagnosisCard, { backgroundColor: colors.card, borderColor: riskColor, borderLeftWidth: 5 }]}>
               <View style={[styles.diagnosisHeader, { borderBottomColor: colors.border }]}>
                 <View style={[styles.riskBadge, { backgroundColor: riskColor }]}>
-                  <Text style={styles.riskText}>{RISK_LABELS[diagnosis.riskLevel] ?? diagnosis.riskLevel}</Text>
+                  <Text style={styles.riskText}>{riskLabels[diagnosis.riskLevel] ?? diagnosis.riskLevel}</Text>
                 </View>
                 <Pressable
                   style={[styles.speakBtn, { backgroundColor: isSpeaking ? colors.primary : colors.muted, borderColor: colors.border }]}
-                  onPress={() => speakTamil(diagnosis.tamilAdvice)}
+                  onPress={() => speakDiagnosis(diagnosis.tamilAdvice)}
                 >
                   <Feather name={isSpeaking ? "volume-x" : "volume-2"} size={16} color={isSpeaking ? "#fff" : colors.primary} />
                   <Text style={[styles.speakBtnText, { color: isSpeaking ? "#fff" : colors.primary }]}>
-                    {isSpeaking ? (isTa ? "நிறுத்து" : "Stop") : (isTa ? "கேளு" : "Listen")}
+                    {isSpeaking ? t.stop : t.speak}
                   </Text>
                 </Pressable>
               </View>
               <Text style={[styles.diagnosisTamil, { color: colors.foreground }]}>{diagnosis.tamilAdvice}</Text>
               {diagnosis.possibleCauses.length > 0 && (
                 <View style={styles.causeBlock}>
-                  <Text style={[styles.causeTitle, { color: colors.mutedForeground }]}>{isTa ? "சாத்தியமான காரணங்கள்:" : "Possible causes:"}</Text>
+                  <Text style={[styles.causeTitle, { color: colors.mutedForeground }]}>
+                    {lx({ ta: "சாத்தியமான காரணங்கள்:", te: "సాధ్యమయ్యే కారణాలు:", kn: "ಸಾಧ್ಯ ಕಾರಣಗಳು:", ml: "സാദ്ധ്യ കാരണങ്ങൾ:", hi: "संभावित कारण:", en: "Possible causes:" })}
+                  </Text>
                   {diagnosis.possibleCauses.map((c, i) => <Text key={i} style={[styles.causeItem, { color: colors.foreground }]}>• {c}</Text>)}
                 </View>
               )}
               {diagnosis.immediateActions.length > 0 && (
                 <View style={[styles.causeBlock, { backgroundColor: colors.muted, borderRadius: 10, padding: 10 }]}>
-                  <Text style={[styles.causeTitle, { color: colors.primary }]}>{isTa ? "உடனடி நடவடிக்கை:" : "Immediate actions:"}</Text>
+                  <Text style={[styles.causeTitle, { color: colors.primary }]}>
+                    {lx({ ta: "உடனடி நடவடிக்கை:", te: "తక్షణ చర్యలు:", kn: "ತಕ್ಷಣ ಕ್ರಮ:", ml: "ഉടൻ നടപടി:", hi: "तुरंत कदम:", en: "Immediate actions:" })}
+                  </Text>
                   {diagnosis.immediateActions.map((a, i) => <Text key={i} style={[styles.causeItem, { color: colors.foreground }]}>{i + 1}. {a}</Text>)}
                 </View>
               )}
@@ -327,7 +352,7 @@ export default function HelpTab() {
                   onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); Linking.openURL("tel:1962"); }}
                 >
                   <Feather name="phone" size={18} color="#fff" />
-                  <Text style={styles.callVetText}>{isTa ? "உடனே மருத்துவர் அழைக்கவும் — 1962" : "Call Vet Now — 1962"}</Text>
+                  <Text style={styles.callVetText}>{t.callVet} — 1962</Text>
                 </Pressable>
               )}
             </View>
@@ -348,13 +373,13 @@ export default function HelpTab() {
               onPress={() => Linking.openURL("tel:1962")}
             >
               <Feather name="alert-octagon" size={36} color="#fff" />
-              <Text style={styles.sosText}>{isTa ? "உடனே அழை!" : "Call Now!"}</Text>
+              <Text style={styles.sosText}>{t.callNow}</Text>
               <Text style={[styles.sosSub, { fontSize: 18, fontWeight: "700", color: "#fff" }]}>1962</Text>
             </Pressable>
           </View>
 
           <Text style={[styles.sectionTitle, { color: "#1a2e05", marginTop: 8, marginBottom: 12 }]}>
-            {isTa ? "📞 அவசர தொடர்பு" : "📞 Emergency Contacts"}
+            {lx({ ta: "📞 அவசர தொடர்பு", te: "📞 అత్యవసర సంప్రదింపులు", kn: "📞 ತುರ್ತು ಸಂಪರ್ಕಗಳು", ml: "📞 അടിയന്തര ബന്ധ", hi: "📞 आपातकालीन संपर्क", en: "📞 Emergency Contacts" })}
           </Text>
           {EMERGENCY_CONTACTS.map((c) => (
             <Pressable
@@ -372,20 +397,16 @@ export default function HelpTab() {
               </View>
               <View style={styles.callBadge}>
                 <Feather name="phone-outgoing" size={14} color="#dc2626" />
-                <Text style={styles.callBadgeText}>{isTa ? "அழை" : "Call"}</Text>
+                <Text style={styles.callBadgeText}>
+                  {lx({ ta: "அழை", te: "పిలవండి", kn: "ಕರೆಯಿರಿ", ml: "വിളിക്കൂ", hi: "कॉल", en: "Call" })}
+                </Text>
               </View>
             </Pressable>
           ))}
 
-          {/* First Aid Tips */}
           <View style={styles.firstAidCard}>
-            <Text style={styles.firstAidTitle}>🩺 {isTa ? "முதல் உதவி குறிப்புகள்" : "First Aid Tips"}</Text>
-            {[
-              isTa ? "மாடு விழுந்தால் — தண்ணீர் தடவி, நிழல் பக்கம் வை, vet அழை" : "Cow down — water, shade, call vet immediately",
-              isTa ? "வீக்கம் — இடது பக்கம் திருப்பி, நடக்க வை, தண்ணீர் குடிக்க வைக்கவும்" : "Bloat — turn left, walk, water, call vet",
-              isTa ? "குட்டி போடும் — தலை வரும்படி சரிபாருங்கள், vet அழைக்கவும்" : "Difficult calving — check calf position, call vet",
-              isTa ? "பால் காய்ந்தால் — சூடான ஒத்தடம் கொடு, vet அழை" : "Mastitis — hot compress, milk frequently, call vet",
-            ].map((tip, i) => (
+            <Text style={styles.firstAidTitle}>🩺 {t.firstAidTips}</Text>
+            {firstAidTips.map((tip, i) => (
               <View key={i} style={styles.firstAidTip}>
                 <Text style={styles.firstAidNum}>{i + 1}</Text>
                 <Text style={styles.firstAidText}>{tip}</Text>

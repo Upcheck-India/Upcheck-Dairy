@@ -25,31 +25,30 @@ import { useColors } from "@/hooks/useColors";
 
 type SubTab = "herd" | "breeding" | "vaccines";
 
-const FILTER_OPTIONS = [
-  { key: "all", label: "அனைத்தும்" },
-  { key: "cow", label: "பசு 🐄" },
-  { key: "buffalo", label: "எருமை 🐃" },
-  { key: "healthy", label: "ஆரோக்கியம்" },
-  { key: "attention", label: "கவனிக்கவும்" },
-  { key: "critical", label: "அவசரம்" },
-];
-
 export default function AnimalsTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { animals, milkAnomalies, syncStatus, vaccinations, breedingEvents } = useApp();
   const { farmer } = useFarmer();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [subTab, setSubTab] = useState<SubTab>("herd");
   const [addVisible, setAddVisible] = useState(false);
   const [milkAnimal, setMilkAnimal] = useState<Animal | null>(null);
   const [filter, setFilter] = useState("all");
   const [celebration, setCelebration] = useState(false);
 
-  const isTa = language === "ta";
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
   const bottomPad = isWeb ? 34 : 0;
+
+  const FILTER_OPTIONS = [
+    { key: "all", label: t.filterAll },
+    { key: "cow", label: t.filterCow },
+    { key: "buffalo", label: t.filterBuffalo },
+    { key: "healthy", label: t.filterHealthy },
+    { key: "attention", label: t.filterAttention },
+    { key: "critical", label: t.filterCritical },
+  ];
 
   const filtered = animals.filter((a) => {
     if (filter === "all") return true;
@@ -64,9 +63,12 @@ export default function AnimalsTab() {
   const syncDot =
     syncStatus === "synced" ? "#22c55e" : syncStatus === "pending" ? "#f97316" : "#ef4444";
   const syncLabel =
-    syncStatus === "synced" ? "✓ சேமிக்கப்பட்டது" : syncStatus === "pending" ? "⏳ சேமிக்கிறது" : "⚠ offline";
+    syncStatus === "synced"
+      ? `✓ ${t.savedLabel}`
+      : syncStatus === "pending"
+      ? `⏳ ${t.savingLabel}`
+      : "⚠ offline";
 
-  // Badge counts
   const upcomingVaxCount = vaccinations.filter((v) => {
     if (v.administeredDate) return false;
     const days = Math.floor((new Date(v.scheduledDate).getTime() - Date.now()) / 86400000);
@@ -82,15 +84,14 @@ export default function AnimalsTab() {
     return days >= 18 && days <= 24;
   }).length;
 
-  const SUB_TABS: Array<{ id: SubTab; emoji: string; label: string; labelEn: string; badge?: number }> = [
-    { id: "herd", emoji: "🐄", label: "மந்தை", labelEn: "Herd" },
-    { id: "breeding", emoji: "💕", label: "இனப்பெருக்கம்", labelEn: "Breeding", badge: breedingAlertCount },
-    { id: "vaccines", emoji: "💉", label: "தடுப்பூசி", labelEn: "Vaccines", badge: upcomingVaxCount },
+  const SUB_TABS: Array<{ id: SubTab; emoji: string; label: string; badge?: number }> = [
+    { id: "herd", emoji: "🐄", label: t.herdTab },
+    { id: "breeding", emoji: "💕", label: t.breedingTab, badge: breedingAlertCount },
+    { id: "vaccines", emoji: "💉", label: t.vaccinesTab, badge: upcomingVaxCount },
   ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
       <View
         style={[
           styles.header,
@@ -104,10 +105,10 @@ export default function AnimalsTab() {
         <View style={styles.headerRow}>
           <View>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-              {isTa ? "என் மாடுகள்" : "My Animals"}
+              {t.myAnimalsTitle}
             </Text>
             <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
-              {animals.length} {isTa ? "மாடுகள்" : "animals"}
+              {animals.length} {t.animalsCountSuffix}
             </Text>
           </View>
           <View style={styles.headerRight}>
@@ -140,7 +141,6 @@ export default function AnimalsTab() {
           </View>
         </View>
 
-        {/* Sub-tabs */}
         <View style={styles.subTabRow}>
           {SUB_TABS.map((tab) => {
             const active = subTab === tab.id;
@@ -155,7 +155,7 @@ export default function AnimalsTab() {
               >
                 <Text style={styles.subTabEmoji}>{tab.emoji}</Text>
                 <Text style={[styles.subTabLabel, { color: active ? colors.primary : colors.mutedForeground }]}>
-                  {isTa ? tab.label : tab.labelEn}
+                  {tab.label}
                 </Text>
                 {tab.badge != null && tab.badge > 0 && (
                   <View style={styles.badge}>
@@ -167,7 +167,6 @@ export default function AnimalsTab() {
           })}
         </View>
 
-        {/* Filter pills (only on Herd tab) */}
         {subTab === "herd" && (
           <ScrollView
             horizontal
@@ -196,7 +195,6 @@ export default function AnimalsTab() {
         )}
       </View>
 
-      {/* Content */}
       {subTab === "herd" && (
         <ScrollView
           style={{ flex: 1 }}
@@ -224,12 +222,10 @@ export default function AnimalsTab() {
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.anomalyTitle, { color: anomaly.severity === "critical" ? "#dc2626" : "#c2410c" }]}>
-                      {anomaly.animalName} — {isTa ? `பால் ${anomaly.dropPercent}% குறைந்தது` : `Milk down ${anomaly.dropPercent}%`}
+                      {anomaly.animalName} — {t.milkDropAlert}: {anomaly.dropPercent}% {t.milkDropSuffix}
                     </Text>
                     <Text style={styles.anomalySub}>
-                      {isTa
-                        ? `இன்று: ${anomaly.todayTotal.toFixed(1)}L • சராசரி: ${anomaly.avgTotal.toFixed(1)}L`
-                        : `Today: ${anomaly.todayTotal.toFixed(1)}L • Avg: ${anomaly.avgTotal.toFixed(1)}L`}
+                      {t.todayPrefix} {anomaly.todayTotal.toFixed(1)}L • {t.avgPrefix} {anomaly.avgTotal.toFixed(1)}L
                     </Text>
                   </View>
                   <Feather name="chevron-right" size={14} color="#94a3b8" />
@@ -242,10 +238,10 @@ export default function AnimalsTab() {
             <View style={styles.empty}>
               <Feather name="grid" size={48} color={colors.border} />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                {isTa ? "மாடுகள் இல்லை" : "No Animals"}
+                {t.noAnimals}
               </Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                {isTa ? "+ பொத்தானை அழுத்தி மாடு சேர்க்கவும்" : "Tap + to add your first animal"}
+                {t.noAnimalsHint}
               </Text>
             </View>
           ) : (
@@ -276,7 +272,7 @@ export default function AnimalsTab() {
       />
       <CelebrationOverlay
         visible={celebration}
-        message="Milk logged!"
+        message={t.milkLogSuccess}
         messageTamil="பால் பதிவு ஆனது!"
         onHide={() => setCelebration(false)}
       />

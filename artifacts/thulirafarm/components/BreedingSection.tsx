@@ -5,13 +5,42 @@ import { useApp, BreedingEventType } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import BreedingEventModal from "./BreedingEventModal";
 
-const EVENT_CONFIG: Record<BreedingEventType, { emoji: string; color: string; label: string; labelTa: string }> = {
-  heat: { emoji: "🌡️", color: "#f97316", label: "In Heat", labelTa: "ஈட்டு" },
-  insemination: { emoji: "💉", color: "#0284c7", label: "Inseminated", labelTa: "AI கலப்பு" },
-  pregnancy_confirmed: { emoji: "🤰", color: "#7c3aed", label: "Pregnant", labelTa: "கர்ப்பம்" },
-  dry_off: { emoji: "🛑", color: "#9ca3af", label: "Dry Off", labelTa: "கறவை நிறுத்தல்" },
-  calving: { emoji: "🐄", color: "#16a34a", label: "Calved", labelTa: "குட்டி போட்டது" },
-  abort: { emoji: "⚠️", color: "#dc2626", label: "Abortion", labelTa: "கருச்சிதைவு" },
+type EventConfig = {
+  emoji: string;
+  color: string;
+  label: Record<string, string>;
+};
+
+const EVENT_CONFIG: Record<BreedingEventType, EventConfig> = {
+  heat: {
+    emoji: "🌡️", color: "#f97316",
+    label: { ta: "ஈட்டு", te: "వేడి", kn: "ಉಷ್ಣ", ml: "ചൂട്", hi: "गर्मी", en: "In Heat" },
+  },
+  insemination: {
+    emoji: "💉", color: "#0284c7",
+    label: { ta: "AI கலப்பு", te: "గర్భధారణ", kn: "ಗರ್ಭಧಾರಣೆ", ml: "ഗർഭധാരണം", hi: "गर्भाधान", en: "Inseminated" },
+  },
+  pregnancy_confirmed: {
+    emoji: "🤰", color: "#7c3aed",
+    label: { ta: "கர்ப்பம்", te: "గర్భం ధృవీకరణ", kn: "ಗರ್ಭ ದೃಢೀಕರಣ", ml: "ഗർഭം സ്ഥിരീകരണം", hi: "गर्भ पुष्टि", en: "Pregnant" },
+  },
+  dry_off: {
+    emoji: "🛑", color: "#9ca3af",
+    label: { ta: "கறவை நிறுத்தல்", te: "పాలు ఆపడం", kn: "ಹಾಲು ನಿಲ್ಲಿಸಲು", ml: "പാൽ നിർത്തൽ", hi: "दूध बंद", en: "Dry Off" },
+  },
+  calving: {
+    emoji: "🐄", color: "#16a34a",
+    label: { ta: "குட்டி போட்டது", te: "లేగ దూడ పుట்టింది", kn: "ಕರು ಹಾಕಿದೆ", ml: "കിടാവ് ജനിച்ചു", hi: "बच्चा हुआ", en: "Calved" },
+  },
+  abort: {
+    emoji: "⚠️", color: "#dc2626",
+    label: { ta: "கருச்சிதைவு", te: "గర్భస్రావం", kn: "ಗರ್ಭಪಾತ", ml: "ഗർഭഛിദ്രം", hi: "गर्भपात", en: "Abortion" },
+  },
+};
+
+const CALVING_GENDER: Record<string, Record<string, string>> = {
+  male: { ta: "ஆண் கன்று", te: "మగ దూడ", kn: "ಗಂಡು ಕರು", ml: "ആൺ കിടാവ്", hi: "नर बछड़ा", en: "Male calf" },
+  female: { ta: "பெண் கன்று", te: "ఆడ దూడ", kn: "ಹೆಣ್ಣು ಕರು", ml: "പെൺ കിടാവ്", hi: "मादा बछड़ा", en: "Female calf" },
 };
 
 function daysSince(dateStr: string): number {
@@ -24,10 +53,9 @@ function daysUntil(dateStr: string): number {
 
 export default function BreedingSection() {
   const { animals, breedingEvents } = useApp();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedAnimalId, setSelectedAnimalId] = useState<string | undefined>();
-  const isTa = language === "ta";
 
   const adultAnimals = animals.filter((a) => a.type !== "calf");
 
@@ -39,25 +67,23 @@ export default function BreedingSection() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>{isTa ? "இனப்பெருக்க நிர்வாகம்" : "Reproductive Management"}</Text>
+        <Text style={styles.sectionTitle}>{t.breedingMgmt}</Text>
         <Pressable style={styles.addBtn} onPress={() => { setSelectedAnimalId(undefined); setModalVisible(true); }}>
           <Feather name="plus" size={16} color="#fff" />
-          <Text style={styles.addBtnText}>{isTa ? "நிகழ்வு" : "Log Event"}</Text>
+          <Text style={styles.addBtnText}>{t.logEvent}</Text>
         </Pressable>
       </View>
 
       {adultAnimals.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>💕</Text>
-          <Text style={styles.emptyText}>{isTa ? "மாடுகள் சேர்க்கவும்" : "Add animals to track breeding"}</Text>
+          <Text style={styles.emptyText}>{t.addAnimalsFirst}</Text>
         </View>
       ) : (
         adultAnimals.map((animal) => {
           const events = breedingEvents
             .filter((e) => e.animalId === animal.id)
             .sort((a, b) => b.date.localeCompare(a.date));
-          const lastEvent = events[0];
-          const lastCfg = lastEvent ? EVENT_CONFIG[lastEvent.eventType] : null;
 
           return (
             <View key={animal.id} style={styles.animalCard}>
@@ -72,7 +98,7 @@ export default function BreedingSection() {
                 <View style={styles.animalRightSection}>
                   {animal.isPregnant && (
                     <View style={styles.pregnantBadge}>
-                      <Text style={styles.pregnantText}>🤰 {isTa ? "கர்ப்பம்" : "Pregnant"}</Text>
+                      <Text style={styles.pregnantText}>🤰 {t.pregnantLabel}</Text>
                     </View>
                   )}
                   {animal.lactationNumber != null && (
@@ -87,16 +113,16 @@ export default function BreedingSection() {
               {animal.expectedCalvingDate && (
                 <View style={styles.calvingAlert}>
                   <Text style={styles.calvingAlertText}>
-                    🐣 {isTa ? "குட்டி தேதி:" : "Expected calving:"} {animal.expectedCalvingDate}
+                    🐣 {t.calvingExpected} {animal.expectedCalvingDate}
                     {daysUntil(animal.expectedCalvingDate) >= 0
-                      ? ` (${daysUntil(animal.expectedCalvingDate)} ${isTa ? "நாட்கள்" : "days"})`
-                      : ` (${isTa ? "கடந்தது" : "overdue"})`}
+                      ? ` (${daysUntil(animal.expectedCalvingDate)} ${t.daysLabel})`
+                      : ` (${t.overdueLabel})`}
                   </Text>
                 </View>
               )}
 
               {events.length === 0 ? (
-                <Text style={styles.noEventsText}>{isTa ? "பதிவு இல்லை" : "No events recorded"}</Text>
+                <Text style={styles.noEventsText}>{t.noEvents}</Text>
               ) : (
                 <View style={styles.timeline}>
                   {events.slice(0, 4).map((event, i) => {
@@ -108,10 +134,14 @@ export default function BreedingSection() {
                         </View>
                         {i < events.slice(0, 4).length - 1 && <View style={styles.timelineLine} />}
                         <View style={styles.timelineContent}>
-                          <Text style={styles.timelineEventName}>{isTa ? cfg.labelTa : cfg.label}</Text>
-                          <Text style={styles.timelineDate}>{event.date} · {daysSince(event.date)}{isTa ? " நாட்கள் முன்" : "d ago"}</Text>
+                          <Text style={styles.timelineEventName}>{cfg.label[language] ?? cfg.label.en}</Text>
+                          <Text style={styles.timelineDate}>{event.date} · {daysSince(event.date)}{t.daysAgoSuffix}</Text>
                           {event.bullName && <Text style={styles.timelineNote}>🐂 {event.bullName}</Text>}
-                          {event.calvingGender && <Text style={styles.timelineNote}>👶 {event.calvingGender === "male" ? (isTa ? "ஆண் கன்று" : "Male calf") : (isTa ? "பெண் கன்று" : "Female calf")}</Text>}
+                          {event.calvingGender && (
+                            <Text style={styles.timelineNote}>
+                              👶 {CALVING_GENDER[event.calvingGender]?.[language] ?? CALVING_GENDER[event.calvingGender]?.en}
+                            </Text>
+                          )}
                           {event.note && <Text style={styles.timelineNote}>📝 {event.note}</Text>}
                         </View>
                       </View>

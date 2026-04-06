@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import VaccinationModal from "./VaccinationModal";
@@ -11,12 +11,9 @@ function daysUntil(dateStr: string): number {
 
 export default function VaccinationSection() {
   const { animals, vaccinations, markVaccinationDone, deleteVaccination } = useApp();
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   const [modalVisible, setModalVisible] = useState(false);
   const [preselectedId, setPreselectedId] = useState<string | undefined>();
-  const [markingId, setMarkingId] = useState<string | null>(null);
-  const [batchInput, setBatchInput] = useState("");
-  const isTa = language === "ta";
 
   const upcoming = vaccinations
     .filter((v) => !v.administeredDate)
@@ -29,12 +26,12 @@ export default function VaccinationSection() {
 
   const handleMarkDone = (id: string) => {
     Alert.alert(
-      isTa ? "தடுப்பூசி போட்டாயிற்றா?" : "Mark as Administered?",
-      isTa ? "இன்று தடுப்பூசி போடப்பட்டதாக பதிவு செய்யவும்?" : "Record as given today?",
+      t.vaccineMarkTitle,
+      t.vaccineMarkBody,
       [
-        { text: isTa ? "ரத்து" : "Cancel", style: "cancel" },
+        { text: t.cancel, style: "cancel" },
         {
-          text: isTa ? "ஆம்" : "Yes",
+          text: t.yes,
           onPress: () => {
             const today = new Date().toISOString().split("T")[0]!;
             markVaccinationDone(id, today);
@@ -54,28 +51,27 @@ export default function VaccinationSection() {
 
   const getStatusLabel = (scheduledDate: string) => {
     const days = daysUntil(scheduledDate);
-    if (days < 0) return isTa ? `${-days} நாட்கள் கடந்தது` : `${-days}d overdue`;
-    if (days === 0) return isTa ? "இன்று" : "Today!";
-    return isTa ? `${days} நாட்களில்` : `In ${days} days`;
+    if (days < 0) return `${-days} ${t.daysLabel} ${t.overdueLabel}`;
+    if (days === 0) return t.today + "!";
+    return `${days} ${t.daysLabel}`;
   };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>{isTa ? "தடுப்பூசி அட்டவணை" : "Vaccination Schedule"}</Text>
+        <Text style={styles.sectionTitle}>{t.vaccinationSchedule}</Text>
         <Pressable style={styles.addBtn} onPress={() => { setPreselectedId(undefined); setModalVisible(true); }}>
           <Feather name="plus" size={16} color="#fff" />
-          <Text style={styles.addBtnText}>{isTa ? "சேர்" : "Add"}</Text>
+          <Text style={styles.addBtnText}>{t.addAnimal}</Text>
         </Pressable>
       </View>
 
-      {/* Upcoming */}
-      <Text style={styles.subHeading}>{isTa ? "⏰ வரவிருக்கும் / கடந்த தடுப்பூசி" : "⏰ Upcoming / Overdue"}</Text>
+      <Text style={styles.subHeading}>{t.upcomingOverdue}</Text>
       {upcoming.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>{isTa ? "தடுப்பூசி பதிவு இல்லை" : "No upcoming vaccinations"}</Text>
+          <Text style={styles.emptyText}>{t.noUpcomingVaccines}</Text>
           <Pressable style={styles.scheduleBtn} onPress={() => setModalVisible(true)}>
-            <Text style={styles.scheduleBtnText}>{isTa ? "+ தடுப்பூசி திட்டமிடுங்கள்" : "+ Schedule a Vaccination"}</Text>
+            <Text style={styles.scheduleBtnText}>{t.scheduleVaccineBtn}</Text>
           </Pressable>
         </View>
       ) : (
@@ -83,7 +79,6 @@ export default function VaccinationSection() {
           const animal = animals.find((a) => a.id === vax.animalId);
           if (!animal) return null;
           const color = getStatusColor(vax.scheduledDate);
-          const days = daysUntil(vax.scheduledDate);
           return (
             <View key={vax.id} style={[styles.vaxCard, { borderLeftColor: color }]}>
               <View style={styles.vaxRow}>
@@ -92,18 +87,15 @@ export default function VaccinationSection() {
                   <View>
                     <Text style={styles.vaxAnimalName}>{animal.name}</Text>
                     <Text style={styles.vaxName}>{vax.vaccineName}</Text>
-                    <Text style={styles.vaxDate}>{isTa ? "திட்டமிட்ட தேதி:" : "Scheduled:"} {vax.scheduledDate}</Text>
+                    <Text style={styles.vaxDate}>{t.scheduledDateLabel} {vax.scheduledDate}</Text>
                   </View>
                 </View>
                 <View style={styles.vaxRight}>
                   <Text style={[styles.statusLabel, { color }]}>{getStatusLabel(vax.scheduledDate)}</Text>
                   <View style={styles.vaxActions}>
-                    <Pressable
-                      style={styles.doneBtn}
-                      onPress={() => handleMarkDone(vax.id)}
-                    >
+                    <Pressable style={styles.doneBtn} onPress={() => handleMarkDone(vax.id)}>
                       <Feather name="check" size={14} color="#16a34a" />
-                      <Text style={styles.doneBtnText}>{isTa ? "போட்டாயிற்று" : "Done"}</Text>
+                      <Text style={styles.doneBtnText}>{t.markDoneBtn}</Text>
                     </Pressable>
                     <Pressable onPress={() => deleteVaccination(vax.id)} style={styles.deleteBtn}>
                       <Feather name="trash-2" size={14} color="#dc2626" />
@@ -112,19 +104,16 @@ export default function VaccinationSection() {
                 </View>
               </View>
               {vax.nextDueDate && (
-                <Text style={styles.nextDue}>
-                  🔁 {isTa ? `அடுத்து: ${vax.nextDueDate}` : `Next due: ${vax.nextDueDate}`}
-                </Text>
+                <Text style={styles.nextDue}>🔁 {t.nextDueLabel} {vax.nextDueDate}</Text>
               )}
             </View>
           );
         })
       )}
 
-      {/* Recent */}
       {recent.length > 0 && (
         <>
-          <Text style={[styles.subHeading, { marginTop: 20 }]}>{isTa ? "✅ சமீபத்தில் போட்டவை" : "✅ Recently Administered"}</Text>
+          <Text style={[styles.subHeading, { marginTop: 20 }]}>{t.recentlyAdministered}</Text>
           {recent.map((vax) => {
             const animal = animals.find((a) => a.id === vax.animalId);
             if (!animal) return null;
@@ -136,13 +125,11 @@ export default function VaccinationSection() {
                     <View>
                       <Text style={styles.vaxAnimalName}>{animal.name}</Text>
                       <Text style={styles.vaxName}>{vax.vaccineName}</Text>
-                      <Text style={styles.vaxDate}>{isTa ? "போட்ட தேதி:" : "Given:"} {vax.administeredDate}</Text>
-                      {vax.nextDueDate && <Text style={styles.nextDue}>🔁 {isTa ? "அடுத்து:" : "Next:"} {vax.nextDueDate}</Text>}
+                      <Text style={styles.vaxDate}>{t.givenDateLabel} {vax.administeredDate}</Text>
+                      {vax.nextDueDate && <Text style={styles.nextDue}>🔁 {t.nextDueLabel} {vax.nextDueDate}</Text>}
                     </View>
                   </View>
-                  {vax.cost != null && (
-                    <Text style={styles.costBadge}>₹{vax.cost}</Text>
-                  )}
+                  {vax.cost != null && <Text style={styles.costBadge}>₹{vax.cost}</Text>}
                 </View>
               </View>
             );
@@ -176,9 +163,7 @@ const styles = StyleSheet.create({
     alignItems: "center", gap: 12, marginBottom: 12,
   },
   emptyText: { fontSize: 14, color: "#9ca3af" },
-  scheduleBtn: {
-    backgroundColor: "#dbeafe", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8,
-  },
+  scheduleBtn: { backgroundColor: "#dbeafe", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 },
   scheduleBtnText: { color: "#0284c7", fontWeight: "700", fontSize: 13 },
   vaxCard: {
     backgroundColor: "#fff", borderRadius: 14, padding: 12, marginBottom: 8,
