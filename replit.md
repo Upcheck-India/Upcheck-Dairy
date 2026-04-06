@@ -19,26 +19,37 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 ## Artifacts
 
 ### ThulirFarm (`artifacts/thulirafarm`)
-- **Type**: Expo React Native mobile app
+- **Type**: Expo React Native mobile app (Expo SDK 54)
 - **Preview Path**: `/`
-- **Description**: Voice-first, Tamil-bilingual dairy farm management app for Indian farmers
-- **Tech**: Expo Router, React Native, AsyncStorage, @tanstack/react-query
-- **Features**:
-  - 4-tab navigation: My Animals (என் மாடுகள்), Problems & Help (உதவி), Money (பணம்), Today (இன்று)
-  - Central floating microphone button for voice commands
-  - Animal profiles (cows/buffaloes/calves) with health status tracking
-  - Milk logging with morning/evening sessions, fat% tracking
-  - 7-day milk trend bar chart per animal
-  - Symptom-based diagnosis with Tamil/English advice
-  - Emergency contact quick-dial (1962 vet helpline)
-  - Financial tracking: income with expected vs received reconciliation, expenses by category
-  - Daily task system with morning/evening context awareness
-  - Celebration confetti overlay on milking success & all-tasks-done
-  - Earth green color palette (#2E7D32 primary) with 56px+ touch targets
-  - Tamil/English bilingual UI throughout
+- **Description**: Voice-first, Tamil-bilingual dairy farm management app for Indian dairy farmers
+- **Tech**: Expo Router, React Native, AsyncStorage, expo-speech, expo-av, expo-notifications, expo-image-picker, react-native-svg
+
+### Features
+- **4-tab navigation**: Animals (என் மாடுகள்), Help (பிரச்சனை & உதவி), Money (பணம்), Today (இன்று)
+- **Central voice mic button** (VoiceModal) — records audio via expo-av → OpenAI Whisper STT → GPT command parser → executes action (milk log, health report, expense entry, navigation)
+- **Animal management**: CRUD with health status, breed, tag#, photo capture via camera/gallery (expo-image-picker)
+- **Milk anomaly detection**: 3-day rolling average, 15% = attention, 30% = critical — banner alerts on Animals tab
+- **Quick health action buttons** on each AnimalCard (Fever, Not Eating, Injury, In Heat)
+- **AI veterinary diagnosis** on Help tab — symptom multi-select → POST /api/farm/diagnose (GPT) → Tamil TTS via expo-speech
+- **Pulsing SOS button** (Animated.loop) on Help tab — emergency call to 1962 vet helpline
+- **7-day financial bar chart** (react-native-svg) on Money tab — income (green) vs expense (red)
+- **Income discrepancy detection** — expected vs received reconciliation with alerts
+- **Expense category breakdown** with percentage bars
+- **Daily task auto-generation** — morning & evening milking, feed, clean, record income
+- **Progress bar** on Today tab with celebration overlay on 100% completion
+- **Push notifications** via expo-notifications — daily reminders at 5:30 AM & 4:00 PM (iOS/Android only)
+- **Sync status indicator** — synced/pending/offline badge
+- **Earth-green palette** (#16a34a primary, #fefce8 background, #d97706 accent)
+- **56px+ touch targets** throughout
+- **Tamil/English bilingual UI** — all labels, greetings, status in Tamil first
+- **AsyncStorage persistence** for all data
 
 ### API Server (`artifacts/api-server`)
 - Express 5 backend serving `/api`
+- **POST /api/farm/diagnose** — GPT-5.2 veterinary diagnosis from symptoms array
+- **POST /api/farm/voice-command** — GPT-5.2 NLP command parser for Tamil/English voice commands
+- **POST /api/farm/transcribe** — OpenAI Whisper audio transcription (multipart/form-data via multer)
+- **AI Integration**: `@workspace/integrations-openai-ai-server` (Replit AI Integrations proxy)
 
 ### Canvas / Mockup Sandbox (`artifacts/mockup-sandbox`)
 - Design mockup sandbox serving `/__mockup`

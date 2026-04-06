@@ -79,6 +79,16 @@ export interface Task {
   date: string;
   animalId?: string;
   type: "milk" | "feed" | "health" | "clean" | "other";
+  priority: "low" | "normal" | "high" | "critical";
+}
+
+export interface MilkAnomaly {
+  animalId: string;
+  animalName: string;
+  dropPercent: number;
+  todayTotal: number;
+  avgTotal: number;
+  severity: "attention" | "critical";
 }
 
 interface AppContextType {
@@ -88,6 +98,8 @@ interface AppContextType {
   incomeEntries: IncomeEntry[];
   expenseEntries: ExpenseEntry[];
   tasks: Task[];
+  milkAnomalies: MilkAnomaly[];
+  syncStatus: "synced" | "pending" | "offline";
   addAnimal: (animal: Animal) => void;
   updateAnimal: (animal: Animal) => void;
   deleteAnimal: (id: string) => void;
@@ -101,6 +113,8 @@ interface AppContextType {
   getTodayIncome: () => number;
   getTodayExpenses: () => number;
   getAnimalMilkTrend: (animalId: string) => number[];
+  get7DayFinancials: () => Array<{ date: string; income: number; expense: number }>;
+  updateAnimalHealthStatus: (animalId: string, status: HealthStatus) => void;
   isLoaded: boolean;
 }
 
@@ -115,12 +129,61 @@ const STORAGE_KEYS = {
   TASKS: "thulirafarm_tasks",
 };
 
-function generateId(): string {
+export function generateId(): string {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
 }
 
-function getTodayString(): string {
+export function getTodayString(): string {
   return new Date().toISOString().split("T")[0];
+}
+
+function computeAnomalies(animals: Animal[], milkEntries: MilkEntry[]): MilkAnomaly[] {
+  const today = getTodayString();
+  const anomalies: MilkAnomaly[] = [];
+
+  for (const animal of animals) {
+    if (animal.type === "calf") continue;
+
+    const todayMilk = milkEntries
+      .filter((e) => e.animalId === animal.id && e.date === today)
+      .reduce((s, e) => s + e.quantity, 0);
+
+    if (todayMilk === 0) continue;
+
+    const prev3Days = Array.from({ length: 3 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (i + 1));
+      return d.toISOString().split("T")[0];
+    });
+
+    const prevTotals = prev3Days
+      .map((date) =>
+        milkEntries
+          .filter((e) => e.animalId === animal.id && e.date === date)
+          .reduce((s, e) => s + e.quantity, 0)
+      )
+      .filter((v) => v > 0);
+
+    if (prevTotals.length === 0) continue;
+
+    const avg = prevTotals.reduce((s, v) => s + v, 0) / prevTotals.length;
+    if (avg === 0) continue;
+
+    const dropPercent = ((avg - todayMilk) / avg) * 100;
+
+    if (dropPercent >= 15) {
+      anomalies.push({
+        animalId: animal.id,
+        animalName: animal.name,
+        dropPercent: Math.round(dropPercent),
+        todayTotal: todayMilk,
+        avgTotal: Math.round(avg * 10) / 10,
+        severity: dropPercent >= 30 ? "critical" : "attention",
+      });
+    }
+  }
+
+  return anomalies;
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -130,6 +193,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);
   const [expenseEntries, setExpenseEntries] = useState<ExpenseEntry[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [milkAnomalies, setMilkAnomalies] = useState<MilkAnomaly[]>([]);
+  const [syncStatus] = useState<"synced" | "pending" | "offline">("synced");
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -154,13 +219,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem(STORAGE_KEYS.TASKS),
       ]);
 
-      if (animalsData) setAnimals(JSON.parse(animalsData));
-      if (milkData) setMilkEntries(JSON.parse(milkData));
+      const loadedAnimals: Animal[] = animalsData ? JSON.parse(animalsData) : [];
+      const loadedMilk: MilkEntry[] = milkData ? JSON.parse(milkData) : [];
+
+      if (animalsData) setAnimals(loadedAnimals);
+      if (milkData) setMilkEntries(loadedMilk);
       if (healthData) setHealthEvents(JSON.parse(healthData));
       if (incomeData) setIncomeEntries(JSON.parse(incomeData));
       if (expenseData) setExpenseEntries(JSON.parse(expenseData));
       if (tasksData) setTasks(JSON.parse(tasksData));
-    } catch (e) {
+
+      setMilkAnomalies(computeAnomalies(loadedAnimals, loadedMilk));
+    } catch {
       // ignore load errors
     }
     setIsLoaded(true);
@@ -209,18 +279,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const addMilkEntry = useCallback((entry: MilkEntry) => {
-    setMilkEntries((prev) => {
-      const next = [entry, ...prev];
-      saveMilk(next);
-      return next;
-    });
+  const updateAnimalHealthStatus = useCallback((animalId: string, status: HealthStatus) => {
     setAnimals((prev) => {
-      const next = prev.map((a) =>
-        a.id === entry.animalId ? { ...a, lastMilkEntry: entry } : a
-      );
+      const next = prev.map((a) => a.id === animalId ? { ...a, healthStatus: status } : a);
       saveAnimals(next);
       return next;
+    });
+  }, []);
+
+  const addMilkEntry = useCallback((entry: MilkEntry) => {
+    setMilkEntries((prevMilk) => {
+      const nextMilk = [entry, ...prevMilk];
+      saveMilk(nextMilk);
+
+      setAnimals((prevAnimals) => {
+        const nextAnimals = prevAnimals.map((a) =>
+          a.id === entry.animalId ? { ...a, lastMilkEntry: entry } : a
+        );
+        saveAnimals(nextAnimals);
+
+        const newAnomalies = computeAnomalies(nextAnimals, nextMilk);
+        setMilkAnomalies(newAnomalies);
+
+        const thisAnimal = nextAnimals.find((a) => a.id === entry.animalId);
+        const anomaly = newAnomalies.find((an) => an.animalId === entry.animalId);
+        if (anomaly && thisAnimal) {
+          const newStatus = anomaly.severity === "critical" ? "critical" : "attention";
+          if (thisAnimal.healthStatus === "healthy") {
+            const updated = nextAnimals.map((a) =>
+              a.id === entry.animalId ? { ...a, healthStatus: newStatus as HealthStatus } : a
+            );
+            saveAnimals(updated);
+            return updated;
+          }
+        }
+
+        return nextAnimals;
+      });
+
+      return nextMilk;
     });
   }, []);
 
@@ -260,78 +357,95 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const generateDailyTasks = useCallback(() => {
     const today = getTodayString();
-    const existingToday = tasks.filter((t) => t.date === today);
-    if (existingToday.length > 0) return;
+    setTasks((prevTasks) => {
+      const existingToday = prevTasks.filter((t) => t.date === today);
+      if (existingToday.length > 0) return prevTasks;
 
-    const defaultTasks: Task[] = [
-      {
-        id: generateId(),
-        title: "Morning Milking",
-        titleTamil: "காலை கறவை",
-        time: "5:00 AM",
-        session: "morning",
-        completed: false,
-        date: today,
-        type: "milk",
-      },
-      {
-        id: generateId(),
-        title: "Morning Feed",
-        titleTamil: "காலை தீவனம்",
-        time: "6:00 AM",
-        session: "morning",
-        completed: false,
-        date: today,
-        type: "feed",
-      },
-      {
-        id: generateId(),
-        title: "Clean Shed",
-        titleTamil: "தொழுவம் சுத்தம்",
-        time: "6:30 AM",
-        session: "morning",
-        completed: false,
-        date: today,
-        type: "clean",
-      },
-      {
-        id: generateId(),
-        title: "Evening Milking",
-        titleTamil: "மாலை கறவை",
-        time: "4:00 PM",
-        session: "evening",
-        completed: false,
-        date: today,
-        type: "milk",
-      },
-      {
-        id: generateId(),
-        title: "Evening Feed",
-        titleTamil: "மாலை தீவனம்",
-        time: "4:30 PM",
-        session: "evening",
-        completed: false,
-        date: today,
-        type: "feed",
-      },
-      {
-        id: generateId(),
-        title: "Record Income",
-        titleTamil: "வருமானம் பதிவு",
-        time: "7:00 PM",
-        session: "evening",
-        completed: false,
-        date: today,
-        type: "other",
-      },
-    ];
+      const defaultTasks: Task[] = [
+        {
+          id: generateId(),
+          title: "Morning Milking",
+          titleTamil: "காலை கறவை",
+          time: "5:00 AM",
+          session: "morning",
+          completed: false,
+          date: today,
+          type: "milk",
+          priority: "high",
+        },
+        {
+          id: generateId(),
+          title: "Morning Feed",
+          titleTamil: "காலை தீவனம்",
+          time: "6:00 AM",
+          session: "morning",
+          completed: false,
+          date: today,
+          type: "feed",
+          priority: "normal",
+        },
+        {
+          id: generateId(),
+          title: "Clean Shed",
+          titleTamil: "தொழுவம் சுத்தம்",
+          time: "6:30 AM",
+          session: "morning",
+          completed: false,
+          date: today,
+          type: "clean",
+          priority: "normal",
+        },
+        {
+          id: generateId(),
+          title: "Evening Milking",
+          titleTamil: "மாலை கறவை",
+          time: "4:00 PM",
+          session: "evening",
+          completed: false,
+          date: today,
+          type: "milk",
+          priority: "high",
+        },
+        {
+          id: generateId(),
+          title: "Evening Feed",
+          titleTamil: "மாலை தீவனம்",
+          time: "4:30 PM",
+          session: "evening",
+          completed: false,
+          date: today,
+          type: "feed",
+          priority: "normal",
+        },
+        {
+          id: generateId(),
+          title: "Record Income",
+          titleTamil: "வருமானம் பதிவு",
+          time: "7:00 PM",
+          session: "evening",
+          completed: false,
+          date: today,
+          type: "other",
+          priority: "normal",
+        },
+        {
+          id: generateId(),
+          title: "Mineral Mix — Water Trough",
+          titleTamil: "தண்ணீர் தொட்டி சுத்தம்",
+          time: "8:00 AM",
+          session: "morning",
+          completed: false,
+          date: today,
+          type: "feed",
+          priority: "low",
+        },
+      ];
 
-    setTasks((prev) => {
-      const next = [...prev, ...defaultTasks];
+      const next = [...prevTasks, ...defaultTasks];
       saveTasks(next);
       return next;
     });
-  }, [tasks]);
+  }, []);
 
   const getTodayMilkTotal = useCallback(() => {
     const today = getTodayString();
@@ -370,6 +484,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [milkEntries]
   );
 
+  const get7DayFinancials = useCallback(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const date = d.toISOString().split("T")[0];
+      const income = incomeEntries
+        .filter((e) => e.date === date)
+        .reduce((s, e) => s + e.totalReceived, 0);
+      const expense = expenseEntries
+        .filter((e) => e.date === date)
+        .reduce((s, e) => s + e.amount, 0);
+      const label = d.toLocaleDateString("ta-IN", { weekday: "short" });
+      return { date: label, income, expense };
+    });
+  }, [incomeEntries, expenseEntries]);
+
   return (
     <AppContext.Provider
       value={{
@@ -379,6 +509,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         incomeEntries,
         expenseEntries,
         tasks,
+        milkAnomalies,
+        syncStatus,
         addAnimal,
         updateAnimal,
         deleteAnimal,
@@ -392,6 +524,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         getTodayIncome,
         getTodayExpenses,
         getAnimalMilkTrend,
+        get7DayFinancials,
+        updateAnimalHealthStatus,
         isLoaded,
       }}
     >

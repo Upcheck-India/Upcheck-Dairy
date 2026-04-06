@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useState } from "react";
 import {
@@ -20,16 +21,17 @@ import { useColors } from "@/hooks/useColors";
 
 const FILTER_OPTIONS = [
   { key: "all", label: "அனைத்தும்" },
-  { key: "cow", label: "பசு" },
-  { key: "buffalo", label: "எருமை" },
+  { key: "cow", label: "பசு 🐄" },
+  { key: "buffalo", label: "எருமை 🐃" },
   { key: "healthy", label: "ஆரோக்கியம்" },
   { key: "attention", label: "கவனிக்கவும்" },
+  { key: "critical", label: "அவசரம்" },
 ];
 
 export default function AnimalsTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { animals } = useApp();
+  const { animals, milkAnomalies, syncStatus } = useApp();
   const [addVisible, setAddVisible] = useState(false);
   const [milkAnimal, setMilkAnimal] = useState<Animal | null>(null);
   const [filter, setFilter] = useState("all");
@@ -51,6 +53,11 @@ export default function AnimalsTab() {
     setCelebration(true);
   };
 
+  const syncDot =
+    syncStatus === "synced" ? "#22c55e" : syncStatus === "pending" ? "#f97316" : "#ef4444";
+  const syncLabel =
+    syncStatus === "synced" ? "✓ சேமிக்கப்பட்டது" : syncStatus === "pending" ? "⏳ சேமிக்கிறது" : "⚠ offline";
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
@@ -69,18 +76,24 @@ export default function AnimalsTab() {
               என் மாடுகள்
             </Text>
             <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
-              {animals.length} மாடுகள்
+              {animals.length} மாடுகள் • My Animals
             </Text>
           </View>
-          <Pressable
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setAddVisible(true);
-            }}
-          >
-            <Feather name="plus" size={22} color="#fff" />
-          </Pressable>
+          <View style={styles.headerRight}>
+            <View style={[styles.syncBadge, { backgroundColor: syncDot + "20" }]}>
+              <View style={[styles.syncDot, { backgroundColor: syncDot }]} />
+              <Text style={[styles.syncText, { color: syncDot }]}>{syncLabel}</Text>
+            </View>
+            <Pressable
+              style={[styles.addBtn, { backgroundColor: colors.primary }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setAddVisible(true);
+              }}
+            >
+              <Feather name="plus" size={22} color="#fff" />
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView
@@ -95,10 +108,8 @@ export default function AnimalsTab() {
               style={[
                 styles.filterChip,
                 {
-                  backgroundColor:
-                    filter === f.key ? colors.primary : colors.muted,
-                  borderColor:
-                    filter === f.key ? colors.primary : colors.border,
+                  backgroundColor: filter === f.key ? colors.primary : colors.muted,
+                  borderColor: filter === f.key ? colors.primary : colors.border,
                 },
               ]}
               onPress={() => {
@@ -109,12 +120,7 @@ export default function AnimalsTab() {
               <Text
                 style={[
                   styles.filterLabel,
-                  {
-                    color:
-                      filter === f.key
-                        ? "#fff"
-                        : colors.mutedForeground,
-                  },
+                  { color: filter === f.key ? "#fff" : colors.mutedForeground },
                 ]}
               >
                 {f.label}
@@ -132,6 +138,49 @@ export default function AnimalsTab() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Anomaly Alert Banners */}
+        {milkAnomalies.length > 0 && (
+          <View style={{ gap: 8, marginBottom: 12 }}>
+            {milkAnomalies.map((anomaly) => (
+              <Pressable
+                key={anomaly.animalId}
+                style={[
+                  styles.anomalyBanner,
+                  {
+                    backgroundColor: anomaly.severity === "critical"
+                      ? "#fef2f2"
+                      : "#fff7ed",
+                    borderColor: anomaly.severity === "critical"
+                      ? "#ef4444"
+                      : "#f97316",
+                  },
+                ]}
+                onPress={() => router.push(`/animal/${anomaly.animalId}`)}
+              >
+                <Feather
+                  name="trending-down"
+                  size={18}
+                  color={anomaly.severity === "critical" ? "#ef4444" : "#f97316"}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.anomalyTitle,
+                      { color: anomaly.severity === "critical" ? "#dc2626" : "#c2410c" },
+                    ]}
+                  >
+                    {anomaly.animalName} — பால் {anomaly.dropPercent}% குறைந்தது
+                  </Text>
+                  <Text style={styles.anomalySub}>
+                    இன்று: {anomaly.todayTotal.toFixed(1)}L • சராசரி: {anomaly.avgTotal.toFixed(1)}L — உடல்நிலை சரிபாருங்கள்
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={14} color="#94a3b8" />
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         {filtered.length === 0 ? (
           <View style={styles.empty}>
             <Feather name="grid" size={48} color={colors.border} />
@@ -145,22 +194,13 @@ export default function AnimalsTab() {
         ) : (
           filtered.map((animal) => (
             <View key={animal.id}>
-              <AnimalCard animal={animal} />
-              <Pressable
-                style={[
-                  styles.milkQuickBtn,
-                  { backgroundColor: colors.primary + "15", borderColor: colors.primary + "30" },
-                ]}
-                onPress={() => {
+              <AnimalCard
+                animal={animal}
+                onMilkLog={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setMilkAnimal(animal);
                 }}
-              >
-                <Feather name="droplet" size={14} color={colors.primary} />
-                <Text style={[styles.milkQuickText, { color: colors.primary }]}>
-                  பால் பதிவு
-                </Text>
-              </Pressable>
+              />
             </View>
           ))
         )}
@@ -187,9 +227,7 @@ export default function AnimalsTab() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 8,
@@ -202,13 +240,34 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   headerTitle: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontSize: 26,
+    fontWeight: "700",
   },
   headerSub: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontSize: 13,
     marginTop: 2,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  syncBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  syncDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  syncText: {
+    fontSize: 11,
+    fontWeight: "600",
   },
   addBtn: {
     width: 46,
@@ -217,9 +276,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  filterScroll: {
-    marginTop: 4,
-  },
+  filterScroll: { marginTop: 4 },
   filterChip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -228,10 +285,25 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    fontWeight: "500",
   },
-  list: {
-    padding: 16,
+  list: { padding: 16 },
+  anomalyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  anomalyTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  anomalySub: {
+    fontSize: 11,
+    color: "#6b7280",
+    marginTop: 2,
   },
   empty: {
     alignItems: "center",
@@ -241,26 +313,10 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontFamily: "Inter_600SemiBold",
+    fontWeight: "600",
   },
   emptyText: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
     textAlign: "center",
-  },
-  milkQuickBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 14,
-    marginTop: -6,
-  },
-  milkQuickText: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
   },
 });

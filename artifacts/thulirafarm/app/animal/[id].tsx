@@ -1,10 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -14,25 +16,24 @@ import {
 } from "react-native";
 
 import MilkLogModal from "@/components/MilkLogModal";
-import { HealthStatus, useApp } from "@/context/AppContext";
+import { generateId, getTodayString, HealthStatus, useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
-const HEALTH_OPTIONS: { status: HealthStatus; label: string; color: string }[] =
-  [
-    { status: "healthy", label: "ஆரோக்கியம்", color: "#2E7D32" },
-    { status: "attention", label: "கவனிக்கவும்", color: "#F57F17" },
-    { status: "critical", label: "அவசரம்", color: "#C62828" },
-  ];
+const HEALTH_OPTIONS: { status: HealthStatus; label: string; color: string }[] = [
+  { status: "healthy", label: "ஆரோக்கியம்", color: "#16a34a" },
+  { status: "attention", label: "கவனிக்கவும்", color: "#f97316" },
+  { status: "critical", label: "அவசரம்", color: "#ef4444" },
+];
 
 export default function AnimalDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { animals, milkEntries, healthEvents, updateAnimal, deleteAnimal } =
-    useApp();
+  const { animals, milkEntries, healthEvents, updateAnimal, deleteAnimal, addHealthEvent } = useApp();
   const [milkLogVisible, setMilkLogVisible] = useState(false);
 
   const isWeb = Platform.OS === "web";
+  const topPad = isWeb ? 67 : insets.top;
 
   const animal = animals.find((a) => a.id === id);
   const animalMilk = milkEntries.filter((e) => e.animalId === id);
@@ -56,8 +57,15 @@ export default function AnimalDetail() {
 
   if (!animal) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }]}>
-        <Text style={[styles.notFound, { color: colors.mutedForeground }]}>மாடு கிடைக்கவில்லை</Text>
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: colors.background, justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <Text style={[styles.notFound, { color: colors.mutedForeground }]}>
+          மாடு கிடைக்கவில்லை
+        </Text>
         <Pressable onPress={() => router.back()}>
           <Text style={[styles.back, { color: colors.primary }]}>திரும்பு</Text>
         </Pressable>
@@ -65,30 +73,103 @@ export default function AnimalDetail() {
     );
   }
 
-  const emoji = animal.type === "buffalo" ? "🐃" : "🐄";
-  const topPad = isWeb ? 67 : insets.top;
+  const emoji = animal.type === "buffalo" ? "🐃" : animal.type === "calf" ? "🐮" : "🐄";
 
   const handleDeleteAnimal = () => {
-    Alert.alert(
-      "மாடு நீக்கு",
-      `${animal.name} ஐ நீக்கவா?`,
-      [
-        { text: "இல்லை", style: "cancel" },
-        {
-          text: "நீக்கு",
-          style: "destructive",
-          onPress: () => {
-            deleteAnimal(animal.id);
-            router.back();
-          },
+    Alert.alert("மாடு நீக்கு", `${animal.name} ஐ நீக்கவா?`, [
+      { text: "இல்லை", style: "cancel" },
+      {
+        text: "நீக்கு",
+        style: "destructive",
+        onPress: () => {
+          deleteAnimal(animal.id);
+          router.back();
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const setHealthStatus = (status: HealthStatus) => {
     Haptics.selectionAsync();
     updateAnimal({ ...animal, healthStatus: status });
+  };
+
+  const handleCamera = () => {
+    Alert.alert("புகைப்படம் எடுக்கவும்", "புகைப்படம் எடுக்கவும் அல்லது கேலரியில் இருந்து தேர்வு செய்யவும்", [
+      { text: "ரத்து", style: "cancel" },
+      {
+        text: "📷 கேமரா",
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== "granted") {
+            Alert.alert("அனுமதி தேவை", "கேமரா அணுகல் வழங்கவும்");
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ["images"],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+          });
+          if (!result.canceled && result.assets[0]) {
+            updateAnimal({ ...animal, photoUri: result.assets[0].uri });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+        },
+      },
+      {
+        text: "🖼 கேலரி",
+        onPress: async () => {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== "granted") {
+            Alert.alert("அனுமதி தேவை", "கேலரி அணுகல் வழங்கவும்");
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ["images"],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+          });
+          if (!result.canceled && result.assets[0]) {
+            updateAnimal({ ...animal, photoUri: result.assets[0].uri });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+        },
+      },
+    ]);
+  };
+
+  const addHealthNote = () => {
+    const options = [
+      "காய்ச்சல் — Fever",
+      "சாப்பிடவில்லை — Not Eating",
+      "கால் வலி — Limping",
+      "வயிற்றுப்போக்கு — Diarrhea",
+      "இருமல் — Coughing",
+      "மருத்துவர் வருகை — Vet Visit",
+      "தடுப்பூசி — Vaccination",
+    ];
+    Alert.alert(
+      "உடல்நிலை குறிப்பு சேர்க்கவும்",
+      "அறிகுறி/நிகழ்வு தேர்வு செய்யவும்",
+      [
+        ...options.map((opt) => ({
+          text: opt,
+          onPress: () => {
+            addHealthEvent({
+              id: generateId(),
+              animalId: animal.id,
+              date: getTodayString(),
+              type: "observation",
+              description: opt,
+            });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        })),
+        { text: "ரத்து", style: "cancel" },
+      ]
+    );
   };
 
   return (
@@ -103,10 +184,7 @@ export default function AnimalDetail() {
           },
         ]}
       >
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.backBtn}
-        >
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={24} color={colors.foreground} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }]} numberOfLines={1}>
@@ -122,28 +200,47 @@ export default function AnimalDetail() {
         contentContainerStyle={[styles.scroll, { paddingBottom: isWeb ? 120 : 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Animal profile card */}
+        {/* Animal profile card with photo */}
         <View
-          style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.profileCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
         >
-          <Text style={styles.profileEmoji}>{emoji}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.profileName, { color: colors.foreground }]}>
-              {animal.name}
-            </Text>
-            <Text style={[styles.profileBreed, { color: colors.mutedForeground }]}>
-              {animal.breed}
-            </Text>
+          <Pressable style={styles.photoContainer} onPress={handleCamera}>
+            {animal.photoUri ? (
+              <>
+                <Image source={{ uri: animal.photoUri }} style={styles.photo} />
+                <View style={[styles.cameraOverlay, { backgroundColor: "rgba(0,0,0,0.4)" }]}>
+                  <Feather name="camera" size={18} color="#fff" />
+                </View>
+              </>
+            ) : (
+              <View style={[styles.photoPlaceholder, { backgroundColor: colors.muted }]}>
+                <Text style={styles.profileEmoji}>{emoji}</Text>
+                <View style={[styles.cameraBtn, { backgroundColor: colors.primary }]}>
+                  <Feather name="camera" size={14} color="#fff" />
+                </View>
+              </View>
+            )}
+          </Pressable>
+
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={[styles.profileName, { color: colors.foreground }]}>{animal.name}</Text>
+            <Text style={[styles.profileBreed, { color: colors.mutedForeground }]}>{animal.breed}</Text>
             <Text style={[styles.profileTag, { color: colors.mutedForeground }]}>
               குறி: #{animal.tagNumber}
             </Text>
+            <View style={[styles.typeBadge, { backgroundColor: colors.secondary }]}>
+              <Text style={[styles.typeBadgeText, { color: colors.primary }]}>
+                {animal.type === "cow" ? "பசு" : animal.type === "buffalo" ? "எருமை" : "கன்று"}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Health status */}
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-          உடல் நிலை
-        </Text>
+        {/* Health status selector */}
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>உடல் நிலை</Text>
         <View style={styles.healthRow}>
           {HEALTH_OPTIONS.map((h) => (
             <Pressable
@@ -151,22 +248,19 @@ export default function AnimalDetail() {
               style={[
                 styles.healthBtn,
                 {
-                  backgroundColor:
-                    animal.healthStatus === h.status
-                      ? h.color
-                      : h.color + "18",
+                  backgroundColor: animal.healthStatus === h.status ? h.color : h.color + "18",
                   borderColor: h.color + "40",
                 },
               ]}
               onPress={() => setHealthStatus(h.status)}
             >
+              {animal.healthStatus === h.status && (
+                <Feather name="check" size={12} color="#fff" />
+              )}
               <Text
                 style={[
                   styles.healthBtnText,
-                  {
-                    color:
-                      animal.healthStatus === h.status ? "#fff" : h.color,
-                  },
+                  { color: animal.healthStatus === h.status ? "#fff" : h.color },
                 ]}
               >
                 {h.label}
@@ -175,26 +269,46 @@ export default function AnimalDetail() {
           ))}
         </View>
 
-        {/* Milk log button */}
-        <Pressable
-          style={[styles.milkBtn, { backgroundColor: colors.primary }]}
-          onPress={() => setMilkLogVisible(true)}
-        >
-          <Feather name="droplet" size={20} color="#fff" />
-          <Text style={styles.milkBtnText}>பால் பதிவு செய்யவும்</Text>
-        </Pressable>
+        {/* Quick action buttons */}
+        <View style={styles.actionRow}>
+          <Pressable
+            style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setMilkLogVisible(true);
+            }}
+          >
+            <Feather name="droplet" size={18} color="#fff" />
+            <Text style={styles.actionBtnText}>பால் பதிவு</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.actionBtn, { backgroundColor: colors.warning }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              addHealthNote();
+            }}
+          >
+            <Feather name="heart" size={18} color="#fff" />
+            <Text style={styles.actionBtnText}>உடல் குறிப்பு</Text>
+          </Pressable>
+        </View>
 
         {/* 7-day milk chart */}
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
           7 நாட்கள் பால் வரலாறு
         </Text>
         <View
-          style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.chartCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
         >
           <View style={styles.chartRow}>
             {last7Milk.map((d, i) => {
               const heightPct = maxMilk > 0 ? d.total / maxMilk : 0;
-              const dayName = new Date(d.date).toLocaleDateString("ta-IN", { weekday: "short" });
+              const dayName = new Date(d.date).toLocaleDateString("ta-IN", {
+                weekday: "short",
+              });
               return (
                 <View key={i} style={styles.barWrapper}>
                   <Text style={[styles.barValue, { color: colors.mutedForeground }]}>
@@ -205,8 +319,7 @@ export default function AnimalDetail() {
                       style={[
                         styles.barFill,
                         {
-                          backgroundColor:
-                            heightPct > 0 ? colors.primary : colors.border,
+                          backgroundColor: heightPct > 0 ? colors.primary : colors.border,
                           height: `${Math.max(heightPct * 100, 2)}%`,
                         },
                       ]}
@@ -220,6 +333,52 @@ export default function AnimalDetail() {
             })}
           </View>
         </View>
+
+        {/* Health events */}
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+          உடல்நிலை வரலாறு
+        </Text>
+        {animalHealth.length === 0 ? (
+          <Text style={[styles.noData, { color: colors.mutedForeground }]}>
+            குறிப்புகள் இல்லை — மேலே "உடல் குறிப்பு" அழுத்தவும்
+          </Text>
+        ) : (
+          animalHealth.slice(0, 10).map((e) => {
+            const typeIcon =
+              e.type === "vaccination"
+                ? "shield"
+                : e.type === "treatment"
+                ? "activity"
+                : "file-text";
+            return (
+              <View
+                key={e.id}
+                style={[
+                  styles.healthEntry,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <View style={[styles.healthEntryIcon, { backgroundColor: colors.primary + "18" }]}>
+                  <Feather name={typeIcon as any} size={14} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.healthEntryDesc, { color: colors.foreground }]}>
+                    {e.description}
+                  </Text>
+                  <Text style={[styles.healthEntryDate, { color: colors.mutedForeground }]}>
+                    {e.date}
+                    {e.veterinarianName ? ` • Dr. ${e.veterinarianName}` : ""}
+                  </Text>
+                </View>
+                {e.cost && (
+                  <Text style={[styles.healthEntryCost, { color: colors.accent }]}>
+                    ₹{e.cost}
+                  </Text>
+                )}
+              </View>
+            );
+          })
+        )}
 
         {/* Recent milk entries */}
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
@@ -280,120 +439,104 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     gap: 12,
   },
-  backBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
-  },
-  deleteBtn: {
-    padding: 4,
-  },
-  scroll: {
-    padding: 16,
-  },
+  backBtn: { padding: 4 },
+  headerTitle: { flex: 1, fontSize: 20, fontWeight: "700" },
+  deleteBtn: { padding: 4 },
+  scroll: { padding: 16, gap: 12 },
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 16,
     borderWidth: 1,
-    padding: 20,
+    padding: 16,
     gap: 16,
-    marginBottom: 20,
   },
-  profileEmoji: {
-    fontSize: 52,
+  photoContainer: {
+    position: "relative",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    overflow: "hidden",
   },
-  profileName: {
-    fontSize: 22,
-    fontFamily: "Inter_700Bold",
+  photo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
-  profileBreed: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
+  cameraOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  profileTag: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    marginTop: 2,
+  photoPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: "Inter_700Bold",
-    marginBottom: 12,
-    marginTop: 4,
+  profileEmoji: { fontSize: 36 },
+  cameraBtn: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  healthRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 20,
-  },
+  profileName: { fontSize: 20, fontWeight: "700" },
+  profileBreed: { fontSize: 13 },
+  profileTag: { fontSize: 12 },
+  typeBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 4 },
+  typeBadgeText: { fontSize: 11, fontWeight: "600" },
+  sectionTitle: { fontSize: 17, fontWeight: "700", marginTop: 8 },
+  healthRow: { flexDirection: "row", gap: 8, marginTop: 4 },
   healthBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: "center",
-  },
-  healthBtnText: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-  },
-  milkBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    paddingVertical: 16,
-    borderRadius: 14,
-    marginBottom: 24,
-  },
-  milkBtnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-  },
-  chartCard: {
-    borderRadius: 14,
+    gap: 4,
+    paddingVertical: 14,
+    borderRadius: 10,
     borderWidth: 1,
-    padding: 16,
-    marginBottom: 20,
+    minHeight: 56,
   },
-  chartRow: {
+  healthBtnText: { fontSize: 13, fontWeight: "600" },
+  actionRow: { flexDirection: "row", gap: 10 },
+  actionBtn: {
+    flex: 1,
     flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 4,
-    height: 100,
-  },
-  barWrapper: {
-    flex: 1,
     alignItems: "center",
-    gap: 4,
-    height: "100%",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    minHeight: 56,
   },
-  barValue: {
-    fontSize: 9,
-    fontFamily: "Inter_400Regular",
-    height: 14,
+  actionBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  chartCard: { borderRadius: 14, borderWidth: 1, padding: 16 },
+  chartRow: { flexDirection: "row", alignItems: "flex-end", gap: 4, height: 100 },
+  barWrapper: { flex: 1, alignItems: "center", gap: 4, height: "100%" },
+  barValue: { fontSize: 9, height: 14 },
+  barBg: { flex: 1, width: "80%", borderRadius: 4, overflow: "hidden", justifyContent: "flex-end" },
+  barFill: { width: "100%", borderRadius: 4 },
+  barLabel: { fontSize: 9 },
+  healthEntry: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
   },
-  barBg: {
-    flex: 1,
-    width: "80%",
-    borderRadius: 4,
-    overflow: "hidden",
-    justifyContent: "flex-end",
-  },
-  barFill: {
-    width: "100%",
-    borderRadius: 4,
-  },
-  barLabel: {
-    fontSize: 9,
-    fontFamily: "Inter_400Regular",
-  },
+  healthEntryIcon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  healthEntryDesc: { fontSize: 13, fontWeight: "500" },
+  healthEntryDate: { fontSize: 11, marginTop: 2 },
+  healthEntryCost: { fontSize: 13, fontWeight: "700" },
   milkEntry: {
     flexDirection: "row",
     alignItems: "center",
@@ -401,34 +544,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    marginBottom: 8,
   },
-  milkEntryDate: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
-  milkEntryFat: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
-  },
-  milkEntryQty: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-  },
-  noData: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    paddingVertical: 20,
-  },
-  notFound: {
-    fontSize: 18,
-    fontFamily: "Inter_500Medium",
-    marginBottom: 12,
-  },
-  back: {
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
+  milkEntryDate: { fontSize: 13 },
+  milkEntryFat: { fontSize: 11, marginTop: 2 },
+  milkEntryQty: { fontSize: 16, fontWeight: "700" },
+  noData: { fontSize: 14, textAlign: "center", paddingVertical: 16 },
+  notFound: { fontSize: 18, marginBottom: 12 },
+  back: { fontSize: 16, fontWeight: "600" },
 });
