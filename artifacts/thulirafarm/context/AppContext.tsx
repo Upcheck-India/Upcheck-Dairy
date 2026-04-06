@@ -10,6 +10,16 @@ import React, {
 export type AnimalType = "cow" | "buffalo" | "calf";
 export type HealthStatus = "healthy" | "attention" | "critical";
 
+export const COW_BREEDS = [
+  "HF (Holstein Friesian)", "Jersey", "Gir", "Sahiwal", "Tharparkar",
+  "Kangayam", "Umblachery", "Bargur", "Ongole", "Kankrej", "Rathi", "Mixed/Crossbred",
+];
+
+export const BUFFALO_BREEDS = [
+  "Murrah", "Surti", "Mehsana", "Jaffarabadi", "Toda (Nilgiris)",
+  "Pandharpuri", "Nagpuri", "Mixed",
+];
+
 export interface Animal {
   id: string;
   name: string;
@@ -23,6 +33,12 @@ export interface Animal {
   birthDate?: string;
   nextVaccinationDate?: string;
   nextDeliveryDate?: string;
+  lactationNumber?: number;
+  lastCalvingDate?: string;
+  expectedCalvingDate?: string;
+  isPregnant?: boolean;
+  bodyConditionScore?: number;
+  weightKg?: number;
 }
 
 export interface MilkEntry {
@@ -78,7 +94,7 @@ export interface Task {
   completed: boolean;
   date: string;
   animalId?: string;
-  type: "milk" | "feed" | "health" | "clean" | "other";
+  type: "milk" | "feed" | "health" | "clean" | "other" | "breeding" | "vaccination";
   priority: "low" | "normal" | "high" | "critical";
 }
 
@@ -91,6 +107,75 @@ export interface MilkAnomaly {
   severity: "attention" | "critical";
 }
 
+// ─── NEW: Breeding & Reproductive Management ───────────────────────────────
+export type BreedingEventType =
+  | "heat"
+  | "insemination"
+  | "pregnancy_confirmed"
+  | "dry_off"
+  | "calving"
+  | "abort";
+
+export interface BreedingEvent {
+  id: string;
+  animalId: string;
+  eventType: BreedingEventType;
+  date: string;
+  note?: string;
+  bullName?: string;
+  expectedCalvingDate?: string;
+  calvingGender?: "male" | "female";
+}
+
+// ─── NEW: Vaccination Schedule ─────────────────────────────────────────────
+export type VaccineType =
+  | "FMD"
+  | "HS"
+  | "BQ"
+  | "Brucellosis"
+  | "Theileriosis"
+  | "Anthrax"
+  | "PPR"
+  | "Other";
+
+export interface Vaccination {
+  id: string;
+  animalId: string;
+  vaccineName: string;
+  vaccineType: VaccineType;
+  scheduledDate: string;
+  administeredDate?: string;
+  batchNo?: string;
+  administeredBy?: string;
+  cost?: number;
+  nextDueDate?: string;
+  note?: string;
+}
+
+// ─── NEW: Inventory Management ─────────────────────────────────────────────
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: "feed" | "medicine" | "supplement" | "equipment" | "other";
+  quantity: number;
+  unit: string;
+  minQuantity: number;
+  pricePerUnit?: number;
+  lastUpdated: string;
+}
+
+// ─── Smart Alerts ─────────────────────────────────────────────────────────
+export interface SmartAlert {
+  id: string;
+  type: "heat" | "calving" | "vaccine" | "dry_off";
+  animalId: string;
+  animalName: string;
+  message: string;
+  messageTamil: string;
+  daysAway: number;
+  priority: "normal" | "high" | "critical";
+}
+
 interface AppContextType {
   animals: Animal[];
   milkEntries: MilkEntry[];
@@ -99,7 +184,12 @@ interface AppContextType {
   expenseEntries: ExpenseEntry[];
   tasks: Task[];
   milkAnomalies: MilkAnomaly[];
+  breedingEvents: BreedingEvent[];
+  vaccinations: Vaccination[];
+  inventoryItems: InventoryItem[];
+  smartAlerts: SmartAlert[];
   syncStatus: "synced" | "pending" | "offline";
+
   addAnimal: (animal: Animal) => void;
   updateAnimal: (animal: Animal) => void;
   deleteAnimal: (id: string) => void;
@@ -115,6 +205,22 @@ interface AppContextType {
   getAnimalMilkTrend: (animalId: string) => number[];
   get7DayFinancials: () => Array<{ date: string; income: number; expense: number }>;
   updateAnimalHealthStatus: (animalId: string, status: HealthStatus) => void;
+
+  addBreedingEvent: (event: BreedingEvent) => void;
+  deleteBreedingEvent: (id: string) => void;
+  getAnimalBreedingEvents: (animalId: string) => BreedingEvent[];
+
+  addVaccination: (v: Vaccination) => void;
+  updateVaccination: (v: Vaccination) => void;
+  deleteVaccination: (id: string) => void;
+  getAnimalVaccinations: (animalId: string) => Vaccination[];
+  markVaccinationDone: (id: string, date: string, batchNo?: string) => void;
+
+  addInventoryItem: (item: InventoryItem) => void;
+  updateInventoryItem: (item: InventoryItem) => void;
+  deleteInventoryItem: (id: string) => void;
+  adjustInventoryQuantity: (id: string, delta: number) => void;
+
   isLoaded: boolean;
 }
 
@@ -127,6 +233,9 @@ const STORAGE_KEYS = {
   INCOME_ENTRIES: "thulirafarm_income",
   EXPENSE_ENTRIES: "thulirafarm_expenses",
   TASKS: "thulirafarm_tasks",
+  BREEDING_EVENTS: "thulirafarm_breeding_events",
+  VACCINATIONS: "thulirafarm_vaccinations",
+  INVENTORY: "thulirafarm_inventory",
 };
 
 export function generateId(): string {
@@ -135,6 +244,18 @@ export function generateId(): string {
 
 export function getTodayString(): string {
   return new Date().toISOString().split("T")[0];
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+function daysBetween(dateA: string, dateB: string): number {
+  const a = new Date(dateA).getTime();
+  const b = new Date(dateB).getTime();
+  return Math.round((b - a) / (1000 * 60 * 60 * 24));
 }
 
 function computeAnomalies(animals: Animal[], milkEntries: MilkEntry[]): MilkAnomaly[] {
@@ -165,12 +286,10 @@ function computeAnomalies(animals: Animal[], milkEntries: MilkEntry[]): MilkAnom
       .filter((v) => v > 0);
 
     if (prevTotals.length === 0) continue;
-
     const avg = prevTotals.reduce((s, v) => s + v, 0) / prevTotals.length;
     if (avg === 0) continue;
 
     const dropPercent = ((avg - todayMilk) / avg) * 100;
-
     if (dropPercent >= 15) {
       anomalies.push({
         animalId: animal.id,
@@ -182,8 +301,87 @@ function computeAnomalies(animals: Animal[], milkEntries: MilkEntry[]): MilkAnom
       });
     }
   }
-
   return anomalies;
+}
+
+function computeSmartAlerts(
+  animals: Animal[],
+  breedingEvents: BreedingEvent[],
+  vaccinations: Vaccination[]
+): SmartAlert[] {
+  const alerts: SmartAlert[] = [];
+  const today = getTodayString();
+
+  // Heat detection: check last heat event ~21 days ago
+  for (const animal of animals) {
+    if (animal.type === "calf") continue;
+    if (animal.isPregnant) continue;
+
+    const animalBreeding = breedingEvents
+      .filter((e) => e.animalId === animal.id)
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    const lastHeat = animalBreeding.find((e) => e.eventType === "heat");
+    if (lastHeat) {
+      const daysSinceHeat = daysBetween(lastHeat.date, today);
+      if (daysSinceHeat >= 18 && daysSinceHeat <= 24) {
+        alerts.push({
+          id: `heat-${animal.id}`,
+          type: "heat",
+          animalId: animal.id,
+          animalName: animal.name,
+          message: `${animal.name} may be in heat (${daysSinceHeat} days since last heat)`,
+          messageTamil: `${animal.name} இன்று ஈட்டில் இருக்கலாம் (கடந்த ஈட்டிலிருந்து ${daysSinceHeat} நாட்கள்)`,
+          daysAway: 0,
+          priority: "high",
+        });
+      }
+    }
+
+    // Calving alert
+    if (animal.expectedCalvingDate) {
+      const daysToCalving = daysBetween(today, animal.expectedCalvingDate);
+      if (daysToCalving >= 0 && daysToCalving <= 21) {
+        alerts.push({
+          id: `calving-${animal.id}`,
+          type: "calving",
+          animalId: animal.id,
+          animalName: animal.name,
+          message: `${animal.name} due to calve in ${daysToCalving} day${daysToCalving !== 1 ? "s" : ""}`,
+          messageTamil: `${animal.name} ${daysToCalving === 0 ? "இன்று" : `${daysToCalving} நாட்களில்`} குட்டி போடும்`,
+          daysAway: daysToCalving,
+          priority: daysToCalving <= 3 ? "critical" : "high",
+        });
+      }
+    }
+  }
+
+  // Vaccine due alerts
+  for (const vax of vaccinations) {
+    if (vax.administeredDate) continue;
+    const daysUntil = daysBetween(today, vax.scheduledDate);
+    if (daysUntil >= -7 && daysUntil <= 14) {
+      const animal = animals.find((a) => a.id === vax.animalId);
+      if (!animal) continue;
+      const overdue = daysUntil < 0;
+      alerts.push({
+        id: `vax-${vax.id}`,
+        type: "vaccine",
+        animalId: animal.id,
+        animalName: animal.name,
+        message: overdue
+          ? `${animal.name}: ${vax.vaccineName} vaccine overdue by ${-daysUntil} days`
+          : `${animal.name}: ${vax.vaccineName} vaccine due in ${daysUntil} day${daysUntil !== 1 ? "s" : ""}`,
+        messageTamil: overdue
+          ? `${animal.name}: ${vax.vaccineName} தடுப்பூசி ${-daysUntil} நாட்கள் கடந்தது`
+          : `${animal.name}: ${vax.vaccineName} தடுப்பூசி ${daysUntil} நாட்களில்`,
+        daysAway: daysUntil,
+        priority: overdue ? "critical" : daysUntil <= 3 ? "high" : "normal",
+      });
+    }
+  }
+
+  return alerts.sort((a, b) => a.daysAway - b.daysAway);
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -194,33 +392,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [expenseEntries, setExpenseEntries] = useState<ExpenseEntry[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [milkAnomalies, setMilkAnomalies] = useState<MilkAnomaly[]>([]);
+  const [breedingEvents, setBreedingEvents] = useState<BreedingEvent[]>([]);
+  const [vaccinations, setVaccinations] = useState<Vaccination[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [smartAlerts, setSmartAlerts] = useState<SmartAlert[]>([]);
   const [syncStatus] = useState<"synced" | "pending" | "offline">("synced");
   const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
+
+  const refreshAlerts = useCallback(
+    (a: Animal[], be: BreedingEvent[], v: Vaccination[]) => {
+      setSmartAlerts(computeSmartAlerts(a, be, v));
+    },
+    []
+  );
 
   const loadData = async () => {
     try {
-      const [
-        animalsData,
-        milkData,
-        healthData,
-        incomeData,
-        expenseData,
-        tasksData,
-      ] = await Promise.all([
+      const [animalsData, milkData, healthData, incomeData, expenseData, tasksData,
+        breedingData, vaccinationData, inventoryData] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.ANIMALS),
         AsyncStorage.getItem(STORAGE_KEYS.MILK_ENTRIES),
         AsyncStorage.getItem(STORAGE_KEYS.HEALTH_EVENTS),
         AsyncStorage.getItem(STORAGE_KEYS.INCOME_ENTRIES),
         AsyncStorage.getItem(STORAGE_KEYS.EXPENSE_ENTRIES),
         AsyncStorage.getItem(STORAGE_KEYS.TASKS),
+        AsyncStorage.getItem(STORAGE_KEYS.BREEDING_EVENTS),
+        AsyncStorage.getItem(STORAGE_KEYS.VACCINATIONS),
+        AsyncStorage.getItem(STORAGE_KEYS.INVENTORY),
       ]);
 
       const loadedAnimals: Animal[] = animalsData ? JSON.parse(animalsData) : [];
       const loadedMilk: MilkEntry[] = milkData ? JSON.parse(milkData) : [];
+      const loadedBreeding: BreedingEvent[] = breedingData ? JSON.parse(breedingData) : [];
+      const loadedVax: Vaccination[] = vaccinationData ? JSON.parse(vaccinationData) : [];
+      const loadedInventory: InventoryItem[] = inventoryData ? JSON.parse(inventoryData) : [];
 
       if (animalsData) setAnimals(loadedAnimals);
       if (milkData) setMilkEntries(loadedMilk);
@@ -228,92 +435,69 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (incomeData) setIncomeEntries(JSON.parse(incomeData));
       if (expenseData) setExpenseEntries(JSON.parse(expenseData));
       if (tasksData) setTasks(JSON.parse(tasksData));
+      if (breedingData) setBreedingEvents(loadedBreeding);
+      if (vaccinationData) setVaccinations(loadedVax);
+      if (inventoryData) setInventoryItems(loadedInventory);
 
       setMilkAnomalies(computeAnomalies(loadedAnimals, loadedMilk));
-    } catch {
-      // ignore load errors
-    }
+      setSmartAlerts(computeSmartAlerts(loadedAnimals, loadedBreeding, loadedVax));
+    } catch { /* ignore */ }
     setIsLoaded(true);
   };
 
-  const saveAnimals = async (data: Animal[]) => {
-    await AsyncStorage.setItem(STORAGE_KEYS.ANIMALS, JSON.stringify(data));
-  };
-  const saveMilk = async (data: MilkEntry[]) => {
-    await AsyncStorage.setItem(STORAGE_KEYS.MILK_ENTRIES, JSON.stringify(data));
-  };
-  const saveHealth = async (data: HealthEvent[]) => {
-    await AsyncStorage.setItem(STORAGE_KEYS.HEALTH_EVENTS, JSON.stringify(data));
-  };
-  const saveIncome = async (data: IncomeEntry[]) => {
-    await AsyncStorage.setItem(STORAGE_KEYS.INCOME_ENTRIES, JSON.stringify(data));
-  };
-  const saveExpenses = async (data: ExpenseEntry[]) => {
-    await AsyncStorage.setItem(STORAGE_KEYS.EXPENSE_ENTRIES, JSON.stringify(data));
-  };
-  const saveTasks = async (data: Task[]) => {
-    await AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(data));
+  const save = async (key: string, data: unknown) => {
+    await AsyncStorage.setItem(key, JSON.stringify(data));
   };
 
+  // ─── Animal CRUD ─────────────────────────────────────────────────────────
   const addAnimal = useCallback((animal: Animal) => {
-    setAnimals((prev) => {
-      const next = [...prev, animal];
-      saveAnimals(next);
-      return next;
-    });
+    setAnimals((prev) => { const next = [...prev, animal]; save(STORAGE_KEYS.ANIMALS, next); return next; });
   }, []);
 
   const updateAnimal = useCallback((animal: Animal) => {
     setAnimals((prev) => {
       const next = prev.map((a) => (a.id === animal.id ? animal : a));
-      saveAnimals(next);
+      save(STORAGE_KEYS.ANIMALS, next);
       return next;
     });
   }, []);
 
   const deleteAnimal = useCallback((id: string) => {
-    setAnimals((prev) => {
-      const next = prev.filter((a) => a.id !== id);
-      saveAnimals(next);
-      return next;
-    });
+    setAnimals((prev) => { const next = prev.filter((a) => a.id !== id); save(STORAGE_KEYS.ANIMALS, next); return next; });
   }, []);
 
   const updateAnimalHealthStatus = useCallback((animalId: string, status: HealthStatus) => {
     setAnimals((prev) => {
       const next = prev.map((a) => a.id === animalId ? { ...a, healthStatus: status } : a);
-      saveAnimals(next);
+      save(STORAGE_KEYS.ANIMALS, next);
       return next;
     });
   }, []);
 
+  // ─── Milk ────────────────────────────────────────────────────────────────
   const addMilkEntry = useCallback((entry: MilkEntry) => {
     setMilkEntries((prevMilk) => {
       const nextMilk = [entry, ...prevMilk];
-      saveMilk(nextMilk);
+      save(STORAGE_KEYS.MILK_ENTRIES, nextMilk);
 
       setAnimals((prevAnimals) => {
         const nextAnimals = prevAnimals.map((a) =>
           a.id === entry.animalId ? { ...a, lastMilkEntry: entry } : a
         );
-        saveAnimals(nextAnimals);
-
+        save(STORAGE_KEYS.ANIMALS, nextAnimals);
         const newAnomalies = computeAnomalies(nextAnimals, nextMilk);
         setMilkAnomalies(newAnomalies);
 
         const thisAnimal = nextAnimals.find((a) => a.id === entry.animalId);
         const anomaly = newAnomalies.find((an) => an.animalId === entry.animalId);
-        if (anomaly && thisAnimal) {
+        if (anomaly && thisAnimal && thisAnimal.healthStatus === "healthy") {
           const newStatus = anomaly.severity === "critical" ? "critical" : "attention";
-          if (thisAnimal.healthStatus === "healthy") {
-            const updated = nextAnimals.map((a) =>
-              a.id === entry.animalId ? { ...a, healthStatus: newStatus as HealthStatus } : a
-            );
-            saveAnimals(updated);
-            return updated;
-          }
+          const updated = nextAnimals.map((a) =>
+            a.id === entry.animalId ? { ...a, healthStatus: newStatus as HealthStatus } : a
+          );
+          save(STORAGE_KEYS.ANIMALS, updated);
+          return updated;
         }
-
         return nextAnimals;
       });
 
@@ -321,36 +505,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // ─── Health Events ───────────────────────────────────────────────────────
   const addHealthEvent = useCallback((event: HealthEvent) => {
-    setHealthEvents((prev) => {
-      const next = [event, ...prev];
-      saveHealth(next);
-      return next;
-    });
+    setHealthEvents((prev) => { const next = [event, ...prev]; save(STORAGE_KEYS.HEALTH_EVENTS, next); return next; });
   }, []);
 
+  // ─── Income/Expense ──────────────────────────────────────────────────────
   const addIncomeEntry = useCallback((entry: IncomeEntry) => {
-    setIncomeEntries((prev) => {
-      const next = [entry, ...prev];
-      saveIncome(next);
-      return next;
-    });
+    setIncomeEntries((prev) => { const next = [entry, ...prev]; save(STORAGE_KEYS.INCOME_ENTRIES, next); return next; });
   }, []);
 
   const addExpenseEntry = useCallback((entry: ExpenseEntry) => {
-    setExpenseEntries((prev) => {
-      const next = [entry, ...prev];
-      saveExpenses(next);
-      return next;
-    });
+    setExpenseEntries((prev) => { const next = [entry, ...prev]; save(STORAGE_KEYS.EXPENSE_ENTRIES, next); return next; });
   }, []);
 
+  // ─── Tasks ───────────────────────────────────────────────────────────────
   const toggleTaskComplete = useCallback((id: string) => {
     setTasks((prev) => {
-      const next = prev.map((t) =>
-        t.id === id ? { ...t, completed: !t.completed } : t
-      );
-      saveTasks(next);
+      const next = prev.map((t) => t.id === id ? { ...t, completed: !t.completed } : t);
+      save(STORAGE_KEYS.TASKS, next);
       return next;
     });
   }, []);
@@ -362,139 +535,192 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (existingToday.length > 0) return prevTasks;
 
       const defaultTasks: Task[] = [
-        {
-          id: generateId(),
-          title: "Morning Milking",
-          titleTamil: "காலை கறவை",
-          time: "5:00 AM",
-          session: "morning",
-          completed: false,
-          date: today,
-          type: "milk",
-          priority: "high",
-        },
-        {
-          id: generateId(),
-          title: "Morning Feed",
-          titleTamil: "காலை தீவனம்",
-          time: "6:00 AM",
-          session: "morning",
-          completed: false,
-          date: today,
-          type: "feed",
-          priority: "normal",
-        },
-        {
-          id: generateId(),
-          title: "Clean Shed",
-          titleTamil: "தொழுவம் சுத்தம்",
-          time: "6:30 AM",
-          session: "morning",
-          completed: false,
-          date: today,
-          type: "clean",
-          priority: "normal",
-        },
-        {
-          id: generateId(),
-          title: "Evening Milking",
-          titleTamil: "மாலை கறவை",
-          time: "4:00 PM",
-          session: "evening",
-          completed: false,
-          date: today,
-          type: "milk",
-          priority: "high",
-        },
-        {
-          id: generateId(),
-          title: "Evening Feed",
-          titleTamil: "மாலை தீவனம்",
-          time: "4:30 PM",
-          session: "evening",
-          completed: false,
-          date: today,
-          type: "feed",
-          priority: "normal",
-        },
-        {
-          id: generateId(),
-          title: "Record Income",
-          titleTamil: "வருமானம் பதிவு",
-          time: "7:00 PM",
-          session: "evening",
-          completed: false,
-          date: today,
-          type: "other",
-          priority: "normal",
-        },
-        {
-          id: generateId(),
-          title: "Mineral Mix — Water Trough",
-          titleTamil: "தண்ணீர் தொட்டி சுத்தம்",
-          time: "8:00 AM",
-          session: "morning",
-          completed: false,
-          date: today,
-          type: "feed",
-          priority: "low",
-        },
+        { id: generateId(), title: "Morning Milking", titleTamil: "காலை கறவை", time: "5:00 AM", session: "morning", completed: false, date: today, type: "milk", priority: "high" },
+        { id: generateId(), title: "Morning Feed", titleTamil: "காலை தீவனம்", time: "6:00 AM", session: "morning", completed: false, date: today, type: "feed", priority: "normal" },
+        { id: generateId(), title: "Clean Shed", titleTamil: "தொழுவம் சுத்தம்", time: "6:30 AM", session: "morning", completed: false, date: today, type: "clean", priority: "normal" },
+        { id: generateId(), title: "Evening Milking", titleTamil: "மாலை கறவை", time: "4:00 PM", session: "evening", completed: false, date: today, type: "milk", priority: "high" },
+        { id: generateId(), title: "Evening Feed", titleTamil: "மாலை தீவனம்", time: "4:30 PM", session: "evening", completed: false, date: today, type: "feed", priority: "normal" },
+        { id: generateId(), title: "Record Income", titleTamil: "வருமானம் பதிவு", time: "7:00 PM", session: "evening", completed: false, date: today, type: "other", priority: "normal" },
+        { id: generateId(), title: "Mineral Mix — Water Trough", titleTamil: "தண்ணீர் தொட்டி சுத்தம்", time: "8:00 AM", session: "morning", completed: false, date: today, type: "feed", priority: "low" },
       ];
 
       const next = [...prevTasks, ...defaultTasks];
-      saveTasks(next);
+      save(STORAGE_KEYS.TASKS, next);
       return next;
     });
   }, []);
 
+  // ─── Breeding Events ─────────────────────────────────────────────────────
+  const addBreedingEvent = useCallback((event: BreedingEvent) => {
+    setBreedingEvents((prev) => {
+      const next = [event, ...prev];
+      save(STORAGE_KEYS.BREEDING_EVENTS, next);
+
+      // Update animal pregnancy fields
+      if (event.eventType === "insemination" || event.eventType === "pregnancy_confirmed") {
+        const expectedDate = event.expectedCalvingDate ?? addDays(event.date, 280);
+        setAnimals((prevA) => {
+          const nextA = prevA.map((a) =>
+            a.id === event.animalId
+              ? { ...a, isPregnant: true, expectedCalvingDate: expectedDate }
+              : a
+          );
+          save(STORAGE_KEYS.ANIMALS, nextA);
+          setSmartAlerts(computeSmartAlerts(nextA, next, []));
+          return nextA;
+        });
+      } else if (event.eventType === "calving") {
+        setAnimals((prevA) => {
+          const nextA = prevA.map((a) =>
+            a.id === event.animalId
+              ? {
+                  ...a,
+                  isPregnant: false,
+                  expectedCalvingDate: undefined,
+                  lastCalvingDate: event.date,
+                  lactationNumber: (a.lactationNumber ?? 0) + 1,
+                }
+              : a
+          );
+          save(STORAGE_KEYS.ANIMALS, nextA);
+          return nextA;
+        });
+      } else if (event.eventType === "abort") {
+        setAnimals((prevA) => {
+          const nextA = prevA.map((a) =>
+            a.id === event.animalId
+              ? { ...a, isPregnant: false, expectedCalvingDate: undefined }
+              : a
+          );
+          save(STORAGE_KEYS.ANIMALS, nextA);
+          return nextA;
+        });
+      }
+
+      return next;
+    });
+
+    setVaccinations((vax) => {
+      setSmartAlerts((prev) => {
+        setAnimals((currentAnimals) => {
+          setBreedingEvents((currentBreeding) => {
+            const alerts = computeSmartAlerts(currentAnimals, currentBreeding, vax);
+            setSmartAlerts(alerts);
+            return currentBreeding;
+          });
+          return currentAnimals;
+        });
+        return prev;
+      });
+      return vax;
+    });
+  }, []);
+
+  const deleteBreedingEvent = useCallback((id: string) => {
+    setBreedingEvents((prev) => { const next = prev.filter((e) => e.id !== id); save(STORAGE_KEYS.BREEDING_EVENTS, next); return next; });
+  }, []);
+
+  const getAnimalBreedingEvents = useCallback((animalId: string) => {
+    return breedingEvents.filter((e) => e.animalId === animalId).sort((a, b) => b.date.localeCompare(a.date));
+  }, [breedingEvents]);
+
+  // ─── Vaccination CRUD ────────────────────────────────────────────────────
+  const addVaccination = useCallback((v: Vaccination) => {
+    setVaccinations((prev) => {
+      const next = [v, ...prev];
+      save(STORAGE_KEYS.VACCINATIONS, next);
+      setAnimals((a) => { setSmartAlerts(computeSmartAlerts(a, breedingEvents, next)); return a; });
+      return next;
+    });
+  }, [breedingEvents]);
+
+  const updateVaccination = useCallback((v: Vaccination) => {
+    setVaccinations((prev) => { const next = prev.map((x) => x.id === v.id ? v : x); save(STORAGE_KEYS.VACCINATIONS, next); return next; });
+  }, []);
+
+  const deleteVaccination = useCallback((id: string) => {
+    setVaccinations((prev) => { const next = prev.filter((v) => v.id !== id); save(STORAGE_KEYS.VACCINATIONS, next); return next; });
+  }, []);
+
+  const markVaccinationDone = useCallback((id: string, date: string, batchNo?: string) => {
+    setVaccinations((prev) => {
+      const next = prev.map((v) => {
+        if (v.id !== id) return v;
+        let nextDue: string | undefined;
+        const recurrenceMap: Partial<Record<VaccineType, number>> = {
+          FMD: 180, HS: 365, BQ: 365, Anthrax: 365, PPR: 365,
+        };
+        const days = recurrenceMap[v.vaccineType];
+        if (days) nextDue = addDays(date, days);
+        return { ...v, administeredDate: date, batchNo: batchNo ?? v.batchNo, nextDueDate: nextDue };
+      });
+      save(STORAGE_KEYS.VACCINATIONS, next);
+      setAnimals((a) => { setSmartAlerts(computeSmartAlerts(a, breedingEvents, next)); return a; });
+      return next;
+    });
+  }, [breedingEvents]);
+
+  const getAnimalVaccinations = useCallback((animalId: string) => {
+    return vaccinations.filter((v) => v.animalId === animalId).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+  }, [vaccinations]);
+
+  // ─── Inventory ───────────────────────────────────────────────────────────
+  const addInventoryItem = useCallback((item: InventoryItem) => {
+    setInventoryItems((prev) => { const next = [...prev, item]; save(STORAGE_KEYS.INVENTORY, next); return next; });
+  }, []);
+
+  const updateInventoryItem = useCallback((item: InventoryItem) => {
+    setInventoryItems((prev) => { const next = prev.map((x) => x.id === item.id ? item : x); save(STORAGE_KEYS.INVENTORY, next); return next; });
+  }, []);
+
+  const deleteInventoryItem = useCallback((id: string) => {
+    setInventoryItems((prev) => { const next = prev.filter((x) => x.id !== id); save(STORAGE_KEYS.INVENTORY, next); return next; });
+  }, []);
+
+  const adjustInventoryQuantity = useCallback((id: string, delta: number) => {
+    setInventoryItems((prev) => {
+      const next = prev.map((x) =>
+        x.id === id ? { ...x, quantity: Math.max(0, x.quantity + delta), lastUpdated: getTodayString() } : x
+      );
+      save(STORAGE_KEYS.INVENTORY, next);
+      return next;
+    });
+  }, []);
+
+  // ─── Computed ────────────────────────────────────────────────────────────
   const getTodayMilkTotal = useCallback(() => {
     const today = getTodayString();
-    return milkEntries
-      .filter((e) => e.date === today)
-      .reduce((sum, e) => sum + e.quantity, 0);
+    return milkEntries.filter((e) => e.date === today).reduce((sum, e) => sum + e.quantity, 0);
   }, [milkEntries]);
 
   const getTodayIncome = useCallback(() => {
     const today = getTodayString();
-    return incomeEntries
-      .filter((e) => e.date === today)
-      .reduce((sum, e) => sum + e.totalReceived, 0);
+    return incomeEntries.filter((e) => e.date === today).reduce((sum, e) => sum + e.totalReceived, 0);
   }, [incomeEntries]);
 
   const getTodayExpenses = useCallback(() => {
     const today = getTodayString();
-    return expenseEntries
-      .filter((e) => e.date === today)
-      .reduce((sum, e) => sum + e.amount, 0);
+    return expenseEntries.filter((e) => e.date === today).reduce((sum, e) => sum + e.amount, 0);
   }, [expenseEntries]);
 
-  const getAnimalMilkTrend = useCallback(
-    (animalId: string) => {
-      const last7days = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
-        return d.toISOString().split("T")[0];
-      });
-      return last7days.map((date) => {
-        return milkEntries
-          .filter((e) => e.animalId === animalId && e.date === date)
-          .reduce((sum, e) => sum + e.quantity, 0);
-      });
-    },
-    [milkEntries]
-  );
+  const getAnimalMilkTrend = useCallback((animalId: string) => {
+    const last7days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return d.toISOString().split("T")[0];
+    });
+    return last7days.map((date) =>
+      milkEntries.filter((e) => e.animalId === animalId && e.date === date).reduce((sum, e) => sum + e.quantity, 0)
+    );
+  }, [milkEntries]);
 
   const get7DayFinancials = useCallback(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
       const date = d.toISOString().split("T")[0];
-      const income = incomeEntries
-        .filter((e) => e.date === date)
-        .reduce((s, e) => s + e.totalReceived, 0);
-      const expense = expenseEntries
-        .filter((e) => e.date === date)
-        .reduce((s, e) => s + e.amount, 0);
+      const income = incomeEntries.filter((e) => e.date === date).reduce((s, e) => s + e.totalReceived, 0);
+      const expense = expenseEntries.filter((e) => e.date === date).reduce((s, e) => s + e.amount, 0);
       const label = d.toLocaleDateString("ta-IN", { weekday: "short" });
       return { date: label, income, expense };
     });
@@ -503,29 +729,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider
       value={{
-        animals,
-        milkEntries,
-        healthEvents,
-        incomeEntries,
-        expenseEntries,
-        tasks,
-        milkAnomalies,
+        animals, milkEntries, healthEvents, incomeEntries, expenseEntries,
+        tasks, milkAnomalies, breedingEvents, vaccinations, inventoryItems, smartAlerts,
         syncStatus,
-        addAnimal,
-        updateAnimal,
-        deleteAnimal,
-        addMilkEntry,
-        addHealthEvent,
-        addIncomeEntry,
-        addExpenseEntry,
-        toggleTaskComplete,
-        generateDailyTasks,
-        getTodayMilkTotal,
-        getTodayIncome,
-        getTodayExpenses,
-        getAnimalMilkTrend,
-        get7DayFinancials,
-        updateAnimalHealthStatus,
+        addAnimal, updateAnimal, deleteAnimal, addMilkEntry, addHealthEvent,
+        addIncomeEntry, addExpenseEntry, toggleTaskComplete, generateDailyTasks,
+        getTodayMilkTotal, getTodayIncome, getTodayExpenses, getAnimalMilkTrend,
+        get7DayFinancials, updateAnimalHealthStatus,
+        addBreedingEvent, deleteBreedingEvent, getAnimalBreedingEvents,
+        addVaccination, updateVaccination, deleteVaccination, markVaccinationDone,
+        getAnimalVaccinations,
+        addInventoryItem, updateInventoryItem, deleteInventoryItem, adjustInventoryQuantity,
         isLoaded,
       }}
     >
@@ -539,4 +753,3 @@ export function useApp() {
   if (!ctx) throw new Error("useApp must be used within AppProvider");
   return ctx;
 }
-

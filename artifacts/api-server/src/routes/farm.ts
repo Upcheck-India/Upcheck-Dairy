@@ -182,4 +182,116 @@ router.post("/farm/transcribe", (upload as any).single("audio"), async (req: any
   }
 });
 
+// ─── GauGuru AI Chat ──────────────────────────────────────────────────────
+router.post("/farm/chat", async (req, res) => {
+  try {
+    const { message, history, language } = req.body as {
+      message: string;
+      history?: Array<{ role: "user" | "assistant"; content: string }>;
+      language?: string;
+    };
+
+    if (!message) {
+      res.status(400).json({ error: "Message is required" });
+      return;
+    }
+
+    const langMap: Record<string, string> = {
+      ta: "Tamil (simple, conversational, easily understood by rural farmers)",
+      te: "Telugu (simple, conversational)",
+      kn: "Kannada (simple, conversational)",
+      ml: "Malayalam (simple, conversational)",
+      hi: "Hindi (Hindustani style, simple for rural farmers)",
+      en: "English",
+    };
+    const langInstruction = langMap[language ?? "ta"] ?? langMap.ta!;
+
+    const systemPrompt = `You are GauGuru (கோ குரு / गौगुरु), an expert AI assistant for Indian dairy farmers. You provide practical, actionable advice.
+
+You are an expert in:
+- Indian dairy breeds: HF, Jersey, Gir, Sahiwal, Tharparkar, Kangayam, Umblachery, Bargur, Murrah buffalo, Surti, Mehsana, Jaffarabadi
+- South Indian dairy farming (Tamil Nadu, Andhra Pradesh, Karnataka, Kerala)
+- Common cattle diseases: FMD, HS, BQ, Mastitis, Milk Fever, Bloat, Tick Fever, Theileriosis
+- AI insemination (artificial insemination), semen selection, heat detection (21-day cycle, signs of heat)
+- Breeding: gestation period (280 days cow, 310 days buffalo), calving care
+- Nutrition: TMR, green fodder (napier, maize, sorghum), concentrate feed, mineral mix, bypass protein
+- Milk quality: FAT%, SNF%, SNF standards (cow min 8.5%, buffalo min 9%), testing methods
+- Government schemes: AHIDF, NDP-II, Kisan Credit Card for dairy, PM-KUSUM, NABARD loans
+- Milk pricing: MSP, cooperative pricing, private dairy rates
+- Vaccination schedule: FMD every 6 months, HS annually, BQ annually for calves, Brucellosis once for heifers
+
+Always respond in ${langInstruction}.
+Keep answers CONCISE (3-5 sentences max for simple questions, up to 8 sentences for complex topics).
+Use simple language a village farmer can understand.
+Add practical local context when possible.
+Never give medicine dosages — recommend consulting a local vet for specific treatments.`;
+
+    const messages = [
+      { role: "system" as const, content: systemPrompt },
+      ...(history ?? []).slice(-8),
+      { role: "user" as const, content: message },
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages,
+      max_tokens: 400,
+      temperature: 0.7,
+    });
+
+    const response = completion.choices[0]?.message?.content ?? "Sorry, I couldn't answer that.";
+    res.json({ response });
+  } catch (err) {
+    console.error("Chat error:", err);
+    res.status(500).json({ error: "Chat failed", response: "Sorry, there was an error. Please try again." });
+  }
+});
+
+// ─── Ration Calculator ────────────────────────────────────────────────────
+router.post("/farm/ration", async (req, res) => {
+  try {
+    const { animalType, breed, weightKg, milkProductionL, language } = req.body as {
+      animalType: string; breed: string; weightKg: number;
+      milkProductionL: number; language?: string;
+    };
+
+    const langMap: Record<string, string> = {
+      ta: "Tamil", te: "Telugu", kn: "Kannada", ml: "Malayalam", hi: "Hindi", en: "English",
+    };
+    const langInstruction = langMap[language ?? "ta"] ?? "Tamil";
+
+    const prompt = `You are a dairy nutrition expert for Indian farmers.
+Calculate a daily ration for: ${animalType} (${breed}), weight: ${weightKg} kg, milk production: ${milkProductionL} L/day.
+
+Provide a practical feeding recommendation as JSON:
+{
+  "summary": "1-sentence summary in English",
+  "summaryLocal": "Same summary in ${langInstruction}",
+  "greenFodder": {"quantity": "25-30 kg", "examples": "Napier grass, Maize"},
+  "dryFodder": {"quantity": "5-6 kg", "examples": "Paddy straw, Sugarcane bagasse"},
+  "concentrate": {"quantity": "X kg", "composition": "Broken rice, groundnut cake, mineral mix"},
+  "mineralMix": "50-100 g/day",
+  "water": "40-60 litres/day",
+  "totalCost": "Estimated Rs. X-Y per day",
+  "tips": ["Tip 1 in ${langInstruction}", "Tip 2 in ${langInstruction}"]
+}
+
+Base formula: Maintenance = bodyweight × 0.015 kg DM; Production = 0.35 kg concentrate per extra litre above 4L.
+Respond ONLY with valid JSON.`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 500,
+      response_format: { type: "json_object" },
+    });
+
+    const content = completion.choices[0]?.message?.content ?? "{}";
+    res.json(JSON.parse(content));
+  } catch (err) {
+    console.error("Ration error:", err);
+    res.status(500).json({ error: "Ration calculation failed" });
+  }
+});
+
 export default router;

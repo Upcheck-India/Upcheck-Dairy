@@ -93,6 +93,54 @@ export interface VerifyOtpResponse {
   verified: boolean;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export async function chatWithGauGuru(
+  message: string,
+  history: ChatMessage[],
+  language: string
+): Promise<{ response: string }> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/farm/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, history, language }),
+  });
+  const data = await response.json() as { response: string; error?: string };
+  if (!response.ok) throw new Error(data.error ?? "Chat failed");
+  return data;
+}
+
+export interface RationResult {
+  summary: string;
+  summaryLocal: string;
+  greenFodder: { quantity: string; examples: string };
+  dryFodder: { quantity: string; examples: string };
+  concentrate: { quantity: string; composition: string };
+  mineralMix: string;
+  water: string;
+  totalCost: string;
+  tips: string[];
+}
+
+export async function calculateRation(params: {
+  animalType: string; breed: string; weightKg: number;
+  milkProductionL: number; language: string;
+}): Promise<RationResult> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/farm/ration`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  const data = await response.json() as RationResult & { error?: string };
+  if (!response.ok) throw new Error(data.error ?? "Ration calculation failed");
+  return data;
+}
+
 export async function sendOtp(phone: string): Promise<SendOtpResponse> {
   const base = getApiBase();
   const response = await fetch(`${base}/auth/send-otp`, {
