@@ -1,0 +1,409 @@
+openapi: 3.1.0
+info:
+  title: Upcheck Dairy API
+  version: 0.1.0
+  description: API for ThulirFarm dairy management application
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health check endpoint
+  - name: auth
+    description: OTP-based authentication
+  - name: farm
+    description: Farm management operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/send-otp:
+    post:
+      operationId: sendOtp
+      tags: [auth]
+      summary: Send OTP
+      description: Send OTP to phone number for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  pattern: "^[6-9]\\d{9}$"
+                  description: 10-digit Indian phone number
+              required: [phone]
+      responses:
+        "200":
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendOtpResponse"
+        "400":
+          description: Invalid phone number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/verify-otp:
+    post:
+      operationId: verifyOtp
+      tags: [auth]
+      summary: Verify OTP
+      description: Verify OTP for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                otp:
+                  type: string
+              required: [phone, otp]
+      responses:
+        "200":
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyOtpResponse"
+        "400":
+          description: Invalid OTP or expired
+        "429":
+          description: Too many attempts
+
+  /farm/diagnose:
+    post:
+      operationId: diagnose
+      tags: [farm]
+      summary: AI Veterinary Diagnosis
+      description: Get AI-powered veterinary diagnosis from symptoms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiagnoseRequest"
+      responses:
+        "200":
+          description: Diagnosis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnoseResponse"
+        "400":
+          description: Missing symptoms
+        "500":
+          description: AI service error
+
+  /farm/voice-command:
+    post:
+      operationId: parseVoiceCommand
+      tags: [farm]
+      summary: Parse Voice Command
+      description: Parse voice command transcript into structured action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceCommandRequest"
+      responses:
+        "200":
+          description: Parsed command
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceCommandResponse"
+
+  /farm/transcribe:
+    post:
+      operationId: transcribeAudio
+      tags: [farm]
+      summary: Transcribe Audio
+      description: Transcribe audio using Whisper
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Transcription result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscribeResponse"
+
+  /farm/chat:
+    post:
+      operationId: chatWithGauGuru
+      tags: [farm]
+      summary: Chat with GauGuru
+      description: Chat with AI dairy expert assistant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: Chat response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+
+  /farm/ration:
+    post:
+      operationId: calculateRation
+      tags: [farm]
+      summary: Calculate Feed Ration
+      description: Calculate daily feed ration for animal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RationRequest"
+      responses:
+        "200":
+          description: Ration calculation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RationResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    SendOtpResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        demoOtp:
+          type: string
+          description: Demo OTP (remove in production)
+        expiresIn:
+          type: integer
+          description: Expiry time in seconds
+      required: [success, message, demoOtp, expiresIn]
+
+    VerifyOtpResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        verified:
+          type: boolean
+      required: [success, verified]
+
+    DiagnoseRequest:
+      type: object
+      properties:
+        symptoms:
+          type: array
+          items:
+            type: string
+        customNote:
+          type: string
+        animalName:
+          type: string
+        animalType:
+          type: string
+      required: [symptoms]
+
+    DiagnoseResponse:
+      type: object
+      properties:
+        summary:
+          type: string
+        summaryTamil:
+          type: string
+        possibleCauses:
+          type: array
+          items:
+            type: string
+        immediateActions:
+          type: array
+          items:
+            type: string
+        riskLevel:
+          type: string
+          enum: [low, medium, high, critical]
+        medicine:
+          type: string
+          nullable: true
+        tamilAdvice:
+          type: string
+        homeRemedy:
+          type: string
+          nullable: true
+        nextSteps:
+          type: string
+        callVetImmediately:
+          type: boolean
+
+    VoiceCommandRequest:
+      type: object
+      properties:
+        transcript:
+          type: string
+        animals:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              type:
+                type: string
+      required: [transcript]
+
+    VoiceCommandResponse:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [log_milk, report_problem, add_expense, navigate, unknown]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        params:
+          type: object
+        confirmationText:
+          type: string
+        confirmationTamil:
+          type: string
+
+    TranscribeResponse:
+      type: object
+      properties:
+        transcript:
+          type: string
+      required: [transcript]
+
+    ChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                type: string
+        language:
+          type: string
+          enum: [ta, te, kn, ml, hi, en]
+      required: [message]
+
+    ChatResponse:
+      type: object
+      properties:
+        response:
+          type: string
+      required: [response]
+
+    RationRequest:
+      type: object
+      properties:
+        animalType:
+          type: string
+        breed:
+          type: string
+        weightKg:
+          type: number
+        milkProductionL:
+          type: number
+        language:
+          type: string
+          enum: [ta, te, kn, ml, hi, en]
+      required: [animalType, breed, weightKg, milkProductionL]
+
+    RationResponse:
+      type: object
+      properties:
+        summary:
+          type: string
+        summaryLocal:
+          type: string
+        greenFodder:
+          type: object
+          properties:
+            quantity:
+              type: string
+            examples:
+              type: string
+        dryFodder:
+          type: object
+          properties:
+            quantity:
+              type: string
+            examples:
+              type: string
+        concentrate:
+          type: object
+          properties:
+            quantity:
+              type: string
+            composition:
+              type: string
+        mineralMix:
+          type: string
+        water:
+          type: string
+        totalCost:
+          type: string
+        tips:
+          type: array
+          items:
+            type: string

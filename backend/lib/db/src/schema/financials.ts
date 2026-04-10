@@ -1,0 +1,50 @@
+import { pgTable, text, serial, decimal, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+
+export const expenseCategory = pgEnum("expense_category", [
+  "feed",
+  "medicine",
+  "labor",
+  "equipment",
+  "other",
+]);
+
+export const incomeEntries = pgTable("income_entries", {
+  id: serial("id").primaryKey(),
+  date: timestamp("date").notNull(),
+  buyer: text("buyer").notNull(),
+  quantitySold: decimal("quantity_sold", { precision: 6, scale: 2 }).notNull(),
+  ratePerLitre: decimal("rate_per_litre", { precision: 6, scale: 2 }).notNull(),
+  totalExpected: decimal("total_expected", { precision: 10, scale: 2 }).notNull(),
+  totalReceived: decimal("total_received", { precision: 10, scale: 2 }).notNull(),
+  fatPercentage: decimal("fat_percentage", { precision: 4, scale: 2 }),
+  snfPercentage: decimal("snf_percentage", { precision: 4, scale: 2 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertIncomeEntrySchema = createInsertSchema(incomeEntries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type IncomeEntry = typeof incomeEntries.$inferSelect;
+export type InsertIncomeEntry = z.infer<typeof insertIncomeEntrySchema>;
+
+export const expenseEntries = pgTable("expense_entries", {
+  id: serial("id").primaryKey(),
+  date: timestamp("date").notNull(),
+  category: expenseCategory("category").notNull(),
+  description: text("description").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertExpenseEntrySchema = createInsertSchema(expenseEntries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ExpenseEntry = typeof expenseEntries.$inferSelect;
+export type InsertExpenseEntry = z.infer<typeof insertExpenseEntrySchema>;

@@ -1,0 +1,88 @@
+{
+  "expo": {
+    "name": "ThulirFarm",
+    "slug": "thulirafarm",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "thulirafarm",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#16a34a"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.thulirafarm.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ThulirFarm needs camera access to take photos of your animals",
+        "NSMicrophoneUsageDescription": "ThulirFarm needs microphone access for voice commands in Tamil",
+        "NSPhotoLibraryUsageDescription": "ThulirFarm needs photo library access to select animal photos",
+        "NSLocationWhenInUseUsageDescription": "ThulirFarm uses your location for local weather information",
+        "NSSpeechRecognitionUsageDescription": "ThulirFarm uses speech recognition for voice commands"
+      }
+    },
+    "android": {
+      "package": "com.thulirafarm.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#16a34a"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf"
+          ]
+        }
+      ],
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ThulirFarm needs access to your photos to add animal pictures",
+          "cameraPermission": "ThulirFarm needs camera access to take photos of your animals"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#16a34a",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "ThulirFarm needs microphone access for voice commands"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
