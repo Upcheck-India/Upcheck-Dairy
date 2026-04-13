@@ -119,7 +119,7 @@ export default function AnimalCard({ animal, onMilkLog, onQuickAction }: AnimalC
         {QUICK_ACTIONS.map((qa) => (
           <Pressable
             key={qa.id}
-            style={[styles.actionBtn, { backgroundColor: "#fef2f2", borderColor: "#fecaca" }]}
+            style={[styles.actionBtn, { backgroundColor: colors.destructive + "12", borderColor: colors.destructive + "30" }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               if (onQuickAction) {
@@ -129,8 +129,8 @@ export default function AnimalCard({ animal, onMilkLog, onQuickAction }: AnimalC
               }
             }}
           >
-            <Feather name={qa.icon as any} size={12} color="#ef4444" />
-            <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>{qa.label}</Text>
+            <Feather name={qa.icon as any} size={12} color={colors.destructive} />
+            <Text style={[styles.actionBtnText, { color: colors.destructive }]}>{qa.label}</Text>
           </Pressable>
         ))}
       </View>
