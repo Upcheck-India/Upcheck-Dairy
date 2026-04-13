@@ -11,6 +11,28 @@ interface OtpEntry {
 
 const otpStore = new Map<string, OtpEntry>();
 
+const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+
+const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 5;
+
+function checkRateLimit(phone: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitStore.get(phone);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitStore.set(phone, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+
+  entry.count++;
+  return true;
+}
+
 function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -20,6 +42,9 @@ function cleanExpired() {
   for (const [phone, entry] of otpStore.entries()) {
     if (entry.expiresAt < now) otpStore.delete(phone);
   }
+  for (const [phone, entry] of rateLimitStore.entries()) {
+    if (now > entry.resetAt) rateLimitStore.delete(phone);
+  }
 }
 
 router.post("/send-otp", (req, res) => {
@@ -27,6 +52,12 @@ router.post("/send-otp", (req, res) => {
 
   if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
     return res.status(400).json({ error: "Invalid phone number" });
+  }
+
+  if (!checkRateLimit(phone)) {
+    return res.status(429).json({
+      error: "Too many OTP requests. Please try again in a few minutes.",
+    });
   }
 
   cleanExpired();
@@ -43,11 +74,12 @@ router.post("/send-otp", (req, res) => {
   // In production: integrate with MSG91 / Fast2SMS / Twilio here
   // Example: await sendSms(phone, `Your ThulirFarm OTP is ${otp}. Valid for 5 minutes.`)
 
+  const isDev = process.env.NODE_ENV !== "production";
+
   return res.json({
     success: true,
     message: "OTP sent",
-    // NOTE: Remove demoOtp in production — for development testing only
-    demoOtp: otp,
+    ...(isDev && { demoOtp: otp }),
     expiresIn: 300,
   });
 });
