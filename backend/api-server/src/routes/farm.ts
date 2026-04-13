@@ -49,7 +49,7 @@ Provide a structured diagnosis response as JSON with these exact fields:
 Respond with ONLY the JSON object, no markdown code blocks.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       max_completion_tokens: 8192,
       messages: [{ role: "user", content: prompt }],
     });
@@ -126,7 +126,7 @@ For navigation like 'show animals' or 'go to money', set action to navigate.
 Respond with ONLY the JSON object.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       max_completion_tokens: 8192,
       messages: [{ role: "user", content: prompt }],
     });
@@ -157,6 +157,12 @@ router.post("/farm/transcribe", (upload as any).single("audio"), async (req: any
   const file = req.file;
   if (!file) {
     res.status(400).json({ error: "No audio file provided" });
+    return;
+  }
+
+  const MAX_FILE_SIZE = 25 * 1024 * 1024;
+  if (file.size > MAX_FILE_SIZE) {
+    res.status(400).json({ error: "Audio file too large. Maximum size is 25MB." });
     return;
   }
 
@@ -228,7 +234,11 @@ Never give medicine dosages — recommend consulting a local vet for specific tr
 
     const messages = [
       { role: "system" as const, content: systemPrompt },
-      ...(history ?? []).slice(-8),
+      ...(history ?? [])
+        .filter((h): h is { role: "user" | "assistant"; content: string } =>
+          h && typeof h.content === "string" && (h.role === "user" || h.role === "assistant")
+        )
+        .slice(-8),
       { role: "user" as const, content: message },
     ];
 
@@ -254,6 +264,21 @@ router.post("/farm/ration", async (req, res) => {
       animalType: string; breed: string; weightKg: number;
       milkProductionL: number; language?: string;
     };
+
+    if (!animalType || !breed || typeof weightKg !== "number" || typeof milkProductionL !== "number") {
+      res.status(400).json({ error: "animalType, breed, weightKg, and milkProductionL are required" });
+      return;
+    }
+
+    if (weightKg <= 0 || weightKg > 2000) {
+      res.status(400).json({ error: "weightKg must be between 1 and 2000" });
+      return;
+    }
+
+    if (milkProductionL < 0 || milkProductionL > 100) {
+      res.status(400).json({ error: "milkProductionL must be between 0 and 100" });
+      return;
+    }
 
     const langMap: Record<string, string> = {
       ta: "Tamil", te: "Telugu", kn: "Kannada", ml: "Malayalam", hi: "Hindi", en: "English",
@@ -287,7 +312,12 @@ Respond ONLY with valid JSON.`;
     });
 
     const content = completion.choices[0]?.message?.content ?? "{}";
-    res.json(JSON.parse(content));
+    try {
+      const parsed = JSON.parse(content);
+      res.json(parsed);
+    } catch {
+      res.status(500).json({ error: "Failed to parse ration calculation result" });
+    }
   } catch (err) {
     console.error("Ration error:", err);
     res.status(500).json({ error: "Ration calculation failed" });
