@@ -11,6 +11,7 @@ import {
 } from "react-native";
 
 import { Animal } from "@/context/AppContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 
 interface AnimalCardProps {
@@ -31,21 +32,22 @@ const HEALTH_COLORS: Record<string, string> = {
   critical: "#ef4444",
 };
 
-const HEALTH_LABELS: Record<string, string> = {
-  healthy: "ஆரோக்கியம்",
-  attention: "கவனிக்கவும்",
-  critical: "அவசரம்",
-};
-
-const QUICK_ACTIONS = [
-  { id: "fever" as const, label: "காய்ச்சல்", icon: "thermometer" },
-  { id: "notEating" as const, label: "சாப்பிடவில்லை", icon: "x-circle" },
-  { id: "injury" as const, label: "காயம்", icon: "scissors" },
-  { id: "inHeat" as const, label: "ஈட்டு", icon: "heart" },
-];
-
 export default function AnimalCard({ animal, onMilkLog, onQuickAction }: AnimalCardProps) {
   const colors = useColors();
+  const { t } = useLanguage();
+
+  const HEALTH_LABELS: Record<string, string> = {
+    healthy: t.healthy,
+    attention: t.attention,
+    critical: t.critical,
+  };
+
+  const QUICK_ACTIONS = [
+    { id: "fever" as const, label: t.quickActionFever, icon: "thermometer" },
+    { id: "notEating" as const, label: t.quickActionNotEating, icon: "x-circle" },
+    { id: "injury" as const, label: t.quickActionInjury, icon: "scissors" },
+    { id: "inHeat" as const, label: t.quickActionInHeat, icon: "heart" },
+  ];
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -64,7 +66,6 @@ export default function AnimalCard({ animal, onMilkLog, onQuickAction }: AnimalC
         ]}
         onPress={handlePress}
       >
-        {/* Animal photo or emoji */}
         {animal.photoUri ? (
           <Image source={{ uri: animal.photoUri }} style={styles.photo} />
         ) : (
@@ -86,7 +87,7 @@ export default function AnimalCard({ animal, onMilkLog, onQuickAction }: AnimalC
               <Feather name="droplet" size={12} color={colors.primary} />
               <Text style={[styles.milkText, { color: colors.mutedForeground }]}>
                 {lastMilk.toFixed(1)}L{" "}
-                {animal.lastMilkEntry?.session === "morning" ? "காலை" : "மாலை"}
+                {animal.lastMilkEntry?.session === "morning" ? t.morning : t.evening}
               </Text>
             </View>
           )}
@@ -103,9 +104,7 @@ export default function AnimalCard({ animal, onMilkLog, onQuickAction }: AnimalC
         </View>
       </Pressable>
 
-      {/* Action row */}
       <View style={[styles.actionRow, { borderTopColor: colors.border }]}>
-        {/* Quick milk log */}
         <Pressable
           style={[styles.actionBtn, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "30" }]}
           onPress={() => {
@@ -114,10 +113,9 @@ export default function AnimalCard({ animal, onMilkLog, onQuickAction }: AnimalC
           }}
         >
           <Feather name="droplet" size={13} color={colors.primary} />
-          <Text style={[styles.actionBtnText, { color: colors.primary }]}>பால் பதிவு</Text>
+          <Text style={[styles.actionBtnText, { color: colors.primary }]}>{t.milkLog}</Text>
         </Pressable>
 
-        {/* Quick health actions */}
         {QUICK_ACTIONS.map((qa) => (
           <Pressable
             key={qa.id}

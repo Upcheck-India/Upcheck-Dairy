@@ -29,13 +29,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const firstSegment = segments[0] as string | undefined;
   const inAuth = firstSegment === "(auth)";
-  const inTabs = firstSegment === "(tabs)";
 
   if (isAuthenticated && inAuth) {
     return <Redirect href="/(tabs)" />;
   }
 
-  if (!isAuthenticated && !inAuth && !inTabs) {
+  if (!isAuthenticated && !inAuth) {
     return <Redirect href="/(auth)/login" />;
   }
 

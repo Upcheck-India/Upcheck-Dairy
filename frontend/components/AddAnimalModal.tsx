@@ -15,6 +15,7 @@ import {
 } from "react-native";
 
 import { Animal, AnimalType, generateId, useApp } from "@/context/AppContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 
 interface AddAnimalModalProps {
@@ -22,20 +23,21 @@ interface AddAnimalModalProps {
   onClose: () => void;
 }
 
-const ANIMAL_TYPES: { type: AnimalType; emoji: string; label: string; labelTamil: string }[] = [
-  { type: "cow", emoji: "🐄", label: "Cow", labelTamil: "பசு" },
-  { type: "buffalo", emoji: "🐃", label: "Buffalo", labelTamil: "எருமை" },
-  { type: "calf", emoji: "🐮", label: "Calf", labelTamil: "கன்று" },
-];
-
 export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps) {
   const colors = useColors();
   const { addAnimal } = useApp();
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [type, setType] = useState<AnimalType>("cow");
   const [breed, setBreed] = useState("");
   const [tagNumber, setTagNumber] = useState("");
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+
+  const ANIMAL_TYPES: { type: AnimalType; emoji: string; label: string }[] = [
+    { type: "cow", emoji: "🐄", label: t.typeCow },
+    { type: "buffalo", emoji: "🐃", label: t.typeBuffalo },
+    { type: "calf", emoji: "🐮", label: t.typeCalf },
+  ];
 
   useEffect(() => {
     if (visible) {
@@ -56,7 +58,7 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
 
   const handleSave = () => {
     if (!name.trim()) {
-      Alert.alert("தவறு", "மாடு பெயர் உள்ளிடவும்");
+      Alert.alert(t.error, t.addAnimalNameRequired);
       return;
     }
     const animal: Animal = {
@@ -93,7 +95,7 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.header}>
                 <Text style={[styles.title, { color: colors.foreground }]}>
-                  புதிய மாடு சேர்க்கவும்
+                  {t.addAnimalTitle}
                 </Text>
                 <Pressable
                   onPress={onClose}
@@ -104,21 +106,21 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
               </View>
 
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                வகை தேர்வு
+                {t.addAnimalSelectType}
               </Text>
               <View style={styles.typeRow}>
-                {ANIMAL_TYPES.map(({ type: t, emoji, labelTamil }) => (
+                {ANIMAL_TYPES.map(({ type: at, emoji, label }) => (
                   <Pressable
-                    key={t}
+                    key={at}
                     style={[
                       styles.typeBtn,
                       {
-                        backgroundColor: type === t ? colors.primary : colors.muted,
-                        borderColor: type === t ? colors.primary : colors.border,
+                        backgroundColor: type === at ? colors.primary : colors.muted,
+                        borderColor: type === at ? colors.primary : colors.border,
                       },
                     ]}
                     onPress={() => {
-                      setType(t);
+                      setType(at);
                       Haptics.selectionAsync();
                     }}
                   >
@@ -126,17 +128,17 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
                     <Text
                       style={[
                         styles.typeLabel,
-                        { color: type === t ? "#fff" : colors.mutedForeground },
+                        { color: type === at ? "#fff" : colors.mutedForeground },
                       ]}
                     >
-                      {labelTamil}
+                      {label}
                     </Text>
                   </Pressable>
                 ))}
               </View>
 
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                பெயர் *
+                {t.addAnimalName}
               </Text>
               <TextInput
                 style={[
@@ -149,12 +151,12 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
                 ]}
                 value={name}
                 onChangeText={setName}
-                placeholder="உதா: லட்சுமி"
+                placeholder={t.addAnimalNamePlaceholder}
                 placeholderTextColor={colors.mutedForeground}
               />
 
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                ரகம்
+                {t.addAnimalBreed}
               </Text>
               <TextInput
                 style={[
@@ -167,12 +169,12 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
                 ]}
                 value={breed}
                 onChangeText={setBreed}
-                placeholder="உதா: ஜெர்சி, முர்ராஹ்"
+                placeholder={t.addAnimalBreedPlaceholder}
                 placeholderTextColor={colors.mutedForeground}
               />
 
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                குறி எண்
+                {t.addAnimalTag}
               </Text>
               <TextInput
                 style={[
@@ -185,7 +187,7 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
                 ]}
                 value={tagNumber}
                 onChangeText={setTagNumber}
-                placeholder="உதா: A001"
+                placeholder={t.addAnimalTagPlaceholder}
                 placeholderTextColor={colors.mutedForeground}
                 autoCapitalize="characters"
               />
@@ -195,7 +197,7 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
                 onPress={handleSave}
               >
                 <Feather name="plus" size={20} color="#fff" />
-                <Text style={styles.saveBtnText}>சேர்க்கவும்</Text>
+                <Text style={styles.saveBtnText}>{t.addAnimalSave}</Text>
               </Pressable>
             </ScrollView>
           </Pressable>

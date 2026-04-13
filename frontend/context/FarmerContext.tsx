@@ -108,6 +108,7 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
   }, [farmer]);
 
   const logout = useCallback(async () => {
+    await AsyncStorage.removeItem(FARMER_KEY);
     setFarmer(null);
   }, []);
 
