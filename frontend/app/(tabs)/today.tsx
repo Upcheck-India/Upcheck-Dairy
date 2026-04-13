@@ -23,6 +23,10 @@ import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 
+const LOCALE_MAP: Record<string, string> = {
+  ta: "ta-IN", te: "te-IN", kn: "kn-IN", ml: "ml-IN", hi: "hi-IN", en: "en-IN",
+};
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -179,7 +183,7 @@ export default function TodayTab() {
           </View>
           <View style={{ alignItems: "flex-end", gap: 4 }}>
             <Text style={[styles.dateText, { color: colors.mutedForeground }]}>
-              {new Date().toLocaleDateString("ta-IN", { weekday: "short", month: "short", day: "numeric" })}
+              {new Date().toLocaleDateString(LOCALE_MAP[language] ?? "en-IN", { weekday: "short", month: "short", day: "numeric" })}
             </Text>
             <View style={[styles.weatherBadge, { backgroundColor: colors.muted }]}>
               <Feather name={weather.icon as any} size={12} color={colors.accent} />

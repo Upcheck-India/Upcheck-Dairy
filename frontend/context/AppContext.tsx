@@ -401,12 +401,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { loadData(); }, []);
 
-  const refreshAlerts = useCallback(
-    (a: Animal[], be: BreedingEvent[], v: Vaccination[]) => {
-      setSmartAlerts(computeSmartAlerts(a, be, v));
-    },
-    []
-  );
+  useEffect(() => {
+    if (isLoaded) {
+      setSmartAlerts(computeSmartAlerts(animals, breedingEvents, vaccinations));
+    }
+  }, [animals, breedingEvents, vaccinations, isLoaded]);
 
   const loadData = async () => {
     try {
@@ -555,65 +554,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBreedingEvents((prev) => {
       const next = [event, ...prev];
       save(STORAGE_KEYS.BREEDING_EVENTS, next);
-
-      // Update animal pregnancy fields
-      if (event.eventType === "insemination" || event.eventType === "pregnancy_confirmed") {
-        const expectedDate = event.expectedCalvingDate ?? addDays(event.date, 280);
-        setAnimals((prevA) => {
-          const nextA = prevA.map((a) =>
-            a.id === event.animalId
-              ? { ...a, isPregnant: true, expectedCalvingDate: expectedDate }
-              : a
-          );
-          save(STORAGE_KEYS.ANIMALS, nextA);
-          setSmartAlerts(computeSmartAlerts(nextA, next, []));
-          return nextA;
-        });
-      } else if (event.eventType === "calving") {
-        setAnimals((prevA) => {
-          const nextA = prevA.map((a) =>
-            a.id === event.animalId
-              ? {
-                  ...a,
-                  isPregnant: false,
-                  expectedCalvingDate: undefined,
-                  lastCalvingDate: event.date,
-                  lactationNumber: (a.lactationNumber ?? 0) + 1,
-                }
-              : a
-          );
-          save(STORAGE_KEYS.ANIMALS, nextA);
-          return nextA;
-        });
-      } else if (event.eventType === "abort") {
-        setAnimals((prevA) => {
-          const nextA = prevA.map((a) =>
-            a.id === event.animalId
-              ? { ...a, isPregnant: false, expectedCalvingDate: undefined }
-              : a
-          );
-          save(STORAGE_KEYS.ANIMALS, nextA);
-          return nextA;
-        });
-      }
-
       return next;
     });
 
-    setVaccinations((vax) => {
-      setSmartAlerts((prev) => {
-        setAnimals((currentAnimals) => {
-          setBreedingEvents((currentBreeding) => {
-            const alerts = computeSmartAlerts(currentAnimals, currentBreeding, vax);
-            setSmartAlerts(alerts);
-            return currentBreeding;
-          });
-          return currentAnimals;
-        });
-        return prev;
+    if (event.eventType === "insemination" || event.eventType === "pregnancy_confirmed") {
+      const expectedDate = event.expectedCalvingDate ?? addDays(event.date, 280);
+      setAnimals((prevA) => {
+        const nextA = prevA.map((a) =>
+          a.id === event.animalId
+            ? { ...a, isPregnant: true, expectedCalvingDate: expectedDate }
+            : a
+        );
+        save(STORAGE_KEYS.ANIMALS, nextA);
+        return nextA;
       });
-      return vax;
-    });
+    } else if (event.eventType === "calving") {
+      setAnimals((prevA) => {
+        const nextA = prevA.map((a) =>
+          a.id === event.animalId
+            ? {
+                ...a,
+                isPregnant: false,
+                expectedCalvingDate: undefined,
+                lastCalvingDate: event.date,
+                lactationNumber: (a.lactationNumber ?? 0) + 1,
+              }
+            : a
+        );
+        save(STORAGE_KEYS.ANIMALS, nextA);
+        return nextA;
+      });
+    } else if (event.eventType === "abort") {
+      setAnimals((prevA) => {
+        const nextA = prevA.map((a) =>
+          a.id === event.animalId
+            ? { ...a, isPregnant: false, expectedCalvingDate: undefined }
+            : a
+        );
+        save(STORAGE_KEYS.ANIMALS, nextA);
+        return nextA;
+      });
+    }
   }, []);
 
   const deleteBreedingEvent = useCallback((id: string) => {
@@ -629,10 +610,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setVaccinations((prev) => {
       const next = [v, ...prev];
       save(STORAGE_KEYS.VACCINATIONS, next);
-      setAnimals((a) => { setSmartAlerts(computeSmartAlerts(a, breedingEvents, next)); return a; });
       return next;
     });
-  }, [breedingEvents]);
+  }, []);
 
   const updateVaccination = useCallback((v: Vaccination) => {
     setVaccinations((prev) => { const next = prev.map((x) => x.id === v.id ? v : x); save(STORAGE_KEYS.VACCINATIONS, next); return next; });
@@ -655,10 +635,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ...v, administeredDate: date, batchNo: batchNo ?? v.batchNo, nextDueDate: nextDue };
       });
       save(STORAGE_KEYS.VACCINATIONS, next);
-      setAnimals((a) => { setSmartAlerts(computeSmartAlerts(a, breedingEvents, next)); return a; });
       return next;
     });
-  }, [breedingEvents]);
+  }, []);
 
   const getAnimalVaccinations = useCallback((animalId: string) => {
     return vaccinations.filter((v) => v.animalId === animalId).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
@@ -721,7 +700,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const date = d.toISOString().split("T")[0];
       const income = incomeEntries.filter((e) => e.date === date).reduce((s, e) => s + e.totalReceived, 0);
       const expense = expenseEntries.filter((e) => e.date === date).reduce((s, e) => s + e.amount, 0);
-      const label = d.toLocaleDateString("ta-IN", { weekday: "short" });
+      const label = d.toLocaleDateString("en-IN", { weekday: "short" });
       return { date: label, income, expense };
     });
   }, [incomeEntries, expenseEntries]);

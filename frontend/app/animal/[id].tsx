@@ -17,19 +17,19 @@ import {
 
 import MilkLogModal from "@/components/MilkLogModal";
 import { generateId, getTodayString, HealthStatus, useApp } from "@/context/AppContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 
-const HEALTH_OPTIONS: { status: HealthStatus; label: string; color: string }[] = [
-  { status: "healthy", label: "ஆரோக்கியம்", color: "#16a34a" },
-  { status: "attention", label: "கவனிக்கவும்", color: "#f97316" },
-  { status: "critical", label: "அவசரம்", color: "#ef4444" },
-];
+const LOCALE_MAP: Record<string, string> = {
+  ta: "ta-IN", te: "te-IN", kn: "kn-IN", ml: "ml-IN", hi: "hi-IN", en: "en-IN",
+};
 
 export default function AnimalDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { animals, milkEntries, healthEvents, updateAnimal, deleteAnimal, addHealthEvent } = useApp();
+  const { t, language } = useLanguage();
   const [milkLogVisible, setMilkLogVisible] = useState(false);
 
   const isWeb = Platform.OS === "web";
@@ -38,6 +38,12 @@ export default function AnimalDetail() {
   const animal = animals.find((a) => a.id === id);
   const animalMilk = milkEntries.filter((e) => e.animalId === id);
   const animalHealth = healthEvents.filter((e) => e.animalId === id);
+
+  const HEALTH_OPTIONS: { status: HealthStatus; label: string; color: string }[] = [
+    { status: "healthy", label: t.healthy, color: "#16a34a" },
+    { status: "attention", label: t.attention, color: "#f97316" },
+    { status: "critical", label: t.critical, color: "#ef4444" },
+  ];
 
   const last7Milk = useMemo(() => {
     const dates = Array.from({ length: 7 }, (_, i) => {
@@ -64,10 +70,10 @@ export default function AnimalDetail() {
         ]}
       >
         <Text style={[styles.notFound, { color: colors.mutedForeground }]}>
-          மாடு கிடைக்கவில்லை
+          {t.animalDetailNotFound}
         </Text>
         <Pressable onPress={() => router.back()}>
-          <Text style={[styles.back, { color: colors.primary }]}>திரும்பு</Text>
+          <Text style={[styles.back, { color: colors.primary }]}>{t.animalDetailGoBack}</Text>
         </Pressable>
       </View>
     );
@@ -76,10 +82,10 @@ export default function AnimalDetail() {
   const emoji = animal.type === "buffalo" ? "🐃" : animal.type === "calf" ? "🐮" : "🐄";
 
   const handleDeleteAnimal = () => {
-    Alert.alert("மாடு நீக்கு", `${animal.name} ஐ நீக்கவா?`, [
-      { text: "இல்லை", style: "cancel" },
+    Alert.alert(t.animalDetailDeleteTitle, t.animalDetailDeleteBody.replace("{name}", animal.name), [
+      { text: t.animalDetailDeleteCancel, style: "cancel" },
       {
-        text: "நீக்கு",
+        text: t.animalDetailDeleteConfirm,
         style: "destructive",
         onPress: () => {
           deleteAnimal(animal.id);
@@ -95,14 +101,14 @@ export default function AnimalDetail() {
   };
 
   const handleCamera = () => {
-    Alert.alert("புகைப்படம் எடுக்கவும்", "புகைப்படம் எடுக்கவும் அல்லது கேலரியில் இருந்து தேர்வு செய்யவும்", [
-      { text: "ரத்து", style: "cancel" },
+    Alert.alert(t.animalDetailPhotoTitle, t.animalDetailPhotoBody, [
+      { text: t.cancel, style: "cancel" },
       {
-        text: "📷 கேமரா",
+        text: t.animalDetailCamera,
         onPress: async () => {
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== "granted") {
-            Alert.alert("அனுமதி தேவை", "கேமரா அணுகல் வழங்கவும்");
+            Alert.alert(t.animalDetailPermissionNeeded, t.animalDetailCameraPermission);
             return;
           }
           const result = await ImagePicker.launchCameraAsync({
@@ -118,11 +124,11 @@ export default function AnimalDetail() {
         },
       },
       {
-        text: "🖼 கேலரி",
+        text: t.animalDetailGallery,
         onPress: async () => {
           const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== "granted") {
-            Alert.alert("அனுமதி தேவை", "கேலரி அணுகல் வழங்கவும்");
+            Alert.alert(t.animalDetailPermissionNeeded, t.animalDetailGalleryPermission);
             return;
           }
           const result = await ImagePicker.launchImageLibraryAsync({
@@ -142,17 +148,17 @@ export default function AnimalDetail() {
 
   const addHealthNote = () => {
     const options = [
-      "காய்ச்சல் — Fever",
-      "சாப்பிடவில்லை — Not Eating",
-      "கால் வலி — Limping",
-      "வயிற்றுப்போக்கு — Diarrhea",
-      "இருமல் — Coughing",
-      "மருத்துவர் வருகை — Vet Visit",
-      "தடுப்பூசி — Vaccination",
+      t.healthEventFever,
+      t.healthEventNotEating,
+      t.healthEventLimping,
+      t.healthEventDiarrhea,
+      t.healthEventCoughing,
+      t.healthEventVetVisit,
+      t.healthEventVaccination,
     ];
     Alert.alert(
-      "உடல்நிலை குறிப்பு சேர்க்கவும்",
-      "அறிகுறி/நிகழ்வு தேர்வு செய்யவும்",
+      t.animalDetailAddHealthNote,
+      t.animalDetailSelectSymptom,
       [
         ...options.map((opt) => ({
           text: opt,
@@ -167,7 +173,7 @@ export default function AnimalDetail() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
         })),
-        { text: "ரத்து", style: "cancel" },
+        { text: t.cancel, style: "cancel" },
       ]
     );
   };
@@ -200,7 +206,6 @@ export default function AnimalDetail() {
         contentContainerStyle={[styles.scroll, { paddingBottom: isWeb ? 120 : 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Animal profile card with photo */}
         <View
           style={[
             styles.profileCard,
@@ -229,18 +234,17 @@ export default function AnimalDetail() {
             <Text style={[styles.profileName, { color: colors.foreground }]}>{animal.name}</Text>
             <Text style={[styles.profileBreed, { color: colors.mutedForeground }]}>{animal.breed}</Text>
             <Text style={[styles.profileTag, { color: colors.mutedForeground }]}>
-              குறி: #{animal.tagNumber}
+              {t.animalDetailTagPrefix}{animal.tagNumber}
             </Text>
             <View style={[styles.typeBadge, { backgroundColor: colors.secondary }]}>
               <Text style={[styles.typeBadgeText, { color: colors.primary }]}>
-                {animal.type === "cow" ? "பசு" : animal.type === "buffalo" ? "எருமை" : "கன்று"}
+                {animal.type === "cow" ? t.typeCow : animal.type === "buffalo" ? t.typeBuffalo : t.typeCalf}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Health status selector */}
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>உடல் நிலை</Text>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t.animalDetailHealth}</Text>
         <View style={styles.healthRow}>
           {HEALTH_OPTIONS.map((h) => (
             <Pressable
@@ -269,7 +273,6 @@ export default function AnimalDetail() {
           ))}
         </View>
 
-        {/* Quick action buttons */}
         <View style={styles.actionRow}>
           <Pressable
             style={[styles.actionBtn, { backgroundColor: colors.primary }]}
@@ -279,7 +282,7 @@ export default function AnimalDetail() {
             }}
           >
             <Feather name="droplet" size={18} color="#fff" />
-            <Text style={styles.actionBtnText}>பால் பதிவு</Text>
+            <Text style={styles.actionBtnText}>{t.animalDetailMilkLog}</Text>
           </Pressable>
           <Pressable
             style={[styles.actionBtn, { backgroundColor: colors.warning }]}
@@ -289,13 +292,12 @@ export default function AnimalDetail() {
             }}
           >
             <Feather name="heart" size={18} color="#fff" />
-            <Text style={styles.actionBtnText}>உடல் குறிப்பு</Text>
+            <Text style={styles.actionBtnText}>{t.animalDetailHealthNote}</Text>
           </Pressable>
         </View>
 
-        {/* 7-day milk chart */}
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-          7 நாட்கள் பால் வரலாறு
+          {t.animalDetailMilkHistory}
         </Text>
         <View
           style={[
@@ -306,7 +308,7 @@ export default function AnimalDetail() {
           <View style={styles.chartRow}>
             {last7Milk.map((d, i) => {
               const heightPct = maxMilk > 0 ? d.total / maxMilk : 0;
-              const dayName = new Date(d.date).toLocaleDateString("ta-IN", {
+              const dayName = new Date(d.date).toLocaleDateString(LOCALE_MAP[language] ?? "en-IN", {
                 weekday: "short",
               });
               return (
@@ -334,13 +336,12 @@ export default function AnimalDetail() {
           </View>
         </View>
 
-        {/* Health events */}
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-          உடல்நிலை வரலாறு
+          {t.animalDetailHealthHistory}
         </Text>
         {animalHealth.length === 0 ? (
           <Text style={[styles.noData, { color: colors.mutedForeground }]}>
-            குறிப்புகள் இல்லை — மேலே "உடல் குறிப்பு" அழுத்தவும்
+            {t.animalDetailNoNotes}
           </Text>
         ) : (
           animalHealth.slice(0, 10).map((e) => {
@@ -380,13 +381,12 @@ export default function AnimalDetail() {
           })
         )}
 
-        {/* Recent milk entries */}
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-          சமீபத்திய பால் பதிவுகள்
+          {t.animalDetailRecentMilk}
         </Text>
         {animalMilk.length === 0 ? (
           <Text style={[styles.noData, { color: colors.mutedForeground }]}>
-            பதிவுகள் இல்லை
+            {t.animalDetailNoMilk}
           </Text>
         ) : (
           animalMilk.slice(0, 10).map((e) => (
@@ -404,11 +404,11 @@ export default function AnimalDetail() {
               />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.milkEntryDate, { color: colors.mutedForeground }]}>
-                  {e.date} — {e.session === "morning" ? "காலை" : "மாலை"}
+                  {e.date} — {e.session === "morning" ? t.morning : t.evening}
                 </Text>
                 {e.fat && (
                   <Text style={[styles.milkEntryFat, { color: colors.mutedForeground }]}>
-                    கொழுப்பு: {e.fat}%
+                    {t.fatPercentage}: {e.fat}%
                   </Text>
                 )}
               </View>

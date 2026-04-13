@@ -46,8 +46,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleSkip = () => router.replace("/(tabs)");
-
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -142,16 +140,6 @@ export default function LoginScreen() {
             )}
           </Pressable>
 
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <Pressable style={styles.skipBtn} onPress={handleSkip}>
-            <Feather name="user-x" size={15} color="#9ca3af" />
-            <Text style={styles.skipText}>{t.skip}</Text>
-          </Pressable>
         </View>
 
         <View style={styles.footer}>
@@ -280,17 +268,6 @@ const styles = StyleSheet.create({
   sendBtnDisabled: { backgroundColor: "#86efac" },
   sendBtnPressed: { opacity: 0.88 },
   sendBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
-  dividerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "#e5e7eb" },
-  dividerText: { color: "#9ca3af", fontSize: 13, fontWeight: "500" },
-  skipBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
-  },
-  skipText: { color: "#9ca3af", fontSize: 14 },
   footer: { alignItems: "center", marginTop: 20 },
   footerRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   footerText: { color: "#4d7c0f", fontSize: 12 },

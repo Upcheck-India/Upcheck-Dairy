@@ -14,6 +14,7 @@ import {
 } from "react-native";
 
 import { Animal, MilkEntry, generateId, getTodayString, useApp } from "@/context/AppContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 
 interface MilkLogModalProps {
@@ -31,6 +32,7 @@ export default function MilkLogModal({
 }: MilkLogModalProps) {
   const colors = useColors();
   const { addMilkEntry } = useApp();
+  const { t } = useLanguage();
   const [quantity, setQuantity] = useState("");
   const [session, setSession] = useState<"morning" | "evening">(
     new Date().getHours() < 12 ? "morning" : "evening"
@@ -59,7 +61,7 @@ export default function MilkLogModal({
     if (!animal) return;
     const qty = parseFloat(quantity);
     if (isNaN(qty) || qty <= 0) {
-      Alert.alert("தவறு", "சரியான அளவை உள்ளிடவும்");
+      Alert.alert(t.error, t.milkLogInvalidQty);
       return;
     }
     const entry: MilkEntry = {
@@ -104,7 +106,7 @@ export default function MilkLogModal({
               <Text style={styles.emoji}>{animalEmoji}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.title, { color: colors.foreground }]}>
-                  பால் பதிவு
+                  {t.milkLogTitle}
                 </Text>
                 <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
                   {animal.name}
@@ -119,7 +121,7 @@ export default function MilkLogModal({
             </View>
 
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-              அமர்வு தேர்வு
+              {t.milkLogSelectSession}
             </Text>
             <View style={styles.sessionRow}>
               {(["morning", "evening"] as const).map((s) => (
@@ -152,14 +154,14 @@ export default function MilkLogModal({
                       },
                     ]}
                   >
-                    {s === "morning" ? "காலை" : "மாலை"}
+                    {s === "morning" ? t.morning : t.evening}
                   </Text>
                 </Pressable>
               ))}
             </View>
 
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-              பால் அளவு (லிட்டர்)
+              {t.milkLogQuantityLabel}
             </Text>
             <View
               style={[
@@ -183,7 +185,7 @@ export default function MilkLogModal({
             </View>
 
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-              கொழுப்பு % (விருப்பம்)
+              {t.milkLogFatLabel}
             </Text>
             <View
               style={[
@@ -207,7 +209,7 @@ export default function MilkLogModal({
               onPress={handleSave}
             >
               <Feather name="check" size={20} color="#fff" />
-              <Text style={styles.saveBtnText}>சேமி</Text>
+              <Text style={styles.saveBtnText}>{t.save}</Text>
             </Pressable>
           </Pressable>
         </Animated.View>
