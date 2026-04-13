@@ -222,6 +222,7 @@ interface AppContextType {
   adjustInventoryQuantity: (id: string, delta: number) => void;
 
   isLoaded: boolean;
+  reloadData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -406,6 +407,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSmartAlerts(computeSmartAlerts(animals, breedingEvents, vaccinations));
     }
   }, [animals, breedingEvents, vaccinations, isLoaded]);
+
+  const reloadData = useCallback(async () => {
+    await loadData();
+  }, []);
 
   const loadData = async () => {
     try {
@@ -720,6 +725,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         getAnimalVaccinations,
         addInventoryItem, updateInventoryItem, deleteInventoryItem, adjustInventoryQuantity,
         isLoaded,
+        reloadData,
       }}
     >
       {children}

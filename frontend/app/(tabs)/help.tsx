@@ -340,9 +340,9 @@ export default function HelpTab() {
                 </View>
               )}
               {diagnosis.homeRemedy && (
-                <View style={[styles.medicineRow, { backgroundColor: "#fef9c3", borderColor: "#fde047" }]}>
-                  <Feather name="home" size={14} color="#ca8a04" />
-                  <Text style={[styles.medicineText, { color: "#78350f" }]}>{diagnosis.homeRemedy}</Text>
+                <View style={[styles.medicineRow, { backgroundColor: colors.accent + "15", borderColor: colors.accent + "40" }]}>
+                  <Feather name="home" size={14} color={colors.accent} />
+                  <Text style={[styles.medicineText, { color: colors.foreground }]}>{diagnosis.homeRemedy}</Text>
                 </View>
               )}
               {diagnosis.nextSteps && <Text style={[styles.nextSteps, { color: colors.mutedForeground }]}>🕐 {diagnosis.nextSteps}</Text>}
@@ -378,38 +378,38 @@ export default function HelpTab() {
             </Pressable>
           </View>
 
-          <Text style={[styles.sectionTitle, { color: "#1a2e05", marginTop: 8, marginBottom: 12 }]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 8, marginBottom: 12 }]}>
             {lx({ ta: "📞 அவசர தொடர்பு", te: "📞 అత్యవసర సంప్రదింపులు", kn: "📞 ತುರ್ತು ಸಂಪರ್ಕಗಳು", ml: "📞 അടിയന്തര ബന്ധ", hi: "📞 आपातकालीन संपर्क", en: "📞 Emergency Contacts" })}
           </Text>
           {EMERGENCY_CONTACTS.map((c) => (
             <Pressable
               key={c.phone}
-              style={[styles.contactRow, { backgroundColor: "#fff", borderColor: "#e5e7eb" }]}
+              style={[styles.contactRow, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Linking.openURL(`tel:${c.phone}`); }}
             >
-              <View style={[styles.contactIcon, { backgroundColor: "#fee2e2" }]}>
-                <Feather name={c.icon as any} size={18} color="#dc2626" />
+              <View style={[styles.contactIcon, { backgroundColor: colors.destructive + "18" }]}>
+                <Feather name={c.icon as any} size={18} color={colors.destructive} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.contactName}>{c.name}</Text>
-                <Text style={[styles.contactDesc, { color: "#6b7280" }]}>{c.desc}</Text>
-                <Text style={styles.contactPhone}>{c.phone}</Text>
+                <Text style={[styles.contactName, { color: colors.foreground }]}>{c.name}</Text>
+                <Text style={[styles.contactDesc, { color: colors.mutedForeground }]}>{c.desc}</Text>
+                <Text style={[styles.contactPhone, { color: colors.destructive }]}>{c.phone}</Text>
               </View>
-              <View style={styles.callBadge}>
-                <Feather name="phone-outgoing" size={14} color="#dc2626" />
-                <Text style={styles.callBadgeText}>
+              <View style={[styles.callBadge, { backgroundColor: colors.destructive + "18" }]}>
+                <Feather name="phone-outgoing" size={14} color={colors.destructive} />
+                <Text style={[styles.callBadgeText, { color: colors.destructive }]}>
                   {lx({ ta: "அழை", te: "పిలవండి", kn: "ಕರೆಯಿರಿ", ml: "വിളിക്കൂ", hi: "कॉल", en: "Call" })}
                 </Text>
               </View>
             </Pressable>
           ))}
 
-          <View style={styles.firstAidCard}>
-            <Text style={styles.firstAidTitle}>🩺 {t.firstAidTips}</Text>
+          <View style={[styles.firstAidCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.firstAidTitle, { color: colors.foreground }]}>🩺 {t.firstAidTips}</Text>
             {firstAidTips.map((tip, i) => (
               <View key={i} style={styles.firstAidTip}>
-                <Text style={styles.firstAidNum}>{i + 1}</Text>
-                <Text style={styles.firstAidText}>{tip}</Text>
+                <Text style={[styles.firstAidNum, { backgroundColor: colors.secondary, color: colors.primary }]}>{i + 1}</Text>
+                <Text style={[styles.firstAidText, { color: colors.foreground }]}>{tip}</Text>
               </View>
             ))}
           </View>
@@ -471,14 +471,14 @@ const styles = StyleSheet.create({
   callVetText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   contactRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 14, borderWidth: 1, marginBottom: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   contactIcon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
-  contactName: { fontSize: 14, fontWeight: "600", color: "#1a2e05" },
+  contactName: { fontSize: 14, fontWeight: "600" },
   contactDesc: { fontSize: 11, marginTop: 1 },
-  contactPhone: { fontSize: 18, fontWeight: "700", color: "#dc2626", marginTop: 2 },
-  callBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#fee2e2", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
-  callBadgeText: { fontSize: 12, color: "#dc2626", fontWeight: "600" },
-  firstAidCard: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginTop: 4, gap: 10 },
-  firstAidTitle: { fontSize: 16, fontWeight: "700", color: "#1a2e05", marginBottom: 4 },
+  contactPhone: { fontSize: 18, fontWeight: "700", marginTop: 2 },
+  callBadge: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
+  callBadgeText: { fontSize: 12, fontWeight: "600" },
+  firstAidCard: { borderRadius: 16, padding: 16, marginTop: 4, gap: 10 },
+  firstAidTitle: { fontSize: 16, fontWeight: "700", marginBottom: 4 },
   firstAidTip: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  firstAidNum: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#dcfce7", textAlign: "center", lineHeight: 22, fontSize: 12, fontWeight: "700", color: "#16a34a", flexShrink: 0 },
-  firstAidText: { flex: 1, fontSize: 13, color: "#374151", lineHeight: 20 },
+  firstAidNum: { width: 22, height: 22, borderRadius: 11, textAlign: "center", lineHeight: 22, fontSize: 12, fontWeight: "700", flexShrink: 0 },
+  firstAidText: { flex: 1, fontSize: 13, lineHeight: 20 },
 });

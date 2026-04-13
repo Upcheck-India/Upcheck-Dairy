@@ -8,7 +8,6 @@ interface StatCardProps {
   icon: string;
   iconColor?: string;
   label: string;
-  labelTamil: string;
   value: string;
   sub?: string;
   trend?: "up" | "down" | "neutral";
@@ -18,7 +17,6 @@ export default function StatCard({
   icon,
   iconColor,
   label,
-  labelTamil,
   value,
   sub,
   trend,
@@ -44,7 +42,7 @@ export default function StatCard({
       </View>
       <Text style={[styles.value, { color: colors.foreground }]}>{value}</Text>
       <Text style={[styles.label, { color: colors.mutedForeground }]}>
-        {labelTamil}
+        {label}
       </Text>
       {sub && (
         <View style={styles.subRow}>
