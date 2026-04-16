@@ -4,8 +4,10 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,7 +30,7 @@ type SubTab = "herd" | "breeding" | "vaccines";
 export default function AnimalsTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { animals, milkAnomalies, syncStatus, vaccinations, breedingEvents } = useApp();
+  const { animals, milkAnomalies, syncStatus, vaccinations, breedingEvents, isLoaded, reloadData } = useApp();
   const { farmer } = useFarmer();
   const { language, t } = useLanguage();
   const [subTab, setSubTab] = useState<SubTab>("herd");
@@ -36,6 +38,7 @@ export default function AnimalsTab() {
   const [milkAnimal, setMilkAnimal] = useState<Animal | null>(null);
   const [filter, setFilter] = useState("all");
   const [celebration, setCelebration] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
@@ -60,8 +63,14 @@ export default function AnimalsTab() {
 
   const handleMilkSuccess = () => setCelebration(true);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await reloadData();
+    setRefreshing(false);
+  };
+
   const syncDot =
-    syncStatus === "synced" ? "#22c55e" : syncStatus === "pending" ? "#f97316" : "#ef4444";
+    syncStatus === "synced" ? colors.success : syncStatus === "pending" ? colors.warning : colors.destructive;
   const syncLabel =
     syncStatus === "synced"
       ? `✓ ${t.savedLabel}`
@@ -200,6 +209,9 @@ export default function AnimalsTab() {
           style={{ flex: 1 }}
           contentContainerStyle={[styles.list, { paddingBottom: bottomPad + 100 }]}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+          }
         >
           {milkAnomalies.length > 0 && (
             <View style={{ gap: 8, marginBottom: 12 }}>
@@ -209,8 +221,8 @@ export default function AnimalsTab() {
                   style={[
                     styles.anomalyBanner,
                     {
-                      backgroundColor: anomaly.severity === "critical" ? "#fef2f2" : "#fff7ed",
-                      borderColor: anomaly.severity === "critical" ? "#ef4444" : "#f97316",
+                      backgroundColor: anomaly.severity === "critical" ? colors.destructive + "12" : colors.warning + "12",
+                      borderColor: anomaly.severity === "critical" ? colors.destructive : colors.warning,
                     },
                   ]}
                   onPress={() => router.push(`/animal/${anomaly.animalId}`)}
@@ -218,23 +230,30 @@ export default function AnimalsTab() {
                   <Feather
                     name="trending-down"
                     size={18}
-                    color={anomaly.severity === "critical" ? "#ef4444" : "#f97316"}
+                    color={anomaly.severity === "critical" ? colors.destructive : colors.warning}
                   />
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.anomalyTitle, { color: anomaly.severity === "critical" ? "#dc2626" : "#c2410c" }]}>
+                    <Text style={[styles.anomalyTitle, { color: anomaly.severity === "critical" ? colors.destructive : colors.warning }]}>
                       {anomaly.animalName} — {t.milkDropAlert}: {anomaly.dropPercent}% {t.milkDropSuffix}
                     </Text>
-                    <Text style={styles.anomalySub}>
+                    <Text style={[styles.anomalySub, { color: colors.mutedForeground }]}>
                       {t.todayPrefix} {anomaly.todayTotal.toFixed(1)}L • {t.avgPrefix} {anomaly.avgTotal.toFixed(1)}L
                     </Text>
                   </View>
-                  <Feather name="chevron-right" size={14} color="#94a3b8" />
+                  <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
                 </Pressable>
               ))}
             </View>
           )}
 
-          {filtered.length === 0 ? (
+          {!isLoaded ? (
+            <View style={styles.empty}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                {t.loadingTasks}
+              </Text>
+            </View>
+          ) : filtered.length === 0 ? (
             <View style={styles.empty}>
               <Feather name="grid" size={48} color={colors.border} />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
@@ -317,7 +336,7 @@ const styles = StyleSheet.create({
     padding: 12, borderRadius: 12, borderWidth: 1.5,
   },
   anomalyTitle: { fontSize: 14, fontWeight: "700" },
-  anomalySub: { fontSize: 11, color: "#6b7280", marginTop: 2 },
+  anomalySub: { fontSize: 11, marginTop: 2 },
   empty: { alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 12 },
   emptyTitle: { fontSize: 20, fontWeight: "600" },
   emptyText: { fontSize: 14, textAlign: "center" },

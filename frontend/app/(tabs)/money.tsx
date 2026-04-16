@@ -3,11 +3,13 @@ import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -94,12 +96,14 @@ export default function MoneyTab() {
   const {
     incomeEntries, expenseEntries, addIncomeEntry, addExpenseEntry, get7DayFinancials,
     inventoryItems, deleteInventoryItem, adjustInventoryQuantity,
+    isLoaded, reloadData,
   } = useApp();
   const [activeTab, setActiveTab] = useState<MoneyTab>("income");
   const [incomeModal, setIncomeModal] = useState(false);
   const [expenseModal, setExpenseModal] = useState(false);
   const [inventoryModal, setInventoryModal] = useState(false);
   const [editInventoryItem, setEditInventoryItem] = useState<InventoryItem | undefined>();
+  const [refreshing, setRefreshing] = useState(false);
 
   const [buyer, setBuyer] = useState("");
   const [qty, setQty] = useState("");
@@ -193,11 +197,11 @@ export default function MoneyTab() {
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t.financeTitle}</Text>
 
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: "#16a34a" }]}>
+          <View style={[styles.statCard, { backgroundColor: colors.success }]}>
             <Text style={styles.statCardLabel}>{t.totalIncome}</Text>
             <Text style={styles.statCardValue}>{formatRupee(totalIncome)}</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: "#ef4444" }]}>
+          <View style={[styles.statCard, { backgroundColor: colors.destructive }]}>
             <Text style={styles.statCardLabel}>{t.totalExpense}</Text>
             <Text style={styles.statCardValue}>{formatRupee(totalExpenses)}</Text>
           </View>
@@ -208,18 +212,28 @@ export default function MoneyTab() {
         </View>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: isWeb ? 120 : 100 }]} showsVerticalScrollIndicator={false}>
+      {!isLoaded ? (
+        <View style={[styles.empty, { flex: 1, justifyContent: "center" }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t.loadingTasks}</Text>
+        </View>
+      ) : (
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: isWeb ? 120 : 100 }]} showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await reloadData(); setRefreshing(false); }} tintColor={colors.primary} colors={[colors.primary]} />
+        }
+      >
         {/* 7-day chart */}
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.chartHeader}>
             <Text style={[styles.chartTitle, { color: colors.foreground }]}>{t.sevenDayFinancials}</Text>
             <View style={styles.chartLegend}>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: "#22c55e" }]} />
+                <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
                 <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{t.income}</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: "#ef4444" }]} />
+                <View style={[styles.legendDot, { backgroundColor: colors.destructive }]} />
                 <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{t.expense}</Text>
               </View>
             </View>
@@ -229,12 +243,12 @@ export default function MoneyTab() {
 
         {/* Low stock banner */}
         {lowStockItems.length > 0 && (
-          <Pressable style={styles.lowStockBanner} onPress={() => setActiveTab("inventory")}>
-            <Feather name="alert-triangle" size={16} color="#c2410c" />
-            <Text style={styles.lowStockText}>
+          <Pressable style={[styles.lowStockBanner, { backgroundColor: colors.warning + "12", borderColor: colors.warning + "40" }]} onPress={() => setActiveTab("inventory")}>
+            <Feather name="alert-triangle" size={16} color={colors.warning} />
+            <Text style={[styles.lowStockText, { color: colors.warning }]}>
               {lowStockItems.length} {t.lowStockItems}: {lowStockItems.map((i) => i.name).join(", ")}
             </Text>
-            <Feather name="chevron-right" size={14} color="#c2410c" />
+            <Feather name="chevron-right" size={14} color={colors.warning} />
           </Pressable>
         )}
 
@@ -365,14 +379,14 @@ export default function MoneyTab() {
                 return (
                   <View
                     key={item.id}
-                    style={[styles.inventoryCard, { borderColor: isLow ? "#ef4444" : colors.border, borderLeftColor: catColor, borderLeftWidth: 4 }]}
+                    style={[styles.inventoryCard, { backgroundColor: colors.card, borderColor: isLow ? colors.destructive : colors.border, borderLeftColor: catColor, borderLeftWidth: 4 }]}
                   >
                     <View style={styles.inventoryCardTop}>
                       <View style={styles.inventoryCardLeft}>
                         <Text style={styles.inventoryCatEmoji}>{catEmoji}</Text>
                         <View>
-                          <Text style={styles.inventoryItemName}>{item.name}</Text>
-                          <Text style={styles.inventoryItemCat}>{item.category}</Text>
+                          <Text style={[styles.inventoryItemName, { color: colors.foreground }]}>{item.name}</Text>
+                          <Text style={[styles.inventoryItemCat, { color: colors.mutedForeground }]}>{item.category}</Text>
                         </View>
                       </View>
                       <View style={styles.inventoryActions}>
@@ -390,31 +404,31 @@ export default function MoneyTab() {
 
                     <View style={styles.stockRow}>
                       <View style={styles.stockQtyRow}>
-                        <Pressable style={styles.qtyBtn} onPress={() => adjustInventoryQuantity(item.id, -1)}>
-                          <Feather name="minus" size={14} color="#374151" />
+                        <Pressable style={[styles.qtyBtn, { backgroundColor: colors.muted }]} onPress={() => adjustInventoryQuantity(item.id, -1)}>
+                          <Feather name="minus" size={14} color={colors.foreground} />
                         </Pressable>
-                        <Text style={[styles.stockQty, { color: isLow ? "#dc2626" : "#1a2e05" }]}>
+                        <Text style={[styles.stockQty, { color: isLow ? colors.destructive : colors.foreground }]}>
                           {item.quantity} {item.unit}
                         </Text>
-                        <Pressable style={styles.qtyBtn} onPress={() => adjustInventoryQuantity(item.id, 1)}>
-                          <Feather name="plus" size={14} color="#374151" />
+                        <Pressable style={[styles.qtyBtn, { backgroundColor: colors.muted }]} onPress={() => adjustInventoryQuantity(item.id, 1)}>
+                          <Feather name="plus" size={14} color={colors.foreground} />
                         </Pressable>
                       </View>
                       {item.pricePerUnit != null && (
-                        <Text style={styles.priceTag}>₹{item.pricePerUnit}/{item.unit}</Text>
+                        <Text style={[styles.priceTag, { color: colors.mutedForeground }]}>₹{item.pricePerUnit}/{item.unit}</Text>
                       )}
                     </View>
 
                     {item.minQuantity > 0 && (
-                      <View style={styles.stockBarBg}>
-                        <View style={[styles.stockBarFill, { width: `${Math.round(stockPct * 100)}%`, backgroundColor: isLow ? "#ef4444" : "#16a34a" }]} />
+                      <View style={[styles.stockBarBg, { backgroundColor: colors.muted }]}>
+                        <View style={[styles.stockBarFill, { width: `${Math.round(stockPct * 100)}%`, backgroundColor: isLow ? colors.destructive : colors.primary }]} />
                       </View>
                     )}
 
                     {isLow && (
-                      <View style={styles.lowStockTag}>
-                        <Feather name="alert-triangle" size={12} color="#dc2626" />
-                        <Text style={styles.lowStockTagText}>
+                      <View style={[styles.lowStockTag, { backgroundColor: colors.destructive + "15" }]}>
+                        <Feather name="alert-triangle" size={12} color={colors.destructive} />
+                        <Text style={[styles.lowStockTagText, { color: colors.destructive }]}>
                           {lx({ ta: "குறைவு!", te: "తక్కువ!", kn: "ಕಡಿಮೆ!", ml: "കുറവ്!", hi: "कम!", en: "Low stock!" })} {lx({ ta: "குறைந்தபட்சம்", te: "కనిష్ట", kn: "ಕನಿಷ್ಠ", ml: "ഏറ്റവും കുറഞ്ഞ", hi: "न्यूनतम", en: "Min" })}: {item.minQuantity} {item.unit}
                         </Text>
                       </View>
@@ -426,10 +440,11 @@ export default function MoneyTab() {
           </>
         )}
       </ScrollView>
+      )}
 
       {/* FAB */}
       <Pressable
-        style={[styles.fab, { backgroundColor: activeTab === "inventory" ? "#d97706" : colors.primary }]}
+        style={[styles.fab, { backgroundColor: activeTab === "inventory" ? colors.accent : colors.primary }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           if (activeTab === "income") setIncomeModal(true);
@@ -525,10 +540,10 @@ const styles = StyleSheet.create({
   breakdownValue: { fontSize: 12, fontWeight: "700", width: 48, textAlign: "right" },
   lowStockBanner: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "#fff7ed", borderWidth: 1, borderColor: "#fed7aa",
+    borderWidth: 1,
     borderRadius: 12, padding: 12,
   },
-  lowStockText: { flex: 1, fontSize: 13, color: "#c2410c", fontWeight: "500" },
+  lowStockText: { flex: 1, fontSize: 13, fontWeight: "500" },
   tabRow: { flexDirection: "row", borderBottomWidth: 1, marginTop: 4 },
   tabBtn: { flex: 1, alignItems: "center", paddingVertical: 10, gap: 2 },
   tabEmoji: { fontSize: 14 },
@@ -561,24 +576,24 @@ const styles = StyleSheet.create({
   addFirstBtn: { backgroundColor: "#fef3c7", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
   addFirstBtnText: { color: "#d97706", fontWeight: "700", fontSize: 14 },
   inventoryCard: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 12, borderWidth: 1,
+    backgroundColor: undefined, borderRadius: 14, padding: 12, borderWidth: 1,
     gap: 8, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   inventoryCardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   inventoryCardLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   inventoryCatEmoji: { fontSize: 24 },
-  inventoryItemName: { fontSize: 15, fontWeight: "700", color: "#1a2e05" },
-  inventoryItemCat: { fontSize: 11, color: "#6b7280", textTransform: "capitalize" },
+  inventoryItemName: { fontSize: 15, fontWeight: "700" },
+  inventoryItemCat: { fontSize: 11, textTransform: "capitalize" },
   inventoryActions: { flexDirection: "row", gap: 8 },
   inventoryEditBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#dbeafe", alignItems: "center", justifyContent: "center" },
   inventoryDeleteBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#fee2e2", alignItems: "center", justifyContent: "center" },
   stockRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   stockQtyRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  qtyBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#f3f4f6", alignItems: "center", justifyContent: "center" },
+  qtyBtn: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   stockQty: { fontSize: 16, fontWeight: "700", minWidth: 60, textAlign: "center" },
-  priceTag: { fontSize: 12, color: "#6b7280" },
-  stockBarBg: { height: 6, borderRadius: 3, backgroundColor: "#f3f4f6", overflow: "hidden" },
+  priceTag: { fontSize: 12 },
+  stockBarBg: { height: 6, borderRadius: 3, overflow: "hidden" },
   stockBarFill: { height: 6, borderRadius: 3 },
-  lowStockTag: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fef2f2", borderRadius: 8, padding: 6 },
-  lowStockTagText: { fontSize: 12, color: "#dc2626", fontWeight: "600" },
+  lowStockTag: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 8, padding: 6 },
+  lowStockTagText: { fontSize: 12, fontWeight: "600" },
 });

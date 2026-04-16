@@ -14,13 +14,19 @@ import {
   View,
 } from "react-native";
 
-import { Animal, AnimalType, generateId, useApp } from "@/context/AppContext";
+import { Animal, AnimalType, COW_BREEDS, BUFFALO_BREEDS, generateId, useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 
 interface AddAnimalModalProps {
   visible: boolean;
   onClose: () => void;
+}
+
+function getBreedsForType(type: AnimalType): string[] {
+  if (type === "cow") return COW_BREEDS;
+  if (type === "buffalo") return BUFFALO_BREEDS;
+  return [...COW_BREEDS, ...BUFFALO_BREEDS];
 }
 
 export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps) {
@@ -30,6 +36,8 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
   const [name, setName] = useState("");
   const [type, setType] = useState<AnimalType>("cow");
   const [breed, setBreed] = useState("");
+  const [customBreed, setCustomBreed] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [tagNumber, setTagNumber] = useState("");
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
@@ -38,6 +46,8 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
     { type: "buffalo", emoji: "🐃", label: t.typeBuffalo },
     { type: "calf", emoji: "🐮", label: t.typeCalf },
   ];
+
+  const breeds = getBreedsForType(type);
 
   useEffect(() => {
     if (visible) {
@@ -51,27 +61,53 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
       scaleAnim.setValue(0.9);
       setName("");
       setBreed("");
+      setCustomBreed("");
+      setShowCustomInput(false);
       setTagNumber("");
       setType("cow");
     }
   }, [visible]);
+
+  useEffect(() => {
+    setBreed("");
+    setCustomBreed("");
+    setShowCustomInput(false);
+  }, [type]);
 
   const handleSave = () => {
     if (!name.trim()) {
       Alert.alert(t.error, t.addAnimalNameRequired);
       return;
     }
+    const finalBreed = showCustomInput ? customBreed.trim() : breed;
+    if (!finalBreed) {
+      Alert.alert(t.error, t.addAnimalBreedRequired);
+      return;
+    }
     const animal: Animal = {
       id: generateId(),
       name: name.trim(),
       type,
-      breed: breed.trim() || "Mixed",
+      breed: finalBreed,
       tagNumber: tagNumber.trim() || generateId().slice(0, 6).toUpperCase(),
       healthStatus: "healthy",
     };
     addAnimal(animal);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onClose();
+  };
+
+  const selectBreed = (b: string) => {
+    Haptics.selectionAsync();
+    setBreed(b);
+    setShowCustomInput(false);
+    setCustomBreed("");
+  };
+
+  const selectCustom = () => {
+    Haptics.selectionAsync();
+    setBreed("");
+    setShowCustomInput(true);
   };
 
   return (
@@ -128,7 +164,7 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
                     <Text
                       style={[
                         styles.typeLabel,
-                        { color: type === at ? "#fff" : colors.mutedForeground },
+                        { color: type === at ? colors.primaryForeground : colors.mutedForeground },
                       ]}
                     >
                       {label}
@@ -158,22 +194,79 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
                 {t.addAnimalBreed}
               </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.muted,
-                    color: colors.foreground,
-                  },
-                ]}
-                value={breed}
-                onChangeText={setBreed}
-                placeholder={t.addAnimalBreedPlaceholder}
-                placeholderTextColor={colors.mutedForeground}
-              />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.breedChipRow}
+              >
+                {breeds.map((b) => (
+                  <Pressable
+                    key={b}
+                    style={[
+                      styles.breedChip,
+                      {
+                        backgroundColor: breed === b && !showCustomInput ? colors.primary : colors.muted,
+                        borderColor: breed === b && !showCustomInput ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => selectBreed(b)}
+                  >
+                    <Text
+                      style={[
+                        styles.breedChipText,
+                        { color: breed === b && !showCustomInput ? colors.primaryForeground : colors.foreground },
+                      ]}
+                    >
+                      {b}
+                    </Text>
+                  </Pressable>
+                ))}
+                <Pressable
+                  style={[
+                    styles.breedChip,
+                    {
+                      backgroundColor: showCustomInput ? colors.primary : colors.muted,
+                      borderColor: showCustomInput ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={selectCustom}
+                >
+                  <Feather
+                    name="edit-2"
+                    size={12}
+                    color={showCustomInput ? colors.primaryForeground : colors.foreground}
+                  />
+                  <Text
+                    style={[
+                      styles.breedChipText,
+                      { color: showCustomInput ? colors.primaryForeground : colors.foreground },
+                    ]}
+                  >
+                    {t.addAnimalCustomBreed}
+                  </Text>
+                </Pressable>
+              </ScrollView>
 
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+              {showCustomInput && (
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.muted,
+                      color: colors.foreground,
+                      marginTop: 8,
+                    },
+                  ]}
+                  value={customBreed}
+                  onChangeText={setCustomBreed}
+                  placeholder={t.addAnimalBreedPlaceholder}
+                  placeholderTextColor={colors.mutedForeground}
+                  autoFocus
+                />
+              )}
+
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}>
                 {t.addAnimalTag}
               </Text>
               <TextInput
@@ -196,8 +289,8 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
                 style={[styles.saveBtn, { backgroundColor: colors.primary }]}
                 onPress={handleSave}
               >
-                <Feather name="plus" size={20} color="#fff" />
-                <Text style={styles.saveBtnText}>{t.addAnimalSave}</Text>
+                <Feather name="plus" size={20} color={colors.primaryForeground} />
+                <Text style={[styles.saveBtnText, { color: colors.primaryForeground }]}>{t.addAnimalSave}</Text>
               </Pressable>
             </ScrollView>
           </Pressable>
@@ -273,6 +366,23 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     marginBottom: 16,
   },
+  breedChipRow: {
+    gap: 8,
+    paddingBottom: 8,
+  },
+  breedChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  breedChipText: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+  },
   saveBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -283,7 +393,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   saveBtnText: {
-    color: "#fff",
     fontSize: 18,
     fontFamily: "Inter_700Bold",
   },
