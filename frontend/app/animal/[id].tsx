@@ -16,6 +16,7 @@ import {
 } from "react-native";
 
 import MilkLogModal from "@/components/MilkLogModal";
+import HealthNoteModal from "@/components/HealthNoteModal";
 import { generateId, getTodayString, HealthStatus, useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
@@ -31,6 +32,7 @@ export default function AnimalDetail() {
   const { animals, milkEntries, healthEvents, updateAnimal, deleteAnimal, addHealthEvent } = useApp();
   const { t, language } = useLanguage();
   const [milkLogVisible, setMilkLogVisible] = useState(false);
+  const [healthNoteVisible, setHealthNoteVisible] = useState(false);
 
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
@@ -146,35 +148,19 @@ export default function AnimalDetail() {
   };
 
   const addHealthNote = () => {
-    const options = [
-      t.healthEventFever,
-      t.healthEventNotEating,
-      t.healthEventLimping,
-      t.healthEventDiarrhea,
-      t.healthEventCoughing,
-      t.healthEventVetVisit,
-      t.healthEventVaccination,
-    ];
-    Alert.alert(
-      t.animalDetailAddHealthNote,
-      t.animalDetailSelectSymptom,
-      [
-        ...options.map((opt) => ({
-          text: opt,
-          onPress: () => {
-            addHealthEvent({
-              id: generateId(),
-              animalId: animal.id,
-              date: getTodayString(),
-              type: "observation",
-              description: opt,
-            });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          },
-        })),
-        { text: t.cancel, style: "cancel" },
-      ]
-    );
+    setHealthNoteVisible(true);
+  };
+
+  const handleSelectHealthNote = (description: string) => {
+    addHealthEvent({
+      id: generateId(),
+      animalId: animal.id,
+      date: getTodayString(),
+      type: "observation",
+      description,
+    });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setHealthNoteVisible(false);
   };
 
   return (
@@ -423,6 +409,11 @@ export default function AnimalDetail() {
         visible={milkLogVisible}
         animal={animal}
         onClose={() => setMilkLogVisible(false)}
+      />
+      <HealthNoteModal
+        visible={healthNoteVisible}
+        onClose={() => setHealthNoteVisible(false)}
+        onSelect={handleSelectHealthNote}
       />
     </View>
   );
