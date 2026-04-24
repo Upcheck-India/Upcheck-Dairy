@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -82,8 +82,7 @@ export default function MilkLogModal({
 
   if (!animal) return null;
 
-  const animalEmoji = animal.type === "buffalo" ? "🐃" : "🐄";
-
+  if (!animal) return null;
   return (
     <Modal
       visible={visible}
@@ -103,7 +102,7 @@ export default function MilkLogModal({
         >
           <Pressable>
             <View style={styles.header}>
-              <Text style={styles.emoji}>{animalEmoji}</Text>
+              <MaterialCommunityIcons name={animal.type === "buffalo" ? "water" : "cow"} size={36} color={colors.foreground} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.title, { color: colors.foreground }]}>
                   {t.milkLogTitle}
@@ -235,9 +234,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
     gap: 12,
-  },
-  emoji: {
-    fontSize: 36,
   },
   title: {
     fontSize: 20,

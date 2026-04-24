@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Linking from "expo-linking";
 import * as Speech from "expo-speech";
@@ -91,10 +91,10 @@ export default function HelpTab() {
   // Small helper for inline multilingual records
   const lx = (r: Record<string, string>) => r[language] ?? r.en ?? "";
 
-  const SUB_TABS: Array<{ id: HelpSubTab; emoji: string; label: string }> = [
-    { id: "diagnose", emoji: "🔬", label: t.diagnoseTab },
-    { id: "gauguru", emoji: "🤖", label: t.gauguruTab },
-    { id: "emergency", emoji: "🚨", label: t.emergencyTab },
+  const SUB_TABS: Array<{ id: HelpSubTab; iconName: keyof typeof Feather.glyphMap; label: string }> = [
+    { id: "diagnose", iconName: "activity", label: t.diagnoseTab },
+    { id: "gauguru", iconName: "cpu", label: t.gauguruTab },
+    { id: "emergency", iconName: "alert-octagon", label: t.emergencyTab },
   ];
 
   const riskLabels = RISK_LABELS_MULTI[language] ?? RISK_LABELS_MULTI.en!;
@@ -192,7 +192,7 @@ export default function HelpTab() {
                 style={[styles.subTab, { borderBottomColor: active ? colors.primary : "transparent" }]}
                 onPress={() => { setSubTab(tab.id); Haptics.selectionAsync(); }}
               >
-                <Text style={styles.subTabEmoji}>{tab.emoji}</Text>
+                <Feather name={tab.iconName} size={16} color={active ? colors.primary : colors.mutedForeground} />
                 <Text style={[styles.subTabLabel, { color: active ? colors.primary : colors.mutedForeground }]}>
                   {tab.label}
                 </Text>
@@ -243,7 +243,7 @@ export default function HelpTab() {
                     style={[styles.animalChip, { backgroundColor: selectedAnimalId === a.id ? colors.primary : colors.muted, borderColor: selectedAnimalId === a.id ? colors.primary : colors.border }]}
                     onPress={() => setSelectedAnimalId(selectedAnimalId === a.id ? null : a.id)}
                   >
-                    <Text style={{ fontSize: 16 }}>{a.type === "buffalo" ? "🐃" : "🐄"}</Text>
+                    <MaterialCommunityIcons name={a.type === "buffalo" ? "water" : a.type === "calf" ? "baby-bottle" : "cow"} size={20} color={selectedAnimalId === a.id ? "#fff" : colors.foreground} />
                     <Text style={[styles.animalChipLabel, { color: selectedAnimalId === a.id ? "#fff" : colors.foreground }]}>{a.name}</Text>
                   </Pressable>
                 ))}
@@ -379,7 +379,7 @@ export default function HelpTab() {
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 8, marginBottom: 12 }]}>
-            {lx({ ta: "📞 அவசர தொடர்பு", te: "📞 అత్యవసర సంప్రదింపులు", kn: "📞 ತುರ್ತು ಸಂಪರ್ಕಗಳು", ml: "📞 അടിയന്തര ബന്ധ", hi: "📞 आपातकालीन संपर्क", en: "📞 Emergency Contacts" })}
+            {lx({ ta: "அவசர தொடர்பு", te: "అత్యవసర సంప్రదింపులు", kn: "ತುರ್ತು ಸಂಪರ್ಕಗಳು", ml: "അടിയന്തര ബന്ധ", hi: "आपातकालीन संपर्क", en: "Emergency Contacts" })}
           </Text>
           {EMERGENCY_CONTACTS.map((c) => (
             <Pressable
@@ -405,7 +405,10 @@ export default function HelpTab() {
           ))}
 
           <View style={[styles.firstAidCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.firstAidTitle, { color: colors.foreground }]}>🩺 {t.firstAidTips}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+               <Feather name="heart" size={16} color={colors.foreground} />
+               <Text style={[styles.firstAidTitle, { color: colors.foreground, marginBottom: 0 }]}>{t.firstAidTips}</Text>
+            </View>
             {firstAidTips.map((tip, i) => (
               <View key={i} style={styles.firstAidTip}>
                 <Text style={[styles.firstAidNum, { backgroundColor: colors.secondary, color: colors.primary }]}>{i + 1}</Text>
@@ -433,9 +436,8 @@ const styles = StyleSheet.create({
   subTabRow: { flexDirection: "row" },
   subTab: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 5, paddingVertical: 10, borderBottomWidth: 2.5,
+    gap: 8, paddingVertical: 12, borderBottomWidth: 2.5,
   },
-  subTabEmoji: { fontSize: 14 },
   subTabLabel: { fontSize: 12, fontWeight: "700" },
   content: { padding: 16, gap: 8 },
   sosContainer: { alignItems: "center", justifyContent: "center", marginVertical: 16, height: 160 },

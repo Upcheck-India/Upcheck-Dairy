@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -76,11 +76,11 @@ function getWeatherMock() {
   return { icon: "cloud-rain", text: "30°C" };
 }
 
-const ALERT_CONFIG: Record<SmartAlert["type"], { emoji: string; bgColor: string; darkBgColor: string; textColor: string; darkTextColor: string }> = {
-  heat: { emoji: "🌡️", bgColor: "#fff7ed", darkBgColor: "#3b1f06", textColor: "#c2410c", darkTextColor: "#fb923c" },
-  calving: { emoji: "🐣", bgColor: "#fffbeb", darkBgColor: "#3b2f06", textColor: "#92400e", darkTextColor: "#fbbf24" },
-  vaccine: { emoji: "💉", bgColor: "#eff6ff", darkBgColor: "#0c1e3b", textColor: "#1d4ed8", darkTextColor: "#60a5fa" },
-  dry_off: { emoji: "🛑", bgColor: "#f9fafb", darkBgColor: "#1a1e14", textColor: "#374151", darkTextColor: "#9ca3af" },
+const ALERT_CONFIG: Record<SmartAlert["type"], { iconName: keyof typeof Feather.glyphMap; bgColor: string; darkBgColor: string; textColor: string; darkTextColor: string }> = {
+  heat: { iconName: "thermometer", bgColor: "#fff7ed", darkBgColor: "#3b1f06", textColor: "#c2410c", darkTextColor: "#fb923c" },
+  calving: { iconName: "heart", bgColor: "#fffbeb", darkBgColor: "#3b2f06", textColor: "#92400e", darkTextColor: "#fbbf24" },
+  vaccine: { iconName: "activity", bgColor: "#eff6ff", darkBgColor: "#0c1e3b", textColor: "#1d4ed8", darkTextColor: "#60a5fa" },
+  dry_off: { iconName: "slash", bgColor: "#f9fafb", darkBgColor: "#1a1e14", textColor: "#374151", darkTextColor: "#9ca3af" },
 };
 
 async function setupDailyNotification() {
@@ -95,11 +95,11 @@ async function setupDailyNotification() {
     await Notifications.cancelAllScheduledNotificationsAsync();
     if (Platform.OS !== "web") {
       await Notifications.scheduleNotificationAsync({
-        content: { title: "🐄 காலை கறவை நேரம்!", body: "ThulirFarm: காலை 5:30 AM — பால் பதிவு செய்யவும்.", sound: true },
+        content: { title: "காலை கறவை நேரம்!", body: "ThulirFarm: காலை 5:30 AM — பால் பதிவு செய்யவும்.", sound: true },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: 5, minute: 30 },
       });
       await Notifications.scheduleNotificationAsync({
-        content: { title: "🌆 மாலை கறவை நேரம்!", body: "ThulirFarm: மாலை 4:00 PM — கணக்கு தயார் செய்யவும்.", sound: true },
+        content: { title: "மாலை கறவை நேரம்!", body: "ThulirFarm: மாலை 4:00 PM — கணக்கு தயார் செய்யவும்.", sound: true },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: 16, minute: 0 },
       });
     }
@@ -262,9 +262,12 @@ export default function TodayTab() {
         {/* Smart Alerts */}
         {smartAlerts.length > 0 && (
           <View style={styles.alertsSection}>
-            <Text style={[styles.alertsSectionTitle, { color: colors.foreground }]}>
-              🔔 {t.todayAlerts} ({smartAlerts.length})
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+              <Feather name="bell" size={16} color={colors.foreground} />
+              <Text style={[styles.alertsSectionTitle, { color: colors.foreground, marginBottom: 0 }]}>
+                {t.todayAlerts} ({smartAlerts.length})
+              </Text>
+            </View>
 
             {[...criticalAlerts, ...highAlerts, ...normalAlerts].map((alert) => {
               const cfg = ALERT_CONFIG[alert.type];
@@ -277,7 +280,7 @@ export default function TodayTab() {
                   onPress={() => router.push(`/(tabs)` as any)}
                 >
                   <View style={styles.smartAlertLeft}>
-                    <Text style={styles.smartAlertEmoji}>{cfg.emoji}</Text>
+                    <Feather name={cfg.iconName} size={24} color={tc} />
                     {alert.priority === "critical" && <View style={[styles.criticalDot, { backgroundColor: colors.destructive }]} />}
                   </View>
                   <View style={{ flex: 1 }}>
@@ -308,7 +311,7 @@ export default function TodayTab() {
             <Feather name="alert-triangle" size={16} color={colors.destructive} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.alertTitle, { color: colors.destructive }]}>
-                ⚠ {t.milkDropAlert}
+                {t.milkDropAlert}
               </Text>
               {milkAnomalies.map((a) => (
                 <Text key={a.animalId} style={[styles.alertItem, { color: isDark ? "#fca5a5" : "#7f1d1d" }]}>
@@ -357,7 +360,7 @@ export default function TodayTab() {
           <>
             <View style={styles.sessionHeader}>
               <Feather name="sun" size={16} color={colors.accent} />
-              <Text style={[styles.sessionLabel, { color: colors.foreground }]}>🌅 {t.morningTasks}</Text>
+              <Text style={[styles.sessionLabel, { color: colors.foreground }]}>{t.morningTasks}</Text>
             </View>
             {morningTasks.map((task) => <TaskItem key={task.id} task={task} />)}
           </>
@@ -368,7 +371,7 @@ export default function TodayTab() {
           <>
             <View style={[styles.sessionHeader, { marginTop: 12 }]}>
               <Feather name="moon" size={16} color={colors.primary} />
-              <Text style={[styles.sessionLabel, { color: colors.foreground }]}>🌆 {t.eveningTasks}</Text>
+              <Text style={[styles.sessionLabel, { color: colors.foreground }]}>{t.eveningTasks}</Text>
             </View>
             {eveningTasks.map((task) => <TaskItem key={task.id} task={task} />)}
           </>
@@ -394,11 +397,14 @@ export default function TodayTab() {
               const sl = getHealthLabel(a.healthStatus);
               return (
                 <View key={a.id} style={[styles.animalStatusRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={styles.animalEmoji}>{a.type === "buffalo" ? "🐃" : a.type === "calf" ? "🐮" : "🐄"}</Text>
+                  <MaterialCommunityIcons name={a.type === "buffalo" ? "water" : a.type === "calf" ? "baby-bottle" : "cow"} size={28} color={colors.primary} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.animalName, { color: colors.foreground }]}>{a.name}</Text>
                     {a.isPregnant && a.expectedCalvingDate && (
-                      <Text style={[styles.animalSubInfo, { color: colors.mutedForeground }]}>🤰 {t.pregnantLabel} · {t.calvingExpected} {a.expectedCalvingDate}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                        <Feather name="heart" size={10} color={colors.mutedForeground} />
+                        <Text style={[styles.animalSubInfo, { color: colors.mutedForeground, marginTop: 0 }]}>{t.pregnantLabel} · {t.calvingExpected} {a.expectedCalvingDate}</Text>
+                      </View>
                     )}
                     {a.lactationNumber != null && (
                       <Text style={[styles.animalSubInfo, { color: colors.mutedForeground }]}>L{a.lactationNumber} {t.milkToday}</Text>
@@ -423,7 +429,7 @@ export default function TodayTab() {
       <CelebrationOverlay
         visible={celebration}
         message={t.allTasksDone}
-        messageTamil="அனைத்து பணிகளும் முடிந்தது! 🎉"
+        messageTamil="அனைத்து பணிகளும் முடிந்தது!"
         onHide={() => setCelebration(false)}
       />
     </View>
@@ -454,7 +460,6 @@ const styles = StyleSheet.create({
     padding: 12, borderRadius: 14, borderWidth: 1.5,
   },
   smartAlertLeft: { position: "relative" },
-  smartAlertEmoji: { fontSize: 24 },
   criticalDot: {
     position: "absolute", top: 0, right: 0,
     width: 8, height: 8, borderRadius: 4,
@@ -481,7 +486,6 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", paddingTop: 40, gap: 12 },
   emptyText: { fontSize: 15 },
   animalStatusRow: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8, gap: 10 },
-  animalEmoji: { fontSize: 22 },
   animalName: { fontSize: 14, fontWeight: "600" },
   animalSubInfo: { fontSize: 11, marginTop: 2 },
   statusPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },

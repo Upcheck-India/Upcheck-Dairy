@@ -83,8 +83,8 @@ const CATEGORY_COLORS: Record<InventoryItem["category"], string> = {
   equipment: "#d97706", other: "#6b7280",
 };
 
-const CATEGORY_EMOJIS: Record<InventoryItem["category"], string> = {
-  feed: "🌾", medicine: "💊", supplement: "🧪", equipment: "🔧", other: "📦",
+const CATEGORY_ICONS: Record<InventoryItem["category"], keyof typeof Feather.glyphMap> = {
+  feed: "box", medicine: "activity", supplement: "heart", equipment: "tool", other: "package",
 };
 
 type MoneyTab = "income" | "expense" | "inventory";
@@ -179,10 +179,10 @@ export default function MoneyTab() {
     );
   };
 
-  const MONEY_TABS: Array<{ id: MoneyTab; label: string; emoji: string }> = [
-    { id: "income", label: t.incomeTab, emoji: "📈" },
-    { id: "expense", label: t.expenseTab, emoji: "📉" },
-    { id: "inventory", label: t.inventoryTab, emoji: "📦" },
+  const MONEY_TABS: Array<{ id: MoneyTab; label: string; iconName: keyof typeof Feather.glyphMap }> = [
+    { id: "income", label: t.incomeTab, iconName: "trending-up" },
+    { id: "expense", label: t.expenseTab, iconName: "trending-down" },
+    { id: "inventory", label: t.inventoryTab, iconName: "package" },
   ];
 
   const getExpCatLabel = (key: string) => {
@@ -260,7 +260,7 @@ export default function MoneyTab() {
               style={[styles.tabBtn, { borderBottomColor: activeTab === tab.id ? colors.primary : "transparent", borderBottomWidth: 2 }]}
               onPress={() => { setActiveTab(tab.id); Haptics.selectionAsync(); }}
             >
-              <Text style={styles.tabEmoji}>{tab.emoji}</Text>
+              <Feather name={tab.iconName} size={16} color={activeTab === tab.id ? colors.primary : colors.mutedForeground} />
               <Text style={[styles.tabLabel, { color: activeTab === tab.id ? colors.primary : colors.mutedForeground }]}>
                 {tab.label}
               </Text>
@@ -363,7 +363,7 @@ export default function MoneyTab() {
 
             {inventoryItems.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={{ fontSize: 48 }}>📦</Text>
+                <Feather name="package" size={48} color={colors.border} />
                 <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t.noInventory}</Text>
                 <Pressable style={styles.addFirstBtn} onPress={() => { setEditInventoryItem(undefined); setInventoryModal(true); }}>
                   <Text style={styles.addFirstBtnText}>{t.addFirstItem}</Text>
@@ -373,7 +373,7 @@ export default function MoneyTab() {
               inventoryItems.map((item) => {
                 const isLow = item.quantity <= item.minQuantity && item.minQuantity > 0;
                 const catColor = CATEGORY_COLORS[item.category];
-                const catEmoji = CATEGORY_EMOJIS[item.category];
+                const catIcon = CATEGORY_ICONS[item.category];
                 const stockPct = item.minQuantity > 0 ? Math.min(item.quantity / (item.minQuantity * 2), 1) : 0.5;
 
                 return (
@@ -383,7 +383,7 @@ export default function MoneyTab() {
                   >
                     <View style={styles.inventoryCardTop}>
                       <View style={styles.inventoryCardLeft}>
-                        <Text style={styles.inventoryCatEmoji}>{catEmoji}</Text>
+                        <Feather name={catIcon} size={20} color={catColor} style={{ marginRight: 8 }} />
                         <View>
                           <Text style={[styles.inventoryItemName, { color: colors.foreground }]}>{item.name}</Text>
                           <Text style={[styles.inventoryItemCat, { color: colors.mutedForeground }]}>{item.category}</Text>
@@ -459,7 +459,7 @@ export default function MoneyTab() {
       <Modal visible={incomeModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setIncomeModal(false)}>
           <Pressable style={[styles.modalBox, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t.addIncome} 📈</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t.addIncome}</Text>
             <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.muted }]} value={buyer} onChangeText={setBuyer}
               placeholder={lx({ ta: "கொள்முதல்காரர் பெயர்", te: "కొనుగోలుదారు పేరు", kn: "ಖರೀದಿದಾರ ಹೆಸರು", ml: "വാങ്ങുന്നയാൾ", hi: "खरीदार का नाम", en: "Buyer / Cooperative name" })}
               placeholderTextColor={colors.mutedForeground} />
@@ -486,7 +486,7 @@ export default function MoneyTab() {
       <Modal visible={expenseModal} transparent animationType="slide">
         <Pressable style={styles.overlay} onPress={() => setExpenseModal(false)}>
           <Pressable style={[styles.modalBox, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t.addExpense} 📉</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t.addExpense}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 8 }}>
               {Object.keys(EXPENSE_CAT_LABELS).map((key) => (
                 <Pressable key={key} style={[styles.catChip, { backgroundColor: expCategory === key ? colors.primary : colors.muted, borderColor: expCategory === key ? colors.primary : colors.border }]} onPress={() => setExpCategory(key as ExpenseEntry["category"])}>

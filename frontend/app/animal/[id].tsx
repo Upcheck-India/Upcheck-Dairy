@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
@@ -79,7 +79,6 @@ export default function AnimalDetail() {
     );
   }
 
-  const emoji = animal.type === "buffalo" ? "🐃" : animal.type === "calf" ? "🐮" : "🐄";
 
   const handleDeleteAnimal = () => {
     Alert.alert(t.animalDetailDeleteTitle, t.animalDetailDeleteBody.replace("{name}", animal.name), [
@@ -222,7 +221,7 @@ export default function AnimalDetail() {
               </>
             ) : (
               <View style={[styles.photoPlaceholder, { backgroundColor: colors.muted }]}>
-                <Text style={styles.profileEmoji}>{emoji}</Text>
+                <MaterialCommunityIcons name={animal.type === "buffalo" ? "water" : "cow"} size={36} color={colors.foreground} />
                 <View style={[styles.cameraBtn, { backgroundColor: colors.primary }]}>
                   <Feather name="camera" size={14} color="#fff" />
                 </View>
@@ -476,7 +475,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  profileEmoji: { fontSize: 36 },
   cameraBtn: {
     position: "absolute",
     bottom: 0,

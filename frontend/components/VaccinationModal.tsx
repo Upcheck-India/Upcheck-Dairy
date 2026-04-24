@@ -1,10 +1,11 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { useApp, Vaccination, VaccineType, generateId, getTodayString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useColors } from "@/hooks/useColors";
 
 interface Props {
   visible: boolean;
@@ -12,18 +13,19 @@ interface Props {
   preselectedAnimalId?: string;
 }
 
-const VACCINE_TYPES: Array<{ type: VaccineType; label: string; labelTa: string; interval: string; emoji: string }> = [
-  { type: "FMD", label: "FMD (Foot & Mouth)", labelTa: "கோமாரி (FMD)", interval: "6 months", emoji: "🦶" },
-  { type: "HS", label: "HS (Hemorrhagic Septicemia)", labelTa: "ரத்த நாய்ச்சல் (HS)", interval: "1 year", emoji: "🩸" },
-  { type: "BQ", label: "BQ (Black Quarter)", labelTa: "கருங்கால் வியாதி (BQ)", interval: "1 year", emoji: "⬛" },
-  { type: "Brucellosis", label: "Brucellosis", labelTa: "புரூசெல்லோசிஸ்", interval: "Once (heifers)", emoji: "🧫" },
-  { type: "Theileriosis", label: "Theileriosis", labelTa: "தீலேரியோசிஸ்", interval: "Once", emoji: "🦠" },
-  { type: "Anthrax", label: "Anthrax", labelTa: "ஆந்தராக்ஸ்", interval: "1 year", emoji: "☣️" },
-  { type: "PPR", label: "PPR", labelTa: "PPR", interval: "3 years", emoji: "💊" },
-  { type: "Other", label: "Other", labelTa: "மற்றவை", interval: "-", emoji: "💉" },
+const VACCINE_TYPES: Array<{ type: VaccineType; label: string; labelTa: string; interval: string; iconName: keyof typeof Feather.glyphMap }> = [
+  { type: "FMD", label: "FMD (Foot & Mouth)", labelTa: "கோமாரி (FMD)", interval: "6 months", iconName: "activity" },
+  { type: "HS", label: "HS (Hemorrhagic Septicemia)", labelTa: "ரத்த நாய்ச்சல் (HS)", interval: "1 year", iconName: "droplet" },
+  { type: "BQ", label: "BQ (Black Quarter)", labelTa: "கருங்கால் வியாதி (BQ)", interval: "1 year", iconName: "square" },
+  { type: "Brucellosis", label: "Brucellosis", labelTa: "புரூசெல்லோசிஸ்", interval: "Once (heifers)", iconName: "shield" },
+  { type: "Theileriosis", label: "Theileriosis", labelTa: "தீலேரியோசிஸ்", interval: "Once", iconName: "crosshair" },
+  { type: "Anthrax", label: "Anthrax", labelTa: "ஆந்தராக்ஸ்", interval: "1 year", iconName: "alert-triangle" },
+  { type: "PPR", label: "PPR", labelTa: "PPR", interval: "3 years", iconName: "thermometer" },
+  { type: "Other", label: "Other", labelTa: "மற்றவை", interval: "-", iconName: "plus" },
 ];
 
 export default function VaccinationModal({ visible, onClose, preselectedAnimalId }: Props) {
+  const colors = useColors();
   const { animals, addVaccination } = useApp();
   const { language } = useLanguage();
 
@@ -72,27 +74,27 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{isTa ? "தடுப்பூசி பதிவு" : "Schedule Vaccination"}</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <Text style={[styles.title, { color: colors.foreground }]}>{isTa ? "தடுப்பூசி பதிவு" : "Schedule Vaccination"}</Text>
           <Pressable onPress={onClose} style={styles.closeBtn}>
-            <Feather name="x" size={22} color="#6b7280" />
+            <Feather name="x" size={22} color={colors.foreground} />
           </Pressable>
         </View>
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
           {/* Animal Selector */}
-          <Text style={styles.sectionLabel}>{isTa ? "மாடு தேர்வு" : "Select Animal"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "மாடு தேர்வு" : "Select Animal"}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chipRow}>
               {adultAnimals.map((a) => (
                 <Pressable
                   key={a.id}
-                  style={[styles.animalChip, selectedAnimalId === a.id && styles.animalChipActive]}
+                  style={[styles.animalChip, { backgroundColor: colors.muted, borderColor: colors.border }, selectedAnimalId === a.id && { backgroundColor: colors.primary, borderColor: colors.primary }]}
                   onPress={() => setSelectedAnimalId(a.id)}
                 >
-                  <Text style={styles.animalChipEmoji}>{a.type === "buffalo" ? "🐃" : "🐄"}</Text>
-                  <Text style={[styles.animalChipText, selectedAnimalId === a.id && styles.animalChipTextActive]}>
+                  <MaterialCommunityIcons name={a.type === "buffalo" ? "water" : "cow"} size={16} color={selectedAnimalId === a.id ? "#fff" : colors.foreground} />
+                  <Text style={[styles.animalChipText, { color: colors.foreground }, selectedAnimalId === a.id && { color: "#fff" }]}>
                     {a.name}
                   </Text>
                 </Pressable>
@@ -101,27 +103,27 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
           </ScrollView>
 
           {/* Vaccine Type */}
-          <Text style={styles.sectionLabel}>{isTa ? "தடுப்பூசி வகை" : "Vaccine Type"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "தடுப்பூசி வகை" : "Vaccine Type"}</Text>
           <View style={styles.vaccineGrid}>
             {VACCINE_TYPES.map((vt) => (
               <Pressable
                 key={vt.type}
-                style={[styles.vaccineCard, vaccineType === vt.type && styles.vaccineCardActive]}
+                style={[styles.vaccineCard, { backgroundColor: colors.muted, borderColor: colors.border }, vaccineType === vt.type && { backgroundColor: colors.primary + "15", borderColor: colors.primary }]}
                 onPress={() => setVaccineType(vt.type)}
               >
-                <Text style={styles.vaccineEmoji}>{vt.emoji}</Text>
-                <Text style={[styles.vaccineLabel, vaccineType === vt.type && styles.vaccineLabelActive]}>
+                <Feather name={vt.iconName} size={20} color={vaccineType === vt.type ? colors.primary : colors.mutedForeground} style={{ marginBottom: 4 }} />
+                <Text style={[styles.vaccineLabel, { color: colors.foreground }, vaccineType === vt.type && { color: colors.primary }]}>
                   {isTa ? vt.labelTa : vt.label}
                 </Text>
-                <Text style={styles.vaccineInterval}>{vt.interval}</Text>
+                <Text style={[styles.vaccineInterval, { color: colors.mutedForeground }]}>{vt.interval}</Text>
               </Pressable>
             ))}
           </View>
 
           {selectedTypeInfo && (
-            <View style={styles.infoBanner}>
-              <Feather name="info" size={14} color="#0284c7" />
-              <Text style={styles.infoBannerText}>
+            <View style={[styles.infoBanner, { backgroundColor: colors.primary + "15" }]}>
+              <Feather name="info" size={14} color={colors.primary} />
+              <Text style={[styles.infoBannerText, { color: colors.primary }]}>
                 {isTa
                   ? `${selectedTypeInfo.labelTa}: ${selectedTypeInfo.interval} இடைவெளி`
                   : `${selectedTypeInfo.label}: Every ${selectedTypeInfo.interval}`}
@@ -130,60 +132,60 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
           )}
 
           {/* Scheduled Date */}
-          <Text style={styles.sectionLabel}>{isTa ? "திட்டமிட்ட தேதி" : "Scheduled Date"}</Text>
-          <View style={styles.inputRow}>
-            <Feather name="calendar" size={18} color="#0284c7" />
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "திட்டமிட்ட தேதி" : "Scheduled Date"}</Text>
+          <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+            <Feather name="calendar" size={18} color={colors.mutedForeground} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.foreground }]}
               value={scheduledDate}
               onChangeText={setScheduledDate}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.mutedForeground}
               keyboardType="numeric"
             />
           </View>
 
           {/* Batch No (optional) */}
-          <Text style={styles.sectionLabel}>{isTa ? "தொகுப்பு எண் (விருப்பம்)" : "Batch No. (optional)"}</Text>
-          <View style={styles.inputRow}>
-            <Feather name="hash" size={18} color="#0284c7" />
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "தொகுப்பு எண் (விருப்பம்)" : "Batch No. (optional)"}</Text>
+          <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+            <Feather name="hash" size={18} color={colors.mutedForeground} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.foreground }]}
               value={batchNo}
               onChangeText={setBatchNo}
               placeholder="e.g. FMDV-2025-001"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.mutedForeground}
             />
           </View>
 
           {/* Cost */}
-          <Text style={styles.sectionLabel}>{isTa ? "செலவு ₹ (விருப்பம்)" : "Cost ₹ (optional)"}</Text>
-          <View style={styles.inputRow}>
-            <Text style={styles.rupeeSign}>₹</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "செலவு ₹ (விருப்பம்)" : "Cost ₹ (optional)"}</Text>
+          <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+            <Text style={[styles.rupeeSign, { color: colors.mutedForeground }]}>₹</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.foreground }]}
               value={cost}
               onChangeText={setCost}
               placeholder="0"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.mutedForeground}
               keyboardType="numeric"
             />
           </View>
 
           {/* Note */}
-          <Text style={styles.sectionLabel}>{isTa ? "குறிப்பு (விருப்பம்)" : "Note (optional)"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "குறிப்பு (விருப்பம்)" : "Note (optional)"}</Text>
           <TextInput
-            style={[styles.inputRow, styles.noteInput]}
+            style={[styles.inputRow, styles.noteInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
             value={note}
             onChangeText={setNote}
             placeholder={isTa ? "குறிப்பு சேர்க்கவும்..." : "Add a note..."}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.mutedForeground}
             multiline
             numberOfLines={3}
           />
 
           <Pressable
-            style={[styles.saveBtn, saving && { opacity: 0.7 }]}
+            style={[styles.saveBtn, { backgroundColor: colors.primary }, saving && { opacity: 0.7 }]}
             onPress={handleSave}
             disabled={saving}
           >
@@ -199,52 +201,45 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fefce8" },
+  container: { flex: 1 },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    padding: 20, paddingTop: 24, backgroundColor: "#fff",
-    borderBottomWidth: 1, borderBottomColor: "#e5e7eb",
+    padding: 20, paddingTop: 24, borderBottomWidth: 1,
   },
-  title: { fontSize: 18, fontWeight: "800", color: "#1a2e05" },
+  title: { fontSize: 18, fontWeight: "800" },
   closeBtn: { padding: 8 },
   body: { flex: 1, padding: 16 },
-  sectionLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 8, marginTop: 16 },
+  sectionLabel: { fontSize: 13, fontWeight: "600", marginBottom: 8, marginTop: 16 },
   chipRow: { flexDirection: "row", gap: 8, paddingBottom: 4 },
   animalChip: {
     flexDirection: "row", alignItems: "center", gap: 6,
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    backgroundColor: "#f3f4f6", borderWidth: 1.5, borderColor: "#e5e7eb",
+    borderWidth: 1.5,
   },
-  animalChipActive: { backgroundColor: "#16a34a", borderColor: "#16a34a" },
-  animalChipEmoji: { fontSize: 16 },
-  animalChipText: { fontSize: 14, fontWeight: "600", color: "#374151" },
-  animalChipTextActive: { color: "#fff" },
+  animalChipText: { fontSize: 14, fontWeight: "600" },
   vaccineGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   vaccineCard: {
     width: "48%", padding: 12, borderRadius: 12, alignItems: "center",
-    backgroundColor: "#f3f4f6", borderWidth: 1.5, borderColor: "#e5e7eb",
+    borderWidth: 1.5,
   },
-  vaccineCardActive: { backgroundColor: "#dbeafe", borderColor: "#0284c7" },
-  vaccineEmoji: { fontSize: 20, marginBottom: 4 },
-  vaccineLabel: { fontSize: 11, fontWeight: "700", color: "#374151", textAlign: "center" },
-  vaccineLabelActive: { color: "#0284c7" },
-  vaccineInterval: { fontSize: 10, color: "#9ca3af", marginTop: 2 },
+  vaccineLabel: { fontSize: 11, fontWeight: "700", textAlign: "center" },
+  vaccineInterval: { fontSize: 10, marginTop: 2 },
   infoBanner: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "#dbeafe", borderRadius: 10, padding: 10, marginTop: 8,
+    borderRadius: 10, padding: 10, marginTop: 8,
   },
-  infoBannerText: { color: "#1d4ed8", fontSize: 13, fontWeight: "600", flex: 1 },
+  infoBannerText: { fontSize: 13, fontWeight: "600", flex: 1 },
   inputRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    borderWidth: 1.5, borderColor: "#bfdbfe", borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 12, backgroundColor: "#eff6ff",
+    borderWidth: 1.5, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 12,
   },
-  input: { flex: 1, fontSize: 15, color: "#1a2e05" },
-  rupeeSign: { fontSize: 17, fontWeight: "700", color: "#0284c7" },
-  noteInput: { alignItems: "flex-start", paddingVertical: 10, minHeight: 80, borderColor: "#e5e7eb", backgroundColor: "#fafafa" },
+  input: { flex: 1, fontSize: 15 },
+  rupeeSign: { fontSize: 17, fontWeight: "700" },
+  noteInput: { alignItems: "flex-start", paddingVertical: 10, minHeight: 80 },
   saveBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    backgroundColor: "#0284c7", borderRadius: 16, paddingVertical: 16, marginTop: 24,
+    borderRadius: 16, paddingVertical: 16, marginTop: 24,
   },
   saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });

@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -66,12 +66,12 @@ const QUICK_QUESTIONS: Record<string, string[]> = {
 };
 
 const WELCOME: Record<string, string> = {
-  ta: "வணக்கம்! நான் GauGuru, உங்கள் AI பண்ணை உதவியாளர். பால் உற்பத்தி, கால்நடை ஆரோக்கியம், இனப்பெருக்கம் — எந்த கேள்வியும் கேளுங்கள்! 🐄",
-  te: "నమస్కారం! నేను GauGuru, మీ AI పాడి సహాయకుడు. పాలు, ఆవుల ఆరోగ్యం, సంతానోత్పత్తి — ఏ ప్రశ్నైనా అడగండి! 🐄",
-  kn: "ನಮಸ್ಕಾರ! ನಾನು GauGuru, ನಿಮ್ಮ AI ಹಾಲು ತೋಟ ಸಹಾಯಕ. ಹಾಲು, ಜಾನುವಾರು ಆರೋಗ್ಯ, ಸಂತಾನೋತ್ಪತ್ತಿ — ಯಾವ ಪ್ರಶ್ನೆಯನ್ನಾದರೂ ಕೇಳಿ! 🐄",
-  ml: "നമസ്കാരം! ഞാൻ GauGuru, നിങ്ങളുടെ AI ഡയറി സഹായി. പാൽ, കന്നുകാലി ആരോഗ്യം, പ്രജനനം — ഏതു ചോദ്യവും ചോദിക്കൂ! 🐄",
-  hi: "नमस्ते! मैं GauGuru, आपका AI डेयरी सहायक हूँ। दूध, पशु स्वास्थ्य, प्रजनन — कोई भी सवाल पूछें! 🐄",
-  en: "Hello! I'm GauGuru, your AI dairy farm assistant. Ask me anything about milk production, cattle health, breeding, nutrition, or government schemes! 🐄",
+  ta: "வணக்கம்! நான் GauGuru, உங்கள் AI பண்ணை உதவியாளர். பால் உற்பத்தி, கால்நடை ஆரோக்கியம், இனப்பெருக்கம் — எந்த கேள்வியும் கேளுங்கள்!",
+  te: "నమస్కారం! నేను GauGuru, మీ AI పాడి సహాయకుడు. పాలు, ఆవుల ఆరోగ్యం, సంతానోత్పత్తి — ఏ ప్రశ్నైనా అడగండి!",
+  kn: "ನಮಸ್ಕಾರ! ನಾನು GauGuru, ನಿಮ್ಮ AI ಹಾಲು ತೋಟ ಸಹಾಯಕ. ಹಾಲು, ಜಾನುವಾರು ಆರೋಗ್ಯ, ಸಂತಾನೋತ್ಪತ್ತಿ — ಯಾವ ಪ್ರಶ್ನೆಯನ್ನಾದರೂ ಕೇಳಿ!",
+  ml: "നമസ്കാരം! ഞാൻ GauGuru, നിങ്ങളുടെ AI ഡയറി സഹായി. പാൽ, കന്നുകാലി ആരോഗ്യം, പ്രജനനം — ഏതു ചോദ്യവും ചോദിക്കൂ!",
+  hi: "नमस्ते! मैं GauGuru, आपका AI डेयरी सहायक हूँ। दूध, पशु स्वास्थ्य, प्रजनन — कोई भी सवाल पूछें!",
+  en: "Hello! I'm GauGuru, your AI dairy farm assistant. Ask me anything about milk production, cattle health, breeding, nutrition, or government schemes!",
 };
 
 export default function GauGuruChat() {
@@ -118,7 +118,7 @@ export default function GauGuruChat() {
     >
       <View style={styles.chatHeader}>
         <View style={styles.avatarWrap}>
-          <Text style={styles.avatarEmoji}>🐄</Text>
+          <MaterialCommunityIcons name="robot-outline" size={24} color="#16a34a" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.chatName}>GauGuru AI</Text>
@@ -164,7 +164,7 @@ export default function GauGuruChat() {
           >
             {msg.role === "assistant" && (
               <View style={styles.assistantAvatar}>
-                <Text style={{ fontSize: 14 }}>🐄</Text>
+                <MaterialCommunityIcons name="robot-outline" size={16} color="#16a34a" />
               </View>
             )}
             <View style={msg.role === "user" ? styles.userBubble : styles.assistantBubble}>
@@ -177,7 +177,7 @@ export default function GauGuruChat() {
 
         {loading && (
           <View style={styles.assistantBubbleWrap}>
-            <View style={styles.assistantAvatar}><Text style={{ fontSize: 14 }}>🐄</Text></View>
+            <View style={styles.assistantAvatar}><MaterialCommunityIcons name="robot-outline" size={16} color="#16a34a" /></View>
             <View style={[styles.assistantBubble, styles.loadingBubble]}>
               <ActivityIndicator size="small" color="#16a34a" />
               <Text style={styles.loadingText}>{t.thinking}</Text>
@@ -221,7 +221,6 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20, backgroundColor: "#dcfce7",
     alignItems: "center", justifyContent: "center",
   },
-  avatarEmoji: { fontSize: 20 },
   chatName: { fontSize: 15, fontWeight: "800", color: "#1a2e05" },
   chatSub: { fontSize: 11, color: "#16a34a" },
   clearBtn: { padding: 8 },

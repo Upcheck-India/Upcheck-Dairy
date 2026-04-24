@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 
@@ -138,7 +139,7 @@ export default function CelebrationOverlay({
           { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
         ]}
       >
-        <Text style={styles.emoji}>🎉</Text>
+        <Feather name="award" size={32} color="#fff" style={{ marginBottom: 4 }} />
         <Text style={styles.tamil}>{messageTamil}</Text>
         <Text style={styles.english}>{message}</Text>
       </Animated.View>
@@ -162,9 +163,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 10,
     gap: 4,
-  },
-  emoji: {
-    fontSize: 32,
   },
   tamil: {
     color: "#fff",

@@ -1,10 +1,11 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { useApp, BreedingEvent, BreedingEventType, generateId, getTodayString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useColors } from "@/hooks/useColors";
 
 interface Props {
   visible: boolean;
@@ -12,13 +13,13 @@ interface Props {
   preselectedAnimalId?: string;
 }
 
-const EVENT_TYPES: Array<{ type: BreedingEventType; emoji: string; label: string; labelTa: string }> = [
-  { type: "heat", emoji: "🌡️", label: "In Heat", labelTa: "ஈட்டு" },
-  { type: "insemination", emoji: "💉", label: "Inseminated (AI)", labelTa: "AI கலப்பு" },
-  { type: "pregnancy_confirmed", emoji: "🤰", label: "Pregnancy Confirmed", labelTa: "கர்ப்பம் உறுதி" },
-  { type: "dry_off", emoji: "🛑", label: "Dry Off", labelTa: "கறவை நிறுத்து" },
-  { type: "calving", emoji: "🐄", label: "Calved (Gave Birth)", labelTa: "குட்டி போட்டது" },
-  { type: "abort", emoji: "⚠️", label: "Abortion / Miscarriage", labelTa: "கருச்சிதைவு" },
+const EVENT_TYPES: Array<{ type: BreedingEventType; iconName: keyof typeof Feather.glyphMap; label: string; labelTa: string }> = [
+  { type: "heat", iconName: "thermometer", label: "In Heat", labelTa: "ஈட்டு" },
+  { type: "insemination", iconName: "activity", label: "Inseminated (AI)", labelTa: "AI கலப்பு" },
+  { type: "pregnancy_confirmed", iconName: "heart", label: "Pregnancy Confirmed", labelTa: "கர்ப்பம் உறுதி" },
+  { type: "dry_off", iconName: "slash", label: "Dry Off", labelTa: "கறவை நிறுத்து" },
+  { type: "calving", iconName: "git-commit", label: "Calved (Gave Birth)", labelTa: "குட்டி போட்டது" },
+  { type: "abort", iconName: "alert-triangle", label: "Abortion / Miscarriage", labelTa: "கருச்சிதைவு" },
 ];
 
 function addDays(dateStr: string, days: number): string {
@@ -28,6 +29,7 @@ function addDays(dateStr: string, days: number): string {
 }
 
 export default function BreedingEventModal({ visible, onClose, preselectedAnimalId }: Props) {
+  const colors = useColors();
   const { animals, addBreedingEvent } = useApp();
   const { language } = useLanguage();
 
@@ -79,26 +81,26 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{isTa ? "இனப்பெருக்க பதிவு" : "Log Breeding Event"}</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <Text style={[styles.title, { color: colors.foreground }]}>{isTa ? "இனப்பெருக்க பதிவு" : "Log Breeding Event"}</Text>
           <Pressable onPress={onClose} style={styles.closeBtn}>
-            <Feather name="x" size={22} color="#6b7280" />
+            <Feather name="x" size={22} color={colors.foreground} />
           </Pressable>
         </View>
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
           {/* Animal Selector */}
-          <Text style={styles.sectionLabel}>{isTa ? "மாடு தேர்வு" : "Select Animal"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "மாடு தேர்வு" : "Select Animal"}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
             {adultAnimals.map((a) => (
               <Pressable
                 key={a.id}
-                style={[styles.animalChip, selectedAnimalId === a.id && styles.animalChipActive]}
+                style={[styles.animalChip, { backgroundColor: colors.muted, borderColor: colors.border }, selectedAnimalId === a.id && { backgroundColor: colors.primary, borderColor: colors.primary }]}
                 onPress={() => setSelectedAnimalId(a.id)}
               >
-                <Text style={styles.animalChipEmoji}>{a.type === "buffalo" ? "🐃" : "🐄"}</Text>
-                <Text style={[styles.animalChipText, selectedAnimalId === a.id && styles.animalChipTextActive]}>
+                <MaterialCommunityIcons name={a.type === "buffalo" ? "water" : "cow"} size={16} color={selectedAnimalId === a.id ? "#fff" : colors.foreground} />
+                <Text style={[styles.animalChipText, { color: colors.foreground }, selectedAnimalId === a.id && { color: "#fff" }]}>
                   {a.name}
                 </Text>
               </Pressable>
@@ -106,16 +108,16 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
           </ScrollView>
 
           {/* Event Type */}
-          <Text style={styles.sectionLabel}>{isTa ? "நிகழ்வு வகை" : "Event Type"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "நிகழ்வு வகை" : "Event Type"}</Text>
           <View style={styles.eventGrid}>
             {EVENT_TYPES.map((et) => (
               <Pressable
                 key={et.type}
-                style={[styles.eventCard, eventType === et.type && styles.eventCardActive]}
+                style={[styles.eventCard, { backgroundColor: colors.muted, borderColor: colors.border }, eventType === et.type && { backgroundColor: colors.primary + "15", borderColor: colors.primary }]}
                 onPress={() => setEventType(et.type)}
               >
-                <Text style={styles.eventEmoji}>{et.emoji}</Text>
-                <Text style={[styles.eventLabel, eventType === et.type && styles.eventLabelActive]}>
+                <Feather name={et.iconName} size={22} color={eventType === et.type ? colors.primary : colors.mutedForeground} style={{ marginBottom: 4 }} />
+                <Text style={[styles.eventLabel, { color: colors.foreground }, eventType === et.type && { color: colors.primary }]}>
                   {isTa ? et.labelTa : et.label}
                 </Text>
               </Pressable>
@@ -123,24 +125,24 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
           </View>
 
           {/* Date */}
-          <Text style={styles.sectionLabel}>{isTa ? "தேதி" : "Date"}</Text>
-          <View style={styles.inputRow}>
-            <Feather name="calendar" size={18} color="#16a34a" />
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "தேதி" : "Date"}</Text>
+          <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+            <Feather name="calendar" size={18} color={colors.mutedForeground} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.foreground }]}
               value={date}
               onChangeText={setDate}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.mutedForeground}
               keyboardType="numeric"
             />
           </View>
 
           {/* Expected calving date (auto-computed) */}
           {expectedCalvingDate && (
-            <View style={styles.infoBanner}>
-              <Feather name="calendar" size={14} color="#0284c7" />
-              <Text style={styles.infoBannerText}>
+            <View style={[styles.infoBanner, { backgroundColor: colors.primary + "15" }]}>
+              <Feather name="calendar" size={14} color={colors.primary} />
+              <Text style={[styles.infoBannerText, { color: colors.primary }]}>
                 {isTa ? `எதிர்பார்க்கப்படும் குட்டி தேதி: ${expectedCalvingDate}` : `Expected calving: ${expectedCalvingDate}`}
               </Text>
             </View>
@@ -149,15 +151,15 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
           {/* Bull name for insemination */}
           {eventType === "insemination" && (
             <>
-              <Text style={styles.sectionLabel}>{isTa ? "காளை / விந்து பெயர் (விருப்பம்)" : "Bull / Semen Name (optional)"}</Text>
-              <View style={styles.inputRow}>
-                <Feather name="user" size={18} color="#16a34a" />
+              <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "காளை / விந்து பெயர் (விருப்பம்)" : "Bull / Semen Name (optional)"}</Text>
+              <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+                <Feather name="user" size={18} color={colors.mutedForeground} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: colors.foreground }]}
                   value={bullName}
                   onChangeText={setBullName}
                   placeholder={isTa ? "எ.கா: Gir A2 High" : "e.g. HF-Elite Semen, Gir A2"}
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.mutedForeground}
                 />
               </View>
             </>
@@ -166,15 +168,15 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
           {/* Calving gender */}
           {eventType === "calving" && (
             <>
-              <Text style={styles.sectionLabel}>{isTa ? "குட்டி பாலினம்" : "Calf Gender"}</Text>
+              <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "குட்டி பாலினம்" : "Calf Gender"}</Text>
               <View style={styles.genderRow}>
                 {(["male", "female", ""] as const).map((g) => (
                   <Pressable
                     key={g}
-                    style={[styles.genderChip, calvingGender === g && styles.genderChipActive]}
+                    style={[styles.genderChip, { backgroundColor: colors.muted, borderColor: colors.border }, calvingGender === g && { backgroundColor: colors.primary + "15", borderColor: colors.primary }]}
                     onPress={() => setCalvingGender(g)}
                   >
-                    <Text style={styles.genderChipText}>
+                    <Text style={[styles.genderChipText, { color: colors.foreground }, calvingGender === g && { color: colors.primary }]}>
                       {g === "" ? (isTa ? "தெரியவில்லை" : "Unknown") : g === "male" ? (isTa ? "ஆண் கன்று" : "Male Calf") : (isTa ? "பெண் கன்று" : "Female Calf")}
                     </Text>
                   </Pressable>
@@ -184,19 +186,19 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
           )}
 
           {/* Note */}
-          <Text style={styles.sectionLabel}>{isTa ? "குறிப்பு (விருப்பம்)" : "Note (optional)"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "குறிப்பு (விருப்பம்)" : "Note (optional)"}</Text>
           <TextInput
-            style={[styles.inputRow, styles.noteInput]}
+            style={[styles.inputRow, styles.noteInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
             value={note}
             onChangeText={setNote}
             placeholder={isTa ? "குறிப்பு சேர்க்கவும்..." : "Add a note..."}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.mutedForeground}
             multiline
             numberOfLines={3}
           />
 
           <Pressable
-            style={[styles.saveBtn, saving && { opacity: 0.7 }]}
+            style={[styles.saveBtn, { backgroundColor: colors.primary }, saving && { opacity: 0.7 }]}
             onPress={handleSave}
             disabled={saving}
           >
@@ -212,57 +214,49 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fefce8" },
+  container: { flex: 1 },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    padding: 20, paddingTop: 24, backgroundColor: "#fff",
-    borderBottomWidth: 1, borderBottomColor: "#e5e7eb",
+    padding: 20, paddingTop: 24, borderBottomWidth: 1,
   },
-  title: { fontSize: 18, fontWeight: "800", color: "#1a2e05" },
+  title: { fontSize: 18, fontWeight: "800" },
   closeBtn: { padding: 8 },
   body: { flex: 1, padding: 16 },
-  sectionLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 8, marginTop: 16 },
+  sectionLabel: { fontSize: 13, fontWeight: "600", marginBottom: 8, marginTop: 16 },
   chipRow: { marginBottom: 4 },
   animalChip: {
     flexDirection: "row", alignItems: "center", gap: 6,
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8,
-    backgroundColor: "#f3f4f6", borderWidth: 1.5, borderColor: "#e5e7eb",
+    borderWidth: 1.5,
   },
-  animalChipActive: { backgroundColor: "#16a34a", borderColor: "#16a34a" },
-  animalChipEmoji: { fontSize: 16 },
-  animalChipText: { fontSize: 14, fontWeight: "600", color: "#374151" },
-  animalChipTextActive: { color: "#fff" },
+  animalChipText: { fontSize: 14, fontWeight: "600" },
   eventGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   eventCard: {
     width: "31%", padding: 10, borderRadius: 12, alignItems: "center",
-    backgroundColor: "#f3f4f6", borderWidth: 1.5, borderColor: "#e5e7eb",
+    borderWidth: 1.5,
   },
-  eventCardActive: { backgroundColor: "#dcfce7", borderColor: "#16a34a" },
-  eventEmoji: { fontSize: 22, marginBottom: 4 },
-  eventLabel: { fontSize: 11, fontWeight: "600", color: "#6b7280", textAlign: "center" },
-  eventLabelActive: { color: "#16a34a" },
+  eventLabel: { fontSize: 11, fontWeight: "600", textAlign: "center" },
   inputRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    borderWidth: 1.5, borderColor: "#d1fae5", borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 12, backgroundColor: "#f0fdf4",
+    borderWidth: 1.5, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 12,
   },
-  input: { flex: 1, fontSize: 15, color: "#1a2e05" },
+  input: { flex: 1, fontSize: 15 },
   noteInput: { alignItems: "flex-start", paddingVertical: 10, minHeight: 80 },
   infoBanner: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "#dbeafe", borderRadius: 10, padding: 10, marginTop: 8,
+    borderRadius: 10, padding: 10, marginTop: 8,
   },
-  infoBannerText: { color: "#1d4ed8", fontSize: 13, fontWeight: "600" },
+  infoBannerText: { fontSize: 13, fontWeight: "600" },
   genderRow: { flexDirection: "row", gap: 8 },
   genderChip: {
     flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: "center",
-    backgroundColor: "#f3f4f6", borderWidth: 1.5, borderColor: "#e5e7eb",
+    borderWidth: 1.5,
   },
-  genderChipActive: { backgroundColor: "#dcfce7", borderColor: "#16a34a" },
-  genderChipText: { fontSize: 13, fontWeight: "600", color: "#374151" },
+  genderChipText: { fontSize: 13, fontWeight: "600" },
   saveBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    backgroundColor: "#16a34a", borderRadius: 16, paddingVertical: 16, marginTop: 24,
+    borderRadius: 16, paddingVertical: 16, marginTop: 24,
   },
   saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });
