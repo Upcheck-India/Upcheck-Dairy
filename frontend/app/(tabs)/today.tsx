@@ -207,7 +207,7 @@ export default function TodayTab() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scroll, { paddingBottom: isWeb ? 120 : 100, paddingTop: topPad + 12 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: isWeb ? 120 : 100 + insets.bottom, paddingTop: topPad + 12 }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
         }

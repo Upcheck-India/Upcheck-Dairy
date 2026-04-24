@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -41,10 +41,10 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
   const [tagNumber, setTagNumber] = useState("");
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
-  const ANIMAL_TYPES: { type: AnimalType; emoji: string; label: string }[] = [
-    { type: "cow", emoji: "🐄", label: t.typeCow },
-    { type: "buffalo", emoji: "🐃", label: t.typeBuffalo },
-    { type: "calf", emoji: "🐮", label: t.typeCalf },
+  const ANIMAL_TYPES: { type: AnimalType; iconName: keyof typeof MaterialCommunityIcons.glyphMap; label: string }[] = [
+    { type: "cow", iconName: "cow", label: t.typeCow },
+    { type: "buffalo", iconName: "water", label: t.typeBuffalo },
+    { type: "calf", iconName: "baby-bottle", label: t.typeCalf },
   ];
 
   const breeds = getBreedsForType(type);
@@ -145,7 +145,7 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
                 {t.addAnimalSelectType}
               </Text>
               <View style={styles.typeRow}>
-                {ANIMAL_TYPES.map(({ type: at, emoji, label }) => (
+                {ANIMAL_TYPES.map(({ type: at, iconName, label }) => (
                   <Pressable
                     key={at}
                     style={[
@@ -160,7 +160,7 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
                       Haptics.selectionAsync();
                     }}
                   >
-                    <Text style={styles.typeEmoji}>{emoji}</Text>
+                    <MaterialCommunityIcons name={iconName} size={32} color={type === at ? colors.primaryForeground : colors.mutedForeground} />
                     <Text
                       style={[
                         styles.typeLabel,

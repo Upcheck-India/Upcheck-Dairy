@@ -93,10 +93,10 @@ export default function AnimalsTab() {
     return days >= 18 && days <= 24;
   }).length;
 
-  const SUB_TABS: Array<{ id: SubTab; emoji: string; label: string; badge?: number }> = [
-    { id: "herd", emoji: "🐄", label: t.herdTab },
-    { id: "breeding", emoji: "💕", label: t.breedingTab, badge: breedingAlertCount },
-    { id: "vaccines", emoji: "💉", label: t.vaccinesTab, badge: upcomingVaxCount },
+  const SUB_TABS: Array<{ id: SubTab; iconName: keyof typeof Feather.glyphMap; label: string; badge?: number }> = [
+    { id: "herd", iconName: "grid", label: t.herdTab },
+    { id: "breeding", iconName: "heart", label: t.breedingTab, badge: breedingAlertCount },
+    { id: "vaccines", iconName: "shield", label: t.vaccinesTab, badge: upcomingVaxCount },
   ];
 
   return (
@@ -162,7 +162,7 @@ export default function AnimalsTab() {
                 ]}
                 onPress={() => { setSubTab(tab.id); Haptics.selectionAsync(); }}
               >
-                <Text style={styles.subTabEmoji}>{tab.emoji}</Text>
+                <Feather name={tab.iconName} size={18} color={active ? colors.primary : colors.mutedForeground} style={{ marginBottom: 2 }} />
                 <Text style={[styles.subTabLabel, { color: active ? colors.primary : colors.mutedForeground }]}>
                   {tab.label}
                 </Text>

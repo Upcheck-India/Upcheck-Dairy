@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React from "react";
@@ -20,10 +20,10 @@ interface AnimalCardProps {
   onQuickAction?: (action: "fever" | "notEating" | "injury" | "inHeat") => void;
 }
 
-const ANIMAL_ICONS: Record<string, string> = {
-  cow: "🐄",
-  buffalo: "🐃",
-  calf: "🐮",
+const ANIMAL_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  cow: "cow",
+  buffalo: "water",
+  calf: "baby-bottle",
 };
 
 const HEALTH_COLORS: Record<string, string> = {
@@ -70,7 +70,7 @@ export default function AnimalCard({ animal, onMilkLog, onQuickAction }: AnimalC
           <Image source={{ uri: animal.photoUri }} style={styles.photo} />
         ) : (
           <View style={[styles.iconContainer, { backgroundColor: colors.muted }]}>
-            <Text style={styles.emoji}>{ANIMAL_ICONS[animal.type] ?? "🐄"}</Text>
+            <MaterialCommunityIcons name={ANIMAL_ICONS[animal.type] ?? "cow"} size={28} color={colors.primary} />
           </View>
         )}
 

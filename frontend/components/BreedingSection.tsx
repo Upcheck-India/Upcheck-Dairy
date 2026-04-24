@@ -1,39 +1,40 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useApp, BreedingEventType } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import BreedingEventModal from "./BreedingEventModal";
+import { useColors } from "@/hooks/useColors";
 
 type EventConfig = {
-  emoji: string;
+  iconName: keyof typeof Feather.glyphMap;
   color: string;
   label: Record<string, string>;
 };
 
 const EVENT_CONFIG: Record<BreedingEventType, EventConfig> = {
   heat: {
-    emoji: "🌡️", color: "#f97316",
+    iconName: "thermometer", color: "#f59e0b",
     label: { ta: "ஈட்டு", te: "వేడి", kn: "ಉಷ್ಣ", ml: "ചൂട്", hi: "गर्मी", en: "In Heat" },
   },
   insemination: {
-    emoji: "💉", color: "#0284c7",
+    iconName: "activity", color: "#0ea5e9",
     label: { ta: "AI கலப்பு", te: "గర్భధారణ", kn: "ಗರ್ಭಧಾರಣೆ", ml: "ഗർഭധാരണം", hi: "गर्भाधान", en: "Inseminated" },
   },
   pregnancy_confirmed: {
-    emoji: "🤰", color: "#7c3aed",
+    iconName: "check-circle", color: "#8b5cf6",
     label: { ta: "கர்ப்பம்", te: "గర్భం ధృవీకరణ", kn: "ಗರ್ಭ ದೃಢೀಕರಣ", ml: "ഗർഭം സ്ഥിരീകരണം", hi: "गर्भ पुष्टि", en: "Pregnant" },
   },
   dry_off: {
-    emoji: "🛑", color: "#9ca3af",
+    iconName: "slash", color: "#64748b",
     label: { ta: "கறவை நிறுத்தல்", te: "పాలు ఆపడం", kn: "ಹಾಲು ನಿಲ್ಲಿಸಲು", ml: "പാൽ നിർത്തൽ", hi: "दूध बंद", en: "Dry Off" },
   },
   calving: {
-    emoji: "🐄", color: "#16a34a",
+    iconName: "heart", color: "#10b981",
     label: { ta: "குட்டி போட்டது", te: "లేగ దూడ పుట்టింది", kn: "ಕರು ಹಾಕಿದೆ", ml: "കിടാവ് ജനിച்ചു", hi: "बच्चा हुआ", en: "Calved" },
   },
   abort: {
-    emoji: "⚠️", color: "#dc2626",
+    iconName: "alert-triangle", color: "#ef4444",
     label: { ta: "கருச்சிதைவு", te: "గర్భస్రావం", kn: "ಗರ್ಭಪಾತ", ml: "ഗർഭഛിദ്രം", hi: "गर्भपात", en: "Abortion" },
   },
 };
@@ -52,6 +53,7 @@ function daysUntil(dateStr: string): number {
 }
 
 export default function BreedingSection() {
+  const colors = useColors();
   const { animals, breedingEvents } = useApp();
   const { language, t } = useLanguage();
   const [modalVisible, setModalVisible] = useState(false);
@@ -76,8 +78,8 @@ export default function BreedingSection() {
 
       {adultAnimals.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyEmoji}>💕</Text>
-          <Text style={styles.emptyText}>{t.addAnimalsFirst}</Text>
+          <Feather name="heart" size={48} color={colors.border} />
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t.addAnimalsFirst}</Text>
         </View>
       ) : (
         adultAnimals.map((animal) => {
@@ -89,10 +91,14 @@ export default function BreedingSection() {
             <View key={animal.id} style={styles.animalCard}>
               <View style={styles.animalCardHeader}>
                 <View style={styles.animalInfo}>
-                  <Text style={styles.animalEmoji}>{animal.type === "buffalo" ? "🐃" : "🐄"}</Text>
+                  <MaterialCommunityIcons 
+                    name={animal.type === "buffalo" ? "water" : "cow"} 
+                    size={28} 
+                    color={colors.primary} 
+                  />
                   <View>
-                    <Text style={styles.animalName}>{animal.name}</Text>
-                    <Text style={styles.animalBreed}>{animal.breed}</Text>
+                    <Text style={[styles.animalName, { color: colors.foreground }]}>{animal.name}</Text>
+                    <Text style={[styles.animalBreed, { color: colors.mutedForeground }]}>{animal.breed}</Text>
                   </View>
                 </View>
                 <View style={styles.animalRightSection}>
@@ -130,19 +136,19 @@ export default function BreedingSection() {
                     return (
                       <View key={event.id} style={styles.timelineItem}>
                         <View style={[styles.timelineDot, { backgroundColor: cfg.color }]}>
-                          <Text style={styles.timelineDotEmoji}>{cfg.emoji}</Text>
+                          <Feather name={cfg.iconName} size={14} color="#fff" />
                         </View>
-                        {i < events.slice(0, 4).length - 1 && <View style={styles.timelineLine} />}
+                        {i < events.slice(0, 4).length - 1 && <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />}
                         <View style={styles.timelineContent}>
-                          <Text style={styles.timelineEventName}>{cfg.label[language] ?? cfg.label.en}</Text>
-                          <Text style={styles.timelineDate}>{event.date} · {daysSince(event.date)}{t.daysAgoSuffix}</Text>
-                          {event.bullName && <Text style={styles.timelineNote}>🐂 {event.bullName}</Text>}
+                          <Text style={[styles.timelineEventName, { color: colors.foreground }]}>{cfg.label[language] ?? cfg.label.en}</Text>
+                          <Text style={[styles.timelineDate, { color: colors.mutedForeground }]}>{event.date} · {daysSince(event.date)}{t.daysAgoSuffix}</Text>
+                          {event.bullName && <Text style={[styles.timelineNote, { color: colors.secondaryForeground }]}>Bull: {event.bullName}</Text>}
                           {event.calvingGender && (
-                            <Text style={styles.timelineNote}>
-                              👶 {CALVING_GENDER[event.calvingGender]?.[language] ?? CALVING_GENDER[event.calvingGender]?.en}
+                            <Text style={[styles.timelineNote, { color: colors.secondaryForeground }]}>
+                              Gender: {CALVING_GENDER[event.calvingGender]?.[language] ?? CALVING_GENDER[event.calvingGender]?.en}
                             </Text>
                           )}
-                          {event.note && <Text style={styles.timelineNote}>📝 {event.note}</Text>}
+                          {event.note && <Text style={[styles.timelineNote, { color: colors.secondaryForeground }]}><Feather name="file-text" size={10} /> {event.note}</Text>}
                         </View>
                       </View>
                     );
@@ -166,7 +172,7 @@ export default function BreedingSection() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fefce8", padding: 16 },
+  container: { flex: 1, padding: 16 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
   sectionTitle: { fontSize: 17, fontWeight: "800", color: "#1a2e05" },
   addBtn: {
@@ -176,17 +182,15 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
   emptyState: { alignItems: "center", paddingVertical: 60, gap: 12 },
-  emptyEmoji: { fontSize: 48 },
-  emptyText: { fontSize: 15, color: "#9ca3af", textAlign: "center" },
+  emptyText: { fontSize: 15, textAlign: "center" },
   animalCard: {
-    backgroundColor: "#fff", borderRadius: 16, padding: 14, marginBottom: 12,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    backgroundColor: "transparent", borderRadius: 16, padding: 14, marginBottom: 12,
+    borderWidth: 1, borderColor: "rgba(0,0,0,0.05)",
   },
   animalCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   animalInfo: { flexDirection: "row", alignItems: "center", gap: 10 },
-  animalEmoji: { fontSize: 28 },
-  animalName: { fontSize: 16, fontWeight: "700", color: "#1a2e05" },
-  animalBreed: { fontSize: 12, color: "#6b7280" },
+  animalName: { fontSize: 16, fontWeight: "700" },
+  animalBreed: { fontSize: 12 },
   animalRightSection: { flexDirection: "row", alignItems: "center", gap: 8 },
   pregnantBadge: { backgroundColor: "#ede9fe", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
   pregnantText: { fontSize: 11, color: "#7c3aed", fontWeight: "600" },

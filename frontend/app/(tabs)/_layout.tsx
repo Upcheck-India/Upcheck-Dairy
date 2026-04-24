@@ -9,6 +9,7 @@ import VoiceModal from "@/components/VoiceModal";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 import { useFarmer } from "@/context/FarmerContext";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 
 function ProfileAvatar() {
   const { farmer } = useFarmer();
@@ -36,6 +37,9 @@ export default function TabLayout() {
   const isWeb = Platform.OS === "web";
   const { t } = useLanguage();
   const [voiceVisible, setVoiceVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+  
+  const TAB_BAR_HEIGHT = isWeb ? 84 : 68 + insets.bottom;
 
   return (
     <>
@@ -50,8 +54,9 @@ export default function TabLayout() {
             borderTopWidth: 1,
             borderTopColor: colors.border,
             elevation: 0,
-            height: isWeb ? 84 : 68,
+            height: TAB_BAR_HEIGHT,
             paddingTop: 4,
+            paddingBottom: insets.bottom,
           },
           tabBarLabelStyle: {
             fontSize: 11,

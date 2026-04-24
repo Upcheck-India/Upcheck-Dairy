@@ -4,12 +4,14 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import VaccinationModal from "./VaccinationModal";
+import { useColors } from "@/hooks/useColors";
 
 function daysUntil(dateStr: string): number {
   return Math.floor((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
 export default function VaccinationSection() {
+  const colors = useColors();
   const { animals, vaccinations, markVaccinationDone, deleteVaccination } = useApp();
   const { t } = useLanguage();
   const [modalVisible, setModalVisible] = useState(false);
@@ -104,7 +106,10 @@ export default function VaccinationSection() {
                 </View>
               </View>
               {vax.nextDueDate && (
-                <Text style={styles.nextDue}>🔁 {t.nextDueLabel} {vax.nextDueDate}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 }}>
+                  <Feather name="refresh-cw" size={10} color={colors.accent} />
+                  <Text style={[styles.nextDue, { color: colors.accent }]}>{t.nextDueLabel} {vax.nextDueDate}</Text>
+                </View>
               )}
             </View>
           );
@@ -126,7 +131,12 @@ export default function VaccinationSection() {
                       <Text style={styles.vaxAnimalName}>{animal.name}</Text>
                       <Text style={styles.vaxName}>{vax.vaccineName}</Text>
                       <Text style={styles.vaxDate}>{t.givenDateLabel} {vax.administeredDate}</Text>
-                      {vax.nextDueDate && <Text style={styles.nextDue}>🔁 {t.nextDueLabel} {vax.nextDueDate}</Text>}
+                      {vax.nextDueDate && (
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
+                          <Feather name="refresh-cw" size={10} color={colors.accent} />
+                          <Text style={[styles.nextDue, { color: colors.accent, marginTop: 0 }]}>{t.nextDueLabel} {vax.nextDueDate}</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                   {vax.cost != null && <Text style={styles.costBadge}>₹{vax.cost}</Text>}
@@ -148,7 +158,7 @@ export default function VaccinationSection() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fefce8", padding: 16 },
+  container: { flex: 1, padding: 16 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   sectionTitle: { fontSize: 17, fontWeight: "800", color: "#1a2e05" },
   addBtn: {
@@ -166,9 +176,8 @@ const styles = StyleSheet.create({
   scheduleBtn: { backgroundColor: "#dbeafe", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 },
   scheduleBtnText: { color: "#0284c7", fontWeight: "700", fontSize: 13 },
   vaxCard: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 12, marginBottom: 8,
-    borderLeftWidth: 4,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+    backgroundColor: "transparent", borderRadius: 14, padding: 12, marginBottom: 8,
+    borderLeftWidth: 4, borderWidth: 1, borderColor: "rgba(0,0,0,0.05)",
   },
   vaxCardDone: { opacity: 0.85 },
   vaxRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
@@ -186,6 +195,6 @@ const styles = StyleSheet.create({
   },
   doneBtnText: { fontSize: 12, color: "#16a34a", fontWeight: "600" },
   deleteBtn: { padding: 5 },
-  nextDue: { fontSize: 11, color: "#0284c7", marginTop: 4, fontStyle: "italic" },
+  nextDue: { fontSize: 11, marginTop: 4, fontStyle: "italic" },
   costBadge: { fontSize: 13, fontWeight: "700", color: "#16a34a" },
 });

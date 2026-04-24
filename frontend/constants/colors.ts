@@ -1,81 +1,81 @@
 const colors = {
   light: {
-    text: "#1a2e05",
-    tint: "#16a34a",
+    text: "#0f172a", // Slate 900
+    tint: "#059669", // Emerald 600
 
-    background: "#fefce8",
-    foreground: "#1a2e05",
+    background: "#f8fafc", // Slate 50
+    foreground: "#0f172a", // Slate 900
 
     card: "#ffffff",
-    cardForeground: "#1a2e05",
+    cardForeground: "#0f172a",
 
-    primary: "#16a34a",
+    primary: "#059669", // Emerald 600
     primaryForeground: "#ffffff",
 
-    secondary: "#dcfce7",
-    secondaryForeground: "#14532d",
+    secondary: "#f1f5f9", // Slate 100
+    secondaryForeground: "#334155", // Slate 700
 
-    muted: "#f0fdf4",
-    mutedForeground: "#4d7c0f",
+    muted: "#f1f5f9", // Slate 100
+    mutedForeground: "#64748b", // Slate 500
 
-    accent: "#d97706",
+    accent: "#0ea5e9", // Sky 500
     accentForeground: "#ffffff",
 
-    destructive: "#ef4444",
+    destructive: "#ef4444", // Red 500
     destructiveForeground: "#ffffff",
 
-    warning: "#f97316",
+    warning: "#f59e0b", // Amber 500
     warningForeground: "#ffffff",
 
-    success: "#22c55e",
+    success: "#10b981", // Emerald 500
     successForeground: "#ffffff",
 
-    border: "#bbf7d0",
-    input: "#bbf7d0",
+    border: "#e2e8f0", // Slate 200
+    input: "#e2e8f0", // Slate 200
 
     tabBar: "#ffffff",
-    tabBarBorder: "#bbf7d0",
+    tabBarBorder: "#e2e8f0",
   },
 
   dark: {
-    text: "#e8f5e0",
-    tint: "#22c55e",
+    text: "#f8fafc", // Slate 50
+    tint: "#10b981", // Emerald 500
 
-    background: "#0f1a0a",
-    foreground: "#e8f5e0",
+    background: "#0f172a", // Slate 900
+    foreground: "#f8fafc", // Slate 50
 
-    card: "#1a2e14",
-    cardForeground: "#e8f5e0",
+    card: "#1e293b", // Slate 800
+    cardForeground: "#f8fafc",
 
-    primary: "#22c55e",
-    primaryForeground: "#0f1a0a",
+    primary: "#10b981", // Emerald 500
+    primaryForeground: "#022c22", // Emerald 950
 
-    secondary: "#1e3318",
-    secondaryForeground: "#a7f3d0",
+    secondary: "#334155", // Slate 700
+    secondaryForeground: "#f8fafc",
 
-    muted: "#1e3318",
-    mutedForeground: "#86efac",
+    muted: "#1e293b", // Slate 800
+    mutedForeground: "#94a3b8", // Slate 400
 
-    accent: "#f59e0b",
-    accentForeground: "#0f1a0a",
+    accent: "#38bdf8", // Sky 400
+    accentForeground: "#0f172a",
 
-    destructive: "#f87171",
-    destructiveForeground: "#0f1a0a",
+    destructive: "#f87171", // Red 400
+    destructiveForeground: "#450a0a",
 
-    warning: "#fb923c",
-    warningForeground: "#0f1a0a",
+    warning: "#fbbf24", // Amber 400
+    warningForeground: "#451a03",
 
-    success: "#4ade80",
-    successForeground: "#0f1a0a",
+    success: "#34d399", // Emerald 400
+    successForeground: "#022c22",
 
-    border: "#2d4a25",
-    input: "#2d4a25",
+    border: "#334155", // Slate 700
+    input: "#334155", // Slate 700
 
-    tabBar: "#1a2e14",
-    tabBarBorder: "#2d4a25",
+    tabBar: "#0f172a",
+    tabBarBorder: "#334155",
   },
 
-  radius: 12,
+  radius: 14,
 };
 
 export default colors;
