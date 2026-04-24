@@ -413,6 +413,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadData = async () => {
+    console.log('[AppContext] Starting loadData...');
     try {
       const [animalsData, milkData, healthData, incomeData, expenseData, tasksData,
         breedingData, vaccinationData, inventoryData] = await Promise.all([
@@ -426,6 +427,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem(STORAGE_KEYS.VACCINATIONS),
         AsyncStorage.getItem(STORAGE_KEYS.INVENTORY),
       ]);
+
+      console.log('[AppContext] Storage data retrieved');
 
       const loadedAnimals: Animal[] = animalsData ? JSON.parse(animalsData) : [];
       const loadedMilk: MilkEntry[] = milkData ? JSON.parse(milkData) : [];
@@ -445,8 +448,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       setMilkAnomalies(computeAnomalies(loadedAnimals, loadedMilk));
       setSmartAlerts(computeSmartAlerts(loadedAnimals, loadedBreeding, loadedVax));
-    } catch { /* ignore */ }
+      console.log('[AppContext] State updated');
+    } catch (e) {
+      console.error('[AppContext] Error loading data:', e);
+    }
     setIsLoaded(true);
+    console.log('[AppContext] isLoaded set to true');
   };
 
   const save = async (key: string, data: unknown) => {

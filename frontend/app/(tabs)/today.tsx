@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -29,15 +28,25 @@ const LOCALE_MAP: Record<string, string> = {
   ta: "ta-IN", te: "te-IN", kn: "kn-IN", ml: "ml-IN", hi: "hi-IN", en: "en-IN",
 };
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+import Constants from "expo-constants";
+
+// Guard notification handler for Expo Go
+if (Constants.appOwnership !== 'expo' || Platform.OS === 'web') {
+  try {
+    const Notifications = require("expo-notifications");
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch (e) {
+    console.warn("Notifications handler setup failed", e);
+  }
+}
 
 const CONTEXT_HINTS: Record<string, string[]> = {
   ta: ["காலை கறவை நேரம் — பால் பதிவு செய்யவும்", "மதிய நேர கவனிப்பு — தண்ணீர் மற்றும் தீவனம்", "மாலை கறவை நேரம் — இன்றைய கணக்கு பதிவு"],
@@ -75,7 +84,12 @@ const ALERT_CONFIG: Record<SmartAlert["type"], { emoji: string; bgColor: string;
 };
 
 async function setupDailyNotification() {
+  if (Constants.appOwnership === 'expo' && Platform.OS !== 'web') {
+    return;
+  }
+
   try {
+    const Notifications = require("expo-notifications");
     const { status } = await Notifications.requestPermissionsAsync();
     if (status !== "granted") return;
     await Notifications.cancelAllScheduledNotificationsAsync();
@@ -119,10 +133,15 @@ export default function TodayTab() {
 
   useEffect(() => {
     Animated.timing(progressAnim, { toValue: progress, duration: 500, useNativeDriver: false }).start();
+    // Disable auto-celebration for now to debug stability
+    /*
     if (progress === 1 && totalCount > 0) {
       setCelebration(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (e) { console.warn(e); }
     }
+    */
   }, [progress]);
 
   const milkTotal = getTodayMilkTotal();
@@ -144,8 +163,8 @@ export default function TodayTab() {
   const syncLabel = syncStatus === "synced"
     ? `✓ ${t.savedLabel}`
     : syncStatus === "pending"
-    ? `⏳ ${t.savingLabel}`
-    : "⚠ offline";
+      ? `⏳ ${t.savingLabel}`
+      : "⚠ offline";
 
   const criticalAlerts = smartAlerts.filter((a) => a.priority === "critical");
   const highAlerts = smartAlerts.filter((a) => a.priority === "high");
@@ -162,8 +181,12 @@ export default function TodayTab() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await reloadData();
-    generateDailyTasks();
+    try {
+      await reloadData();
+      generateDailyTasks();
+    } catch (e) {
+      console.error('Refresh failed', e);
+    }
     setRefreshing(false);
   };
 

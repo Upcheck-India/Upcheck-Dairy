@@ -1,4 +1,5 @@
 import { Database } from '@nozbe/watermelondb'
+import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs'
 import { dairySchema } from './schema'
 import {
   Farmer,
@@ -14,49 +15,96 @@ import {
   RateCard,
 } from './models'
 
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import Constants from 'expo-constants'
+
 // MMKV is imported dynamically for React Native compatibility
 let storageInstance: any = null
+const cache = new Map<string, string>()
 
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { MMKV } = require('react-native-mmkv')
-  storageInstance = new MMKV()
-} catch (e) {
-  // In test environments or web, MMKV may not be available
-  console.warn('MMKV not available, using fallback storage')
-  storageInstance = {
-    set: () => {},
-    getString: () => undefined,
-    getBool: () => false,
-    delete: () => {},
-    contains: () => false,
-    clearAll: () => {},
+// Check if we are running in Expo Go
+const isExpoGo = Constants.appOwnership === 'expo'
+
+if (!isExpoGo) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { MMKV } = require('react-native-mmkv')
+    storageInstance = new MMKV()
+  } catch (e) {
+    console.warn('MMKV failed to load, falling back to AsyncStorage')
   }
+}
+
+if (!storageInstance) {
+  // In Expo Go or web, MMKV is not available. 
+  // We use AsyncStorage with a synchronous cache fallback.
+  console.warn('MMKV not available, using AsyncStorage fallback')
+  storageInstance = {
+    set: (key: string, value: string | boolean | number) => {
+      const stringValue = String(value)
+      cache.set(key, stringValue)
+      AsyncStorage.setItem(key, stringValue).catch(console.error)
+    },
+    getString: (key: string) => cache.get(key),
+    getBool: (key: string) => cache.get(key) === 'true',
+    delete: (key: string) => {
+      cache.delete(key)
+      AsyncStorage.removeItem(key).catch(console.error)
+    },
+    contains: (key: string) => cache.has(key),
+    clearAll: () => {
+      cache.clear()
+      AsyncStorage.clear().catch(console.error)
+    },
+  }
+
+  // Hydrate the cache from AsyncStorage on startup
+  AsyncStorage.getAllKeys().then((keys) => {
+    AsyncStorage.multiGet(keys).then((pairs) => {
+      pairs.forEach(([key, value]) => {
+        if (value !== null) cache.set(key, value)
+      })
+    })
+  })
 }
 
 export const storage = storageInstance
 
-// Initialize WatermelonDB
-const database = new Database({
-  adapter: {
-    schema: dairySchema,
-  } as any,
-  modelClasses: [
-    Farmer,
-    Animal,
-    MilkLog,
-    HealthEvent,
-    BreedingEvent,
-    Vaccination,
-    IncomeEntry,
-    ExpenseEntry,
-    Task,
-    InventoryItem,
-    RateCard,
-  ] as any,
-})
+// ─── WatermelonDB Singleton ──────────────────────────────────────────────────
+// Expo Go's Fast Refresh re-evaluates modules on every save. WatermelonDB
+// throws if you try to create a second Database instance with the same adapter.
+// We store both the adapter and instance on `global` to survive hot reloads.
+declare const global: Record<string, any>;
 
-export default database
+if (!global.__wdb_adapter) {
+  global.__wdb_adapter = new LokiJSAdapter({
+    schema: dairySchema,
+    useWebWorker: false,
+    useIncrementalIndexedDB: false,
+  });
+}
+
+if (!global.__wdb_database) {
+  global.__wdb_database = new Database({
+    adapter: global.__wdb_adapter,
+    modelClasses: [
+      Farmer,
+      Animal,
+      MilkLog,
+      HealthEvent,
+      BreedingEvent,
+      Vaccination,
+      IncomeEntry,
+      ExpenseEntry,
+      Task,
+      InventoryItem,
+      RateCard,
+    ],
+  });
+}
+
+const database: Database = global.__wdb_database;
+export default database;
 
 /**
  * Storage keys for MMKV

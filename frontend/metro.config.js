@@ -1,3 +1,8 @@
 const { getDefaultConfig } = require("expo/metro-config");
 
-module.exports = getDefaultConfig(__dirname);
+const config = getDefaultConfig(__dirname);
+
+// WatermelonDB support
+config.resolver.sourceExts.push('cjs');
+
+module.exports = config;

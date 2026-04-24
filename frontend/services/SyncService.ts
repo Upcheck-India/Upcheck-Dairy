@@ -9,8 +9,8 @@
  * - Progress tracking via events
  */
 
-import BackgroundFetch from 'react-native-background-fetch'
 import NetInfo from '@react-native-community/netinfo'
+import Constants from 'expo-constants'
 import database, { Storage, STORAGE_KEYS } from '../database'
 import type MilkLog from '../database/models/MilkLog'
 import type HealthEvent from '../database/models/HealthEvent'
@@ -455,35 +455,47 @@ export async function performSync(): Promise<{
  * Call this once at app startup
  */
 export async function initBackgroundSync(): Promise<void> {
-  // Configure Background Fetch
-  BackgroundFetch.configure(
-    {
-      minimumFetchInterval: 15, // minutes
-      stopOnTerminate: false,
-      startOnBoot: true,
-    },
-    async (taskId: string) => {
-      console.log(`[BackgroundFetch] taskId: ${taskId}`)
+  if (Constants.appOwnership === 'expo') {
+    console.log('[BackgroundSync] Running in Expo Go. Background fetch is disabled.')
+    return
+  }
 
-      // Perform sync
-      const result = await performSync()
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const BackgroundFetch = require('react-native-background-fetch')
+    
+    // Configure Background Fetch
+    BackgroundFetch.configure(
+      {
+        minimumFetchInterval: 15, // minutes
+        stopOnTerminate: false,
+        startOnBoot: true,
+      },
+      async (taskId: string) => {
+        console.log(`[BackgroundFetch] taskId: ${taskId}`)
 
-      // Finish the task
-      BackgroundFetch.finish(taskId)
+        // Perform sync
+        const result = await performSync()
 
-      console.log(
-        `[BackgroundSync] Completed: ${result.synced} synced, ${result.failed} failed`
-      )
-    },
-    (error: string) => {
-      console.log('[BackgroundFetch] Error:', error)
-    }
-  )
+        // Finish the task
+        BackgroundFetch.finish(taskId)
 
-  // Start background fetch
-  BackgroundFetch.start()
+        console.log(
+          `[BackgroundSync] Completed: ${result.synced} synced, ${result.failed} failed`
+        )
+      },
+      (error: string) => {
+        console.log('[BackgroundFetch] Error:', error)
+      }
+    )
 
-  console.log('[BackgroundSync] Initialized')
+    // Start background fetch
+    BackgroundFetch.start()
+
+    console.log('[BackgroundSync] Initialized')
+  } catch (e) {
+    console.warn('BackgroundFetch not available in this environment (likely Expo Go). Background sync will not run.')
+  }
 }
 
 /**
