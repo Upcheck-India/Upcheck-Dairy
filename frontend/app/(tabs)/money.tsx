@@ -72,7 +72,7 @@ function FinancialChart({ data }: { data: DayData[] }) {
 
 const EXPENSE_CAT_LABELS: Record<string, Record<string, string>> = {
   feed: { ta: "🌾 தீவனம்", te: "🌾 మేత", kn: "🌾 ಮೇವು", ml: "🌾 തീറ്റ", hi: "🌾 चारा", en: "🌾 Feed" },
-  medicine: { ta: "💊 மருந்து", te: "💊 మందు", kn: "💊 ಔಷಧ", ml: "💊 മരുന്ന്", hi: "💊 दवाई", en: "💊 Medicine" },
+  medicine: { ta: "மருந்து", te: "మందు", kn: "ಔಷಧ", ml: "മരുന്ന്", hi: "दवाई", en: "Medicine" },
   labor: { ta: "👷 தொழிலாளர்", te: "👷 కూలీ", kn: "👷 ಕಾರ್ಮಿಕ", ml: "👷 തൊഴിലാളി", hi: "👷 मजदूरी", en: "👷 Labor" },
   equipment: { ta: "🔧 உபகரணம்", te: "🔧 పరికరాలు", kn: "🔧 ಸಾಧನ", ml: "🔧 ഉപകരണം", hi: "🔧 उपकरण", en: "🔧 Equipment" },
   other: { ta: "📦 மற்றவை", te: "📦 ఇతరాలు", kn: "📦 ಇತರ", ml: "📦 മറ്റുള്ളവ", hi: "📦 अन्य", en: "📦 Other" },
@@ -355,9 +355,9 @@ export default function MoneyTab() {
         {activeTab === "inventory" && (
           <>
             {inventoryValue > 0 && (
-              <View style={styles.inventoryValueCard}>
-                <Text style={styles.inventoryValueLabel}>{t.totalInventoryValue}</Text>
-                <Text style={styles.inventoryValueAmount}>{formatRupeeFull(inventoryValue)}</Text>
+              <View style={[styles.inventoryValueCard, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
+                <Text style={[styles.inventoryValueLabel, { color: colors.primary }]}>{t.totalInventoryValue}</Text>
+                <Text style={[styles.inventoryValueAmount, { color: colors.primary }]}>{formatRupeeFull(inventoryValue)}</Text>
               </View>
             )}
 
@@ -365,8 +365,8 @@ export default function MoneyTab() {
               <View style={styles.empty}>
                 <Feather name="package" size={48} color={colors.border} />
                 <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t.noInventory}</Text>
-                <Pressable style={styles.addFirstBtn} onPress={() => { setEditInventoryItem(undefined); setInventoryModal(true); }}>
-                  <Text style={styles.addFirstBtnText}>{t.addFirstItem}</Text>
+                <Pressable style={[styles.addFirstBtn, { backgroundColor: colors.primary + "15" }]} onPress={() => { setEditInventoryItem(undefined); setInventoryModal(true); }}>
+                  <Text style={[styles.addFirstBtnText, { color: colors.primary }]}>{t.addFirstItem}</Text>
                 </Pressable>
               </View>
             ) : (
@@ -444,7 +444,7 @@ export default function MoneyTab() {
 
       {/* FAB */}
       <Pressable
-        style={[styles.fab, { backgroundColor: activeTab === "inventory" ? colors.accent : colors.primary }]}
+        style={[styles.fab, { backgroundColor: activeTab === "inventory" ? colors.accent : colors.primary, bottom: Platform.OS === "web" ? 100 : 84 + insets.bottom }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           if (activeTab === "income") setIncomeModal(true);
@@ -568,13 +568,13 @@ const styles = StyleSheet.create({
   catChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   catLabel: { fontSize: 12, fontWeight: "600" },
   inventoryValueCard: {
-    backgroundColor: "#fefce8", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "#fed7aa",
+    borderRadius: 14, padding: 14, borderWidth: 1,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
-  inventoryValueLabel: { fontSize: 13, color: "#92400e", fontWeight: "600" },
-  inventoryValueAmount: { fontSize: 20, fontWeight: "700", color: "#d97706" },
-  addFirstBtn: { backgroundColor: "#fef3c7", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
-  addFirstBtnText: { color: "#d97706", fontWeight: "700", fontSize: 14 },
+  inventoryValueLabel: { fontSize: 13, fontWeight: "600" },
+  inventoryValueAmount: { fontSize: 20, fontWeight: "700" },
+  addFirstBtn: { borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
+  addFirstBtnText: { fontWeight: "700", fontSize: 14 },
   inventoryCard: {
     backgroundColor: undefined, borderRadius: 14, padding: 12, borderWidth: 1,
     gap: 8, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
