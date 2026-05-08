@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, decimal, timestamp, varchar, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, uuid, integer, boolean, decimal, timestamp, varchar, jsonb, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { farmers } from "./farmers";
@@ -16,7 +16,7 @@ export const buffaloBreed = pgEnum("buffalo_breed", [
 
 export const animals = pgTable("animals", {
   id: serial("id").primaryKey(),
-  farmerId: integer("farmer_id").notNull().references(() => farmers.id),
+  farmerId: uuid("farmer_id").notNull().references(() => farmers.id),
   name: text("name").notNull(),
   type: animalType("type").notNull(),
   breed: text("breed").notNull(),

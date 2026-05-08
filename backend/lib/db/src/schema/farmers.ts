@@ -1,10 +1,10 @@
-import { pgTable, text, serial, integer, boolean, decimal, timestamp, varchar, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, integer, boolean, decimal, timestamp, varchar, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const farmers = pgTable("farmers", {
-  id: serial("id").primaryKey(),
-  phone: varchar("phone", { length: 10 }).notNull().unique(),
+  id: uuid("id").primaryKey(),
+  phone: varchar("phone", { length: 10 }).unique(),
   name: text("name").notNull(),
   farmName: text("farm_name"),
   village: text("village"),
@@ -16,7 +16,6 @@ export const farmers = pgTable("farmers", {
 });
 
 export const insertFarmerSchema = createInsertSchema(farmers).omit({
-  id: true,
   createdAt: true,
   updatedAt: true,
 });
