@@ -23,10 +23,11 @@ const STATES = [
 
 export default function SignupScreen() {
   const { t } = useLanguage();
-  const { createProfile } = useFarmer();
+  const { createProfile, session } = useFarmer();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ phone: string }>();
-  const phone = params.phone ?? "";
+  // Accept either email or phone from params for display/legacy compat
+  const params = useLocalSearchParams<{ email?: string; phone?: string }>();
+  const emailOrPhone = params.email ?? params.phone ?? "";
 
   const [name, setName] = useState("");
   const [village, setVillage] = useState("");
@@ -42,7 +43,15 @@ export default function SignupScreen() {
     }
     setLoading(true);
     try {
-      await createProfile({ phone, name, village, district, state, farmName });
+      await createProfile({
+        name,
+        village,
+        district,
+        state,
+        farmName,
+        // If this is an email login, we don't pass phone; if legacy phone flow, pass it
+        phone: params.phone ? params.phone : undefined,
+      });
       router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert(t.error, err.message ?? t.networkError);
@@ -50,6 +59,15 @@ export default function SignupScreen() {
       setLoading(false);
     }
   };
+
+  // Display badge: email if available, phone otherwise
+  const isEmail = !!params.email;
+  const badgeIcon: "mail" | "phone" = isEmail ? "mail" : "phone";
+  const badgeText = isEmail
+    ? emailOrPhone
+    : emailOrPhone.length === 10
+      ? `+91 ${emailOrPhone}`
+      : emailOrPhone;
 
   return (
     <KeyboardAvoidingView
@@ -72,14 +90,16 @@ export default function SignupScreen() {
           </View>
           <Text style={styles.title}>{t.signupTitle}</Text>
           <Text style={styles.sub}>{t.signupSub}</Text>
-          <View style={styles.phonePill}>
-            <Feather name="phone" size={12} color="#16a34a" />
-            <Text style={styles.phoneText}>+91 {phone}</Text>
-            <View style={styles.verifiedBadge}>
-              <Feather name="check" size={10} color="#fff" />
-              <Text style={styles.verifiedText}>Verified</Text>
+          {emailOrPhone ? (
+            <View style={styles.badgePill}>
+              <Feather name={badgeIcon} size={12} color="#16a34a" />
+              <Text style={styles.badgeText}>{badgeText}</Text>
+              <View style={styles.verifiedBadge}>
+                <Feather name="check" size={10} color="#fff" />
+                <Text style={styles.verifiedText}>Verified</Text>
+              </View>
             </View>
-          </View>
+          ) : null}
         </View>
 
         <View style={styles.progressRow}>
@@ -90,6 +110,7 @@ export default function SignupScreen() {
         <Text style={styles.stepText}>{t.step3of3}</Text>
 
         <View style={styles.form}>
+          {/* Name */}
           <View style={styles.fieldWrap}>
             <Text style={styles.fieldLabel}>
               👤 {t.farmerName} <Text style={styles.required}>*</Text>
@@ -108,6 +129,7 @@ export default function SignupScreen() {
             </View>
           </View>
 
+          {/* Village */}
           <View style={styles.fieldWrap}>
             <Text style={styles.fieldLabel}>🏡 {t.village}</Text>
             <View style={styles.inputRow}>
@@ -123,6 +145,7 @@ export default function SignupScreen() {
             </View>
           </View>
 
+          {/* District */}
           <View style={styles.fieldWrap}>
             <Text style={styles.fieldLabel}>📍 {t.district}</Text>
             <View style={styles.inputRow}>
@@ -138,6 +161,7 @@ export default function SignupScreen() {
             </View>
           </View>
 
+          {/* State chips */}
           <View style={styles.fieldWrap}>
             <Text style={styles.fieldLabel}>🌐 State</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -157,6 +181,7 @@ export default function SignupScreen() {
             </ScrollView>
           </View>
 
+          {/* Farm name */}
           <View style={styles.fieldWrap}>
             <Text style={styles.fieldLabel}>🌾 Farm Name</Text>
             <View style={styles.inputRow}>
@@ -194,7 +219,7 @@ export default function SignupScreen() {
 
         <View style={styles.trustRow}>
           <Feather name="shield" size={13} color="#16a34a" />
-          <Text style={styles.trustText}>Data stored only on your device. Never shared.</Text>
+          <Text style={styles.trustText}>Data stored securely. Never shared.</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -219,7 +244,7 @@ const styles = StyleSheet.create({
   icon: { fontSize: 32 },
   title: { fontSize: 22, fontWeight: "800", color: "#1a2e05", marginBottom: 4 },
   sub: { fontSize: 14, color: "#6b7280", marginBottom: 10, textAlign: "center" },
-  phonePill: {
+  badgePill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -228,7 +253,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
-  phoneText: { fontSize: 14, fontWeight: "600", color: "#16a34a" },
+  badgeText: { fontSize: 13, fontWeight: "600", color: "#16a34a" },
   verifiedBadge: {
     flexDirection: "row",
     alignItems: "center",

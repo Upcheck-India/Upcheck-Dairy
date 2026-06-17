@@ -1,3 +1,7 @@
+/**
+ * Auth service — thin wrapper around api.ts and the Supabase client.
+ * Use the functions here when you need a header for authenticated requests.
+ */
 import { supabase } from "../lib/supabase";
 
 const getApiBase = (): string => {
@@ -26,9 +30,10 @@ export interface FarmerProfile {
 }
 
 export async function fetchProfile(): Promise<FarmerProfile | null> {
-  const base = getApiBase();
   const headers = await getAuthHeader();
-  
+  if (!headers.Authorization) return null;
+
+  const base = getApiBase();
   const response = await fetch(`${base}/farm/profile`, {
     headers: {
       ...headers,
@@ -43,8 +48,8 @@ export async function fetchProfile(): Promise<FarmerProfile | null> {
 }
 
 export async function createOrUpdateProfile(profile: Partial<FarmerProfile>): Promise<FarmerProfile> {
-  const base = getApiBase();
   const headers = await getAuthHeader();
+  const base = getApiBase();
 
   const response = await fetch(`${base}/farm/profile`, {
     method: "POST",

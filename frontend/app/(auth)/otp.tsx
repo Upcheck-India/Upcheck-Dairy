@@ -14,18 +14,18 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "@/context/LanguageContext";
 import { useFarmer } from "@/context/FarmerContext";
-import { verifyOtp, sendOtp } from "@/services/api";
+import { verifyEmailOtp, requestEmailOtp } from "@/services/api";
+import type { Session } from "@supabase/supabase-js";
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 60;
 
 export default function OtpScreen() {
   const { t } = useLanguage();
-  const { loginWithPhone } = useFarmer();
+  const { setSessionFromAuth, farmer } = useFarmer();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ phone: string; demoOtp: string }>();
-  const phone = params.phone ?? "";
-  const [demoOtp, setDemoOtp] = useState(params.demoOtp ?? "");
+  const params = useLocalSearchParams<{ email: string }>();
+  const email = params.email ?? "";
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [loading, setLoading] = useState(false);
@@ -43,9 +43,10 @@ export default function OtpScreen() {
     setTimeout(() => inputRefs.current[0]?.focus(), 300);
   }, []);
 
-  const maskedPhone = phone.length === 10
-    ? `+91 ${phone.slice(0, 2)}XXXX${phone.slice(6)}`
-    : phone;
+  // Mask email for display: e.g. an***@gmail.com
+  const maskedEmail = email.includes("@")
+    ? `${email.slice(0, 2)}***@${email.split("@")[1]}`
+    : email;
 
   const handleChange = (text: string, index: number) => {
     const cleaned = text.replace(/\D/g, "").slice(-1);
@@ -77,12 +78,21 @@ export default function OtpScreen() {
     }
     setLoading(true);
     try {
-      await verifyOtp(phone, enteredOtp);
-      const result = await loginWithPhone(phone);
-      if (result === "found") {
-        router.replace("/(tabs)");
+      const result = await verifyEmailOtp(email, enteredOtp);
+
+      if (result.session) {
+        // Store the Supabase session; FarmerContext will fetch profile
+        await setSessionFromAuth(result.session as Session);
+
+        // If no farmer profile yet, redirect to signup to collect name/farm info
+        if (!farmer) {
+          router.replace({ pathname: "/(auth)/signup", params: { email } });
+        } else {
+          router.replace("/(tabs)");
+        }
       } else {
-        router.replace({ pathname: "/(auth)/signup", params: { phone } });
+        // Session-less response (e.g. Truecaller temp) – treat as profile creation needed
+        router.replace({ pathname: "/(auth)/signup", params: { email } });
       }
     } catch (err: any) {
       Alert.alert(t.wrongOtp, err.message ?? t.error);
@@ -91,14 +101,13 @@ export default function OtpScreen() {
     } finally {
       setLoading(false);
     }
-  }, [otp, phone, t, loginWithPhone]);
+  }, [otp, email, t, setSessionFromAuth, farmer]);
 
   const handleResend = async () => {
     if (countdown > 0) return;
     setResending(true);
     try {
-      const result = await sendOtp(phone);
-      setDemoOtp(result.demoOtp ?? "");
+      await requestEmailOtp(email);
       setCountdown(RESEND_SECONDS);
       setOtp(Array(OTP_LENGTH).fill(""));
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
@@ -126,22 +135,12 @@ export default function OtpScreen() {
             <Text style={styles.otpIcon}>🔐</Text>
           </View>
           <Text style={styles.title}>{t.verifyOtp}</Text>
-          <Text style={styles.sub}>
-            {t.otpSentTo}
-          </Text>
-          <View style={styles.phonePill}>
-            <Feather name="phone" size={13} color="#16a34a" />
-            <Text style={styles.phoneText}>{maskedPhone}</Text>
+          <Text style={styles.sub}>{t.otpSentTo}</Text>
+          <View style={styles.emailPill}>
+            <Feather name="mail" size={13} color="#16a34a" />
+            <Text style={styles.emailText}>{maskedEmail}</Text>
           </View>
         </View>
-
-        {demoOtp ? (
-          <View style={styles.demoBanner}>
-            <Feather name="info" size={14} color="#7c3aed" />
-            <Text style={styles.demoLabel}>{t.demoOtpNote}:</Text>
-            <Text style={styles.demoCode}>{demoOtp}</Text>
-          </View>
-        ) : null}
 
         <View style={styles.otpRow}>
           {otp.map((digit, i) => (
@@ -230,7 +229,7 @@ const styles = StyleSheet.create({
   otpIcon: { fontSize: 32 },
   title: { fontSize: 24, fontWeight: "800", color: "#1a2e05", marginBottom: 6 },
   sub: { fontSize: 14, color: "#6b7280", marginBottom: 8 },
-  phonePill: {
+  emailPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -239,21 +238,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
-  phoneText: { fontSize: 15, fontWeight: "700", color: "#16a34a", letterSpacing: 0.5 },
-  demoBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#ede9fe",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#c4b5fd",
-  },
-  demoLabel: { fontSize: 13, color: "#7c3aed", fontWeight: "600" },
-  demoCode: { fontSize: 18, fontWeight: "800", color: "#6d28d9", letterSpacing: 3 },
+  emailText: { fontSize: 14, fontWeight: "700", color: "#16a34a", letterSpacing: 0.3 },
   otpRow: {
     flexDirection: "row",
     justifyContent: "center",

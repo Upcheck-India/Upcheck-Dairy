@@ -14,39 +14,60 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage, LANGUAGE_NATIVE, type Language } from "@/context/LanguageContext";
-import { sendOtp } from "@/services/api";
+import { requestEmailOtp } from "@/services/api";
 
 const LANGUAGES: Language[] = ["ta", "te", "kn", "ml", "hi", "en"];
 
 export default function LoginScreen() {
   const { t, language, setLanguage } = useLanguage();
   const insets = useSafeAreaInsets();
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const phoneRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
 
   const handleSkip = () => router.replace("/(tabs)");
 
+  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+
   const handleSendOtp = async () => {
-    const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length !== 10) {
-      Alert.alert(t.error, t.invalidPhone);
-      return;
-    }
-    if (!/^[6-9]/.test(cleaned)) {
-      Alert.alert(t.error, t.invalidPhone);
+    const trimmed = email.trim().toLowerCase();
+    if (!isValidEmail(trimmed)) {
+      Alert.alert(
+        t.error,
+        language === "ta"
+          ? "சரியான மின்னஞ்சல் முகவரி உள்ளிடவும்"
+          : language === "hi"
+          ? "कृपया सही ईमेल पता दर्ज करें"
+          : "Please enter a valid email address"
+      );
       return;
     }
     setLoading(true);
     try {
-      const result = await sendOtp(cleaned);
-      router.push({ pathname: "/(auth)/otp", params: { phone: cleaned, demoOtp: result.demoOtp ?? "" } });
+      await requestEmailOtp(trimmed);
+      router.push({ pathname: "/(auth)/otp", params: { email: trimmed } });
     } catch (err: any) {
       Alert.alert(t.error, err.message ?? t.networkError);
     } finally {
       setLoading(false);
     }
   };
+
+  const emailLabel =
+    language === "ta" ? "மின்னஞ்சல்"
+    : language === "te" ? "ఇమెయిల్"
+    : language === "kn" ? "ಇಮೇಲ್"
+    : language === "ml" ? "ഇമെയിൽ"
+    : language === "hi" ? "ईमेल"
+    : "Email";
+
+  const otpHint =
+    language === "ta" ? "OTP உங்கள் மின்னஞ்சலுக்கு அனுப்பப்படும்"
+    : language === "te" ? "OTP మీ ఇమెయిల్‌కి పంపబడుతుంది"
+    : language === "kn" ? "OTP ನಿಮ್ಮ ಇಮೇಲ್‌ಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ"
+    : language === "ml" ? "OTP നിങ്ങളുടെ ഇമെയിലിൽ ലഭിക്കും"
+    : language === "hi" ? "OTP आपके ईमेल पर भेजा जाएगा"
+    : "A one-time code will be sent to your email";
 
   return (
     <KeyboardAvoidingView
@@ -59,6 +80,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Language selector */}
         <View style={styles.langGrid}>
           {LANGUAGES.map((l) => {
             const info = LANGUAGE_NATIVE[l];
@@ -78,6 +100,7 @@ export default function LoginScreen() {
           })}
         </View>
 
+        {/* Hero */}
         <View style={styles.heroSection}>
           <View style={styles.logoWrap}>
             <Text style={styles.logoLeaf}>🌱</Text>
@@ -86,51 +109,40 @@ export default function LoginScreen() {
           <Text style={styles.tagline}>{t.tagline}</Text>
         </View>
 
+        {/* Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t.loginTitle}</Text>
           <Text style={styles.cardSub}>{t.loginSub}</Text>
 
-          <View style={styles.phoneRow}>
-            <View style={styles.phonePrefixBox}>
-              <Text style={styles.flag}>🇮🇳</Text>
-              <Text style={styles.prefix}>+91</Text>
-            </View>
+          {/* Email input */}
+          <Text style={styles.inputLabel}>{emailLabel}</Text>
+          <View style={styles.emailRow}>
+            <Feather name="mail" size={18} color="#16a34a" style={styles.inputIcon} />
             <TextInput
-              ref={phoneRef}
-              style={styles.phoneInput}
-              value={phone}
-              onChangeText={(v) => setPhone(v.replace(/\D/g, "").slice(0, 10))}
-              placeholder="98765 43210"
+              ref={emailRef}
+              style={styles.emailInput}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
               placeholderTextColor="#9ca3af"
-              keyboardType="number-pad"
-              maxLength={10}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
               returnKeyType="done"
               onSubmitEditing={handleSendOtp}
             />
           </View>
 
-          <Text style={styles.hint}>
-            {language === "ta"
-              ? "OTP உங்கள் கைபேசிக்கு அனுப்பப்படும்"
-              : language === "te"
-              ? "OTP మీ మొబైల్‌కి పంపబడుతుంది"
-              : language === "kn"
-              ? "OTP ನಿಮ್ಮ ಮೊಬೈಲ್‌ಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ"
-              : language === "ml"
-              ? "OTP നിങ്ങളുടെ മൊബൈലിൽ ലഭിക്കും"
-              : language === "hi"
-              ? "OTP आपके मोबाइल पर भेजा जाएगा"
-              : "OTP will be sent to your mobile number"}
-          </Text>
+          <Text style={styles.hint}>{otpHint}</Text>
 
           <Pressable
             style={({ pressed }) => [
               styles.sendBtn,
-              (loading || phone.length < 10) && styles.sendBtnDisabled,
+              (loading || !isValidEmail(email)) && styles.sendBtnDisabled,
               pressed && styles.sendBtnPressed,
             ]}
             onPress={handleSendOtp}
-            disabled={loading || phone.length < 10}
+            disabled={loading || !isValidEmail(email)}
           >
             {loading ? (
               <Text style={styles.sendBtnText}>{t.sending}</Text>
@@ -152,7 +164,6 @@ export default function LoginScreen() {
             <Feather name="user-x" size={15} color="#9ca3af" />
             <Text style={styles.skipText}>{t.skip}</Text>
           </Pressable>
-
         </View>
 
         <View style={styles.footer}>
@@ -163,7 +174,7 @@ export default function LoginScreen() {
                 ? "உங்கள் தரவு பாதுகாப்பாக சேமிக்கப்படுகிறது"
                 : language === "hi"
                 ? "आपका डेटा सुरक्षित रहता है"
-                : "Your data is stored securely on your device"}
+                : "Your data is stored securely"}
             </Text>
           </View>
         </View>
@@ -237,7 +248,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 20, fontWeight: "800", color: "#1a2e05", marginBottom: 4 },
   cardSub: { fontSize: 14, color: "#6b7280", marginBottom: 20 },
-  phoneRow: {
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 6,
+  },
+  emailRow: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 2,
@@ -246,27 +263,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 10,
     backgroundColor: "#f0fdf4",
-  },
-  phonePrefixBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
     paddingHorizontal: 14,
-    paddingVertical: 16,
-    borderRightWidth: 1.5,
-    borderRightColor: "#d1fae5",
-    backgroundColor: "#dcfce7",
   },
-  flag: { fontSize: 18 },
-  prefix: { fontSize: 16, fontWeight: "700", color: "#16a34a" },
-  phoneInput: {
+  inputIcon: { marginRight: 10 },
+  emailInput: {
     flex: 1,
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "500",
     color: "#1a2e05",
-    paddingHorizontal: 14,
     paddingVertical: 16,
-    letterSpacing: 2,
   },
   hint: { fontSize: 12, color: "#9ca3af", textAlign: "center", marginBottom: 16 },
   sendBtn: {

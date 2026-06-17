@@ -2,8 +2,31 @@ const getApiBase = (): string => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
-  return "http://localhost:8080/api";
+  return "http://localhost:3000/api";
 };
+
+// ==================== Types ====================
+
+export interface SupabaseSession {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  token_type: string;
+}
+
+export interface SupabaseUser {
+  id: string;
+  email?: string;
+  phone?: string;
+  user_metadata?: Record<string, any>;
+  created_at?: string;
+}
+
+export interface AuthResult {
+  user: SupabaseUser | null;
+  session: SupabaseSession | null;
+  message?: string;
+}
 
 export interface DiagnoseRequest {
   symptoms: string[];
@@ -48,6 +71,167 @@ export interface VoiceCommandResponse {
   confirmationTamil: string;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface RationResult {
+  summary: string;
+  summaryLocal: string;
+  greenFodder: { quantity: string; examples: string };
+  dryFodder: { quantity: string; examples: string };
+  concentrate: { quantity: string; composition: string };
+  mineralMix: string;
+  water: string;
+  totalCost: string;
+  tips: string[];
+}
+
+// ==================== Auth API ====================
+
+/** Request an email OTP (passwordless login). */
+export async function requestEmailOtp(email: string): Promise<{ message: string }> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/supabase/login-otp/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const data = await response.json() as { message?: string; error?: string };
+  if (!response.ok) throw new Error(data.error ?? `Failed to send OTP: ${response.status}`);
+  return { message: data.message ?? "OTP sent" };
+}
+
+/** Verify an email OTP. Returns session + user on success. */
+export async function verifyEmailOtp(email: string, otp: string): Promise<AuthResult> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/supabase/login-otp/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp }),
+  });
+  const data = await response.json() as AuthResult & { error?: string };
+  if (!response.ok) throw new Error(data.error ?? `OTP verification failed: ${response.status}`);
+  return data;
+}
+
+/** Sign up with email + password. */
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+  meta?: { firstName?: string; lastName?: string; username?: string }
+): Promise<AuthResult> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/supabase/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, ...meta }),
+  });
+  const data = await response.json() as AuthResult & { error?: string };
+  if (!response.ok) throw new Error(data.error ?? `Sign up failed: ${response.status}`);
+  return data;
+}
+
+/** Sign in with email + password. May return requires2FA + tempToken. */
+export async function signInWithEmail(
+  email: string,
+  password: string
+): Promise<AuthResult & { requires2FA?: boolean; tempToken?: string }> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/supabase/signin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await response.json() as AuthResult & { requires2FA?: boolean; tempToken?: string; error?: string };
+  if (!response.ok) throw new Error(data.error ?? `Sign in failed: ${response.status}`);
+  return data;
+}
+
+/** Refresh the session using a refresh token. */
+export async function refreshSession(refreshToken: string): Promise<AuthResult> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/supabase/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken }),
+  });
+  const data = await response.json() as AuthResult & { error?: string };
+  if (!response.ok) throw new Error(data.error ?? `Session refresh failed: ${response.status}`);
+  return data;
+}
+
+/** Sign out (invalidates the server session). */
+export async function signOut(accessToken: string): Promise<void> {
+  const base = getApiBase();
+  await fetch(`${base}/auth/supabase/signout`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+/** Get the currently authenticated user from the server. */
+export async function getMe(accessToken: string): Promise<SupabaseUser> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/supabase/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const data = await response.json() as { user: SupabaseUser; error?: string };
+  if (!response.ok) throw new Error(data.error ?? `Failed to fetch user: ${response.status}`);
+  return data.user;
+}
+
+// ==================== Farm / Profile API ====================
+
+export interface FarmerProfile {
+  id: string;
+  name: string;
+  phone?: string;
+  farmName?: string;
+  village?: string;
+  district?: string;
+  state?: string;
+  avatarInitials?: string;
+  avatarColor?: string;
+  createdAt?: string;
+}
+
+export async function fetchProfile(accessToken: string): Promise<FarmerProfile | null> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/farm/profile`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error("Failed to fetch profile");
+  return response.json() as Promise<FarmerProfile>;
+}
+
+export async function createOrUpdateProfile(
+  accessToken: string,
+  profile: Partial<FarmerProfile>
+): Promise<FarmerProfile> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/farm/profile`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(profile),
+  });
+  if (!response.ok) throw new Error("Failed to save profile");
+  return response.json() as Promise<FarmerProfile>;
+}
+
+// ==================== Diagnostics ====================
+
 export async function diagnoseSymptoms(request: DiagnoseRequest): Promise<DiagnoseResponse> {
   const base = getApiBase();
   const response = await fetch(`${base}/farm/diagnose`, {
@@ -80,23 +264,6 @@ export async function transcribeAudio(audioUri: string, mimeType?: string): Prom
   return data.transcript;
 }
 
-export interface SendOtpResponse {
-  success: boolean;
-  message: string;
-  demoOtp?: string;
-  expiresIn: number;
-}
-
-export interface VerifyOtpResponse {
-  success: boolean;
-  verified: boolean;
-}
-
-export interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
 export async function chatWithGauGuru(
   message: string,
   history: ChatMessage[],
@@ -111,18 +278,6 @@ export async function chatWithGauGuru(
   const data = await response.json() as { response: string; error?: string };
   if (!response.ok) throw new Error(data.error ?? "Chat failed");
   return data;
-}
-
-export interface RationResult {
-  summary: string;
-  summaryLocal: string;
-  greenFodder: { quantity: string; examples: string };
-  dryFodder: { quantity: string; examples: string };
-  concentrate: { quantity: string; composition: string };
-  mineralMix: string;
-  water: string;
-  totalCost: string;
-  tips: string[];
 }
 
 export async function calculateRation(params: {
@@ -140,34 +295,6 @@ export async function calculateRation(params: {
   return data;
 }
 
-export async function sendOtp(phone: string): Promise<SendOtpResponse> {
-  const base = getApiBase();
-  const response = await fetch(`${base}/auth/send-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone }),
-  });
-  const data = await response.json() as SendOtpResponse & { error?: string };
-  if (!response.ok) {
-    throw new Error(data.error ?? `Failed to send OTP: ${response.status}`);
-  }
-  return data;
-}
-
-export async function verifyOtp(phone: string, otp: string): Promise<VerifyOtpResponse> {
-  const base = getApiBase();
-  const response = await fetch(`${base}/auth/verify-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, otp }),
-  });
-  const data = await response.json() as VerifyOtpResponse & { error?: string };
-  if (!response.ok) {
-    throw new Error(data.error ?? `OTP verification failed: ${response.status}`);
-  }
-  return data;
-}
-
 export async function parseVoiceCommand(request: VoiceCommandRequest): Promise<VoiceCommandResponse> {
   const base = getApiBase();
   const response = await fetch(`${base}/farm/voice-command`, {
@@ -180,3 +307,7 @@ export async function parseVoiceCommand(request: VoiceCommandRequest): Promise<V
   }
   return response.json() as Promise<VoiceCommandResponse>;
 }
+
+// Legacy aliases kept for pages that haven't migrated yet
+export const sendOtp = requestEmailOtp;
+export const verifyOtp = (phone: string, otp: string) => verifyEmailOtp(phone, otp);
