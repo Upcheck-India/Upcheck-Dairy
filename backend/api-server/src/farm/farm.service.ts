@@ -1,26 +1,14 @@
-import { Router, type IRouter } from "express";
+import { Injectable, BadRequestException, InternalServerErrorException } from "@nestjs/common";
 import { openai } from "@workspace/openai-server";
-import multer from "multer";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
 
-const upload = multer({ dest: os.tmpdir() });
-
-const router: IRouter = Router();
-
-router.post("/farm/diagnose", async (req, res) => {
-  try {
-    const { symptoms, customNote, animalName, animalType } = req.body as {
-      symptoms: string[];
-      customNote?: string;
-      animalName?: string;
-      animalType?: string;
-    };
-
+@Injectable()
+export class FarmService {
+  async diagnose(symptoms: string[], customNote?: string, animalName?: string, animalType?: string) {
     if (!symptoms || symptoms.length === 0) {
-      res.status(400).json({ error: "At least one symptom is required" });
-      return;
+      throw new BadRequestException("At least one symptom is required");
     }
 
     const animalDesc = animalName
@@ -48,19 +36,19 @@ Provide a structured diagnosis response as JSON with these exact fields:
 
 Respond with ONLY the JSON object, no markdown code blocks.`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_completion_tokens: 8192,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const rawContent = completion.choices[0]?.message?.content ?? "{}";
-
-    let parsed;
     try {
-      parsed = JSON.parse(rawContent);
-    } catch {
-      parsed = {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_completion_tokens: 8192,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const rawContent = completion.choices[0]?.message?.content ?? "{}";
+      return JSON.parse(rawContent);
+    } catch (err) {
+      console.error("Diagnose error:", err);
+      // Fallback
+      return {
         summary: "Unable to process diagnosis",
         summaryTamil: "நோயறிதல் செயல்படவில்லை",
         possibleCauses: ["Unable to determine"],
@@ -73,24 +61,11 @@ Respond with ONLY the JSON object, no markdown code blocks.`;
         callVetImmediately: false,
       };
     }
-
-    res.json(parsed);
-  } catch (err) {
-    console.error("Diagnose error:", err);
-    res.status(500).json({ error: "Diagnosis failed" });
   }
-});
 
-router.post("/farm/voice-command", async (req, res) => {
-  try {
-    const { transcript, animals } = req.body as {
-      transcript: string;
-      animals?: Array<{ id: string; name: string; type: string }>;
-    };
-
+  async parseVoiceCommand(transcript: string, animals?: Array<{ id: string; name: string; type: string }>) {
     if (!transcript) {
-      res.status(400).json({ error: "Transcript is required" });
-      return;
+      throw new BadRequestException("Transcript is required");
     }
 
     const animalList = animals?.map((a) => `${a.name} (${a.type}, id: ${a.id})`).join(", ") ?? "none";
@@ -125,19 +100,18 @@ For expense commands like 'feed expense 500', set action to add_expense.
 For navigation like 'show animals' or 'go to money', set action to navigate.
 Respond with ONLY the JSON object.`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_completion_tokens: 8192,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const rawContent = completion.choices[0]?.message?.content ?? "{}";
-
-    let parsed;
     try {
-      parsed = JSON.parse(rawContent);
-    } catch {
-      parsed = {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_completion_tokens: 8192,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const rawContent = completion.choices[0]?.message?.content ?? "{}";
+      return JSON.parse(rawContent);
+    } catch (err) {
+      console.error("Voice command error:", err);
+      return {
         action: "unknown",
         confidence: 0,
         params: {},
@@ -145,61 +119,47 @@ Respond with ONLY the JSON object.`;
         confirmationTamil: "கட்டளை புரியவில்லை",
       };
     }
-
-    res.json(parsed);
-  } catch (err) {
-    console.error("Voice command error:", err);
-    res.status(500).json({ error: "Voice command parsing failed" });
-  }
-});
-
-router.post("/farm/transcribe", (upload as any).single("audio"), async (req: any, res: any) => {
-  const file = req.file;
-  if (!file) {
-    res.status(400).json({ error: "No audio file provided" });
-    return;
   }
 
-  const MAX_FILE_SIZE = 25 * 1024 * 1024;
-  if (file.size > MAX_FILE_SIZE) {
-    res.status(400).json({ error: "Audio file too large. Maximum size is 25MB." });
-    return;
+  async transcribeAudio(file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException("No audio file provided");
+    }
+
+    const MAX_FILE_SIZE = 25 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      throw new BadRequestException("Audio file too large. Maximum size is 25MB.");
+    }
+
+    const ext = file.mimetype?.includes("mp4") ? ".m4a" : ".wav";
+    const destPath = path.join(os.tmpdir(), file.filename + ext);
+
+    try {
+      fs.renameSync(file.path, destPath);
+
+      const transcription = await openai.audio.transcriptions.create({
+        file: fs.createReadStream(destPath),
+        model: "whisper-1",
+        language: "ta",
+        prompt: "Tamil dairy farm commands about cows, milk, feed, expenses",
+      });
+
+      return { transcript: transcription.text };
+    } catch (err) {
+      console.error("Transcription error:", err);
+      throw new InternalServerErrorException("Transcription failed");
+    } finally {
+      try {
+        fs.unlinkSync(destPath);
+      } catch {
+        // ignore
+      }
+    }
   }
 
-  const ext = file.mimetype?.includes("mp4") ? ".m4a" : ".wav";
-  const destPath = path.join(os.tmpdir(), file.filename + ext);
-
-  try {
-    fs.renameSync(file.path, destPath);
-
-    const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(destPath),
-      model: "whisper-1",
-      language: "ta",
-      prompt: "Tamil dairy farm commands about cows, milk, feed, expenses",
-    });
-
-    res.json({ transcript: transcription.text });
-  } catch (err) {
-    console.error("Transcription error:", err);
-    res.status(500).json({ error: "Transcription failed" });
-  } finally {
-    try { fs.unlinkSync(destPath); } catch { /* ignore */ }
-  }
-});
-
-// ─── GauGuru AI Chat ──────────────────────────────────────────────────────
-router.post("/farm/chat", async (req, res) => {
-  try {
-    const { message, history, language } = req.body as {
-      message: string;
-      history?: Array<{ role: "user" | "assistant"; content: string }>;
-      language?: string;
-    };
-
+  async chat(message: string, history?: Array<{ role: "user" | "assistant"; content: string }>, language?: string) {
     if (!message) {
-      res.status(400).json({ error: "Message is required" });
-      return;
+      throw new BadRequestException("Message is required");
     }
 
     const langMap: Record<string, string> = {
@@ -212,7 +172,7 @@ router.post("/farm/chat", async (req, res) => {
     };
     const langInstruction = langMap[language ?? "ta"] ?? langMap.ta!;
 
-    const systemPrompt = `You are GauGuru (கோ குரு / गौगुरु), an expert AI assistant for Indian dairy farmers. You provide practical, actionable advice.
+    const systemPrompt = `You are GauGuru (கோ குரு / கவுகுரு), an expert AI assistant for Indian dairy farmers. You provide practical, actionable advice.
 
 You are an expert in:
 - Indian dairy breeds: HF, Jersey, Gir, Sahiwal, Tharparkar, Kangayam, Umblachery, Bargur, Murrah buffalo, Surti, Mehsana, Jaffarabadi
@@ -242,42 +202,33 @@ Never give medicine dosages — recommend consulting a local vet for specific tr
       { role: "user" as const, content: message },
     ];
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages,
-      max_tokens: 400,
-      temperature: 0.7,
-    });
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages,
+        max_tokens: 400,
+        temperature: 0.7,
+      });
 
-    const response = completion.choices[0]?.message?.content ?? "Sorry, I couldn't answer that.";
-    res.json({ response });
-  } catch (err) {
-    console.error("Chat error:", err);
-    res.status(500).json({ error: "Chat failed", response: "Sorry, there was an error. Please try again." });
+      const response = completion.choices[0]?.message?.content ?? "Sorry, I couldn't answer that.";
+      return { response };
+    } catch (err) {
+      console.error("Chat error:", err);
+      return { response: "Sorry, there was an error. Please try again." };
+    }
   }
-});
 
-// ─── Ration Calculator ────────────────────────────────────────────────────
-router.post("/farm/ration", async (req, res) => {
-  try {
-    const { animalType, breed, weightKg, milkProductionL, language } = req.body as {
-      animalType: string; breed: string; weightKg: number;
-      milkProductionL: number; language?: string;
-    };
-
+  async calculateRation(animalType: string, breed: string, weightKg: number, milkProductionL: number, language?: string) {
     if (!animalType || !breed || typeof weightKg !== "number" || typeof milkProductionL !== "number") {
-      res.status(400).json({ error: "animalType, breed, weightKg, and milkProductionL are required" });
-      return;
+      throw new BadRequestException("animalType, breed, weightKg, and milkProductionL are required");
     }
 
     if (weightKg <= 0 || weightKg > 2000) {
-      res.status(400).json({ error: "weightKg must be between 1 and 2000" });
-      return;
+      throw new BadRequestException("weightKg must be between 1 and 2000");
     }
 
     if (milkProductionL < 0 || milkProductionL > 100) {
-      res.status(400).json({ error: "milkProductionL must be between 0 and 100" });
-      return;
+      throw new BadRequestException("milkProductionL must be between 0 and 100");
     }
 
     const langMap: Record<string, string> = {
@@ -304,24 +255,19 @@ Provide a practical feeding recommendation as JSON:
 Base formula: Maintenance = bodyweight × 0.015 kg DM; Production = 0.35 kg concentrate per extra litre above 4L.
 Respond ONLY with valid JSON.`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 500,
-      response_format: { type: "json_object" },
-    });
-
-    const content = completion.choices[0]?.message?.content ?? "{}";
     try {
-      const parsed = JSON.parse(content);
-      res.json(parsed);
-    } catch {
-      res.status(500).json({ error: "Failed to parse ration calculation result" });
-    }
-  } catch (err) {
-    console.error("Ration error:", err);
-    res.status(500).json({ error: "Ration calculation failed" });
-  }
-});
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 500,
+        response_format: { type: "json_object" },
+      });
 
-export default router;
+      const content = completion.choices[0]?.message?.content ?? "{}";
+      return JSON.parse(content);
+    } catch (err) {
+      console.error("Ration error:", err);
+      throw new InternalServerErrorException("Ration calculation failed");
+    }
+  }
+}
