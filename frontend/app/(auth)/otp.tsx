@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -12,7 +14,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLanguage } from "@/context/LanguageContext";
 import { useFarmer } from "@/context/FarmerContext";
 import { verifyEmailOtp, requestEmailOtp } from "@/services/api";
 import type { Session } from "@supabase/supabase-js";
@@ -21,9 +22,8 @@ const OTP_LENGTH = 6;
 const RESEND_SECONDS = 60;
 
 export default function OtpScreen() {
-  const { t } = useLanguage();
-  const { setSessionFromAuth, farmer } = useFarmer();
   const insets = useSafeAreaInsets();
+  const { setSessionFromAuth, farmer } = useFarmer();
   const params = useLocalSearchParams<{ email: string }>();
   const email = params.email ?? "";
 
@@ -43,7 +43,6 @@ export default function OtpScreen() {
     setTimeout(() => inputRefs.current[0]?.focus(), 300);
   }, []);
 
-  // Mask email for display: e.g. an***@gmail.com
   const maskedEmail = email.includes("@")
     ? `${email.slice(0, 2)}***@${email.split("@")[1]}`
     : email;
@@ -73,7 +72,7 @@ export default function OtpScreen() {
   const handleVerify = useCallback(async (code?: string) => {
     const enteredOtp = code ?? otp.join("");
     if (enteredOtp.length !== OTP_LENGTH) {
-      Alert.alert(t.error, t.enterOtp);
+      Alert.alert("Incomplete Code", "Please enter all 6 digits.");
       return;
     }
     setLoading(true);
@@ -81,27 +80,25 @@ export default function OtpScreen() {
       const result = await verifyEmailOtp(email, enteredOtp);
 
       if (result.session) {
-        // Store the Supabase session; FarmerContext will fetch profile
         await setSessionFromAuth(result.session as Session);
-
-        // If no farmer profile yet, redirect to signup to collect name/farm info
+        // If no profile yet, collect farm details
         if (!farmer) {
           router.replace({ pathname: "/(auth)/signup", params: { email } });
         } else {
           router.replace("/(tabs)");
         }
       } else {
-        // Session-less response (e.g. Truecaller temp) – treat as profile creation needed
+        // Supabase returned user but no session — go create profile
         router.replace({ pathname: "/(auth)/signup", params: { email } });
       }
     } catch (err: any) {
-      Alert.alert(t.wrongOtp, err.message ?? t.error);
+      Alert.alert("Wrong Code", err.message ?? "Invalid or expired code. Please try again.");
       setOtp(Array(OTP_LENGTH).fill(""));
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
     } finally {
       setLoading(false);
     }
-  }, [otp, email, t, setSessionFromAuth, farmer]);
+  }, [otp, email, setSessionFromAuth, farmer]);
 
   const handleResend = async () => {
     if (countdown > 0) return;
@@ -112,7 +109,7 @@ export default function OtpScreen() {
       setOtp(Array(OTP_LENGTH).fill(""));
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
     } catch (err: any) {
-      Alert.alert(t.error, err.message ?? t.networkError);
+      Alert.alert("Error", err.message ?? "Failed to resend code.");
     } finally {
       setResending(false);
     }
@@ -121,27 +118,29 @@ export default function OtpScreen() {
   const filled = otp.filter((d) => d !== "").length;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
+        {/* Back */}
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Feather name="arrow-left" size={22} color="#16a34a" />
         </Pressable>
 
+        {/* Icon + Header */}
         <View style={styles.header}>
-          <View style={styles.otpIconWrap}>
-            <Text style={styles.otpIcon}>🔐</Text>
-          </View>
-          <Text style={styles.title}>{t.verifyOtp}</Text>
-          <Text style={styles.sub}>{t.otpSentTo}</Text>
+          <LinearGradient colors={["#dcfce7", "#d1fae5"]} style={styles.iconCircle}>
+            <Feather name="mail" size={32} color="#16a34a" />
+          </LinearGradient>
+          <Text style={styles.title}>Check your email</Text>
+          <Text style={styles.sub}>
+            We sent a 6-digit code to
+          </Text>
           <View style={styles.emailPill}>
             <Feather name="mail" size={13} color="#16a34a" />
             <Text style={styles.emailText}>{maskedEmail}</Text>
           </View>
         </View>
 
+        {/* OTP Boxes */}
         <View style={styles.otpRow}>
           {otp.map((digit, i) => (
             <TextInput
@@ -163,31 +162,36 @@ export default function OtpScreen() {
           ))}
         </View>
 
-        <Text style={styles.expiryNote}>{t.otpExpiry}</Text>
+        <Text style={styles.expiryNote}>Code expires in 10 minutes. Check your spam folder.</Text>
 
+        {/* Verify Button */}
         <Pressable
-          style={({ pressed }) => [
-            styles.verifyBtn,
-            (loading || filled < OTP_LENGTH) && styles.verifyBtnDisabled,
-            pressed && styles.verifyBtnPressed,
-          ]}
+          style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
           onPress={() => handleVerify()}
           disabled={loading || filled < OTP_LENGTH}
         >
-          {loading ? (
-            <Text style={styles.verifyBtnText}>{t.verifying}</Text>
-          ) : (
-            <>
-              <Feather name="check-circle" size={18} color="#fff" />
-              <Text style={styles.verifyBtnText}>{t.verifyOtp}</Text>
-            </>
-          )}
+          <LinearGradient
+            colors={loading || filled < OTP_LENGTH ? ["#86efac", "#6ee7b7"] : ["#16a34a", "#0f766e"]}
+            style={styles.primaryBtnGrad}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Feather name="check-circle" size={18} color="#fff" />
+                <Text style={styles.primaryBtnText}>Verify Code</Text>
+              </>
+            )}
+          </LinearGradient>
         </Pressable>
 
+        {/* Resend */}
         <View style={styles.resendRow}>
           {countdown > 0 ? (
             <Text style={styles.resendWait}>
-              {t.resendIn} {countdown} {t.seconds}
+              Resend code in <Text style={{ fontWeight: "700", color: "#0f172a" }}>{countdown}s</Text>
             </Text>
           ) : (
             <Pressable
@@ -195,101 +199,97 @@ export default function OtpScreen() {
               disabled={resending}
               style={({ pressed }) => [styles.resendBtn, pressed && { opacity: 0.7 }]}
             >
-              <Feather name="refresh-cw" size={14} color="#16a34a" />
-              <Text style={styles.resendBtnText}>{resending ? "..." : t.resendOtp}</Text>
+              {resending ? (
+                <ActivityIndicator color="#16a34a" size="small" />
+              ) : (
+                <>
+                  <Feather name="refresh-cw" size={14} color="#16a34a" />
+                  <Text style={styles.resendBtnText}>Resend code</Text>
+                </>
+              )}
             </Pressable>
           )}
         </View>
 
-        <View style={styles.progressRow}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={[styles.progressDot, i === 1 && styles.progressDotActive]} />
-          ))}
-        </View>
-        <Text style={styles.stepText}>{t.step2of3}</Text>
+        {/* Wrong email */}
+        <Pressable style={styles.wrongEmailBtn} onPress={() => router.back()}>
+          <Text style={styles.wrongEmailText}>Wrong email? Go back</Text>
+        </Pressable>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: "#fefce8" },
-  container: { flex: 1, backgroundColor: "#fefce8", paddingHorizontal: 24 },
-  backBtn: { padding: 8, alignSelf: "flex-start", marginBottom: 8 },
-  header: { alignItems: "center", marginBottom: 20 },
-  otpIconWrap: {
+  flex: { flex: 1, backgroundColor: "#f8fafc" },
+  container: { flex: 1, paddingHorizontal: 24 },
+  backBtn: { padding: 8, alignSelf: "flex-start", marginBottom: 16 },
+
+  header: { alignItems: "center", marginBottom: 32 },
+  iconCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "#dcfce7",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  otpIcon: { fontSize: 32 },
-  title: { fontSize: 24, fontWeight: "800", color: "#1a2e05", marginBottom: 6 },
-  sub: { fontSize: 14, color: "#6b7280", marginBottom: 8 },
+  title: { fontSize: 24, fontWeight: "800", color: "#0f172a", marginBottom: 6 },
+  sub: { fontSize: 14, color: "#64748b", marginBottom: 10 },
   emailPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     backgroundColor: "#dcfce7",
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 20,
   },
-  emailText: { fontSize: 14, fontWeight: "700", color: "#16a34a", letterSpacing: 0.3 },
+  emailText: { fontSize: 14, fontWeight: "700", color: "#16a34a" },
+
   otpRow: {
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 10,
+    justifyContent: "space-between",
+    gap: 8,
     marginBottom: 12,
   },
   otpBox: {
-    width: 48,
-    height: 58,
+    flex: 1,
+    height: 60,
     borderWidth: 2,
-    borderColor: "#d1fae5",
+    borderColor: "#e2e8f0",
     borderRadius: 14,
     fontSize: 24,
     fontWeight: "800",
-    color: "#1a2e05",
-    backgroundColor: "#f0fdf4",
+    color: "#0f172a",
+    backgroundColor: "#fff",
     textAlign: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  otpBoxFilled: {
-    borderColor: "#16a34a",
-    backgroundColor: "#dcfce7",
-  },
-  otpBoxActive: {
-    borderColor: "#16a34a",
-    borderWidth: 2.5,
-  },
-  expiryNote: { textAlign: "center", fontSize: 12, color: "#9ca3af", marginBottom: 20 },
-  verifyBtn: {
+  otpBoxFilled: { borderColor: "#16a34a", backgroundColor: "#f0fdf4" },
+  otpBoxActive: { borderColor: "#16a34a", borderWidth: 2.5 },
+
+  expiryNote: { textAlign: "center", fontSize: 12, color: "#94a3b8", marginBottom: 24 },
+
+  primaryBtn: { borderRadius: 14, overflow: "hidden" },
+  primaryBtnGrad: {
     flexDirection: "row",
+    paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#16a34a",
-    borderRadius: 16,
-    paddingVertical: 16,
-    marginBottom: 16,
   },
-  verifyBtnDisabled: { backgroundColor: "#86efac" },
-  verifyBtnPressed: { opacity: 0.88 },
-  verifyBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
-  resendRow: { alignItems: "center", marginBottom: 24 },
-  resendWait: { color: "#9ca3af", fontSize: 14 },
+  primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+
+  resendRow: { alignItems: "center", marginTop: 20 },
+  resendWait: { fontSize: 14, color: "#64748b" },
   resendBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
-  resendBtnText: { color: "#16a34a", fontSize: 14, fontWeight: "700" },
-  progressRow: { flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 6 },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#d1fae5",
-  },
-  progressDotActive: { backgroundColor: "#16a34a", width: 24 },
-  stepText: { textAlign: "center", fontSize: 12, color: "#9ca3af" },
+  resendBtnText: { fontSize: 14, fontWeight: "700", color: "#16a34a" },
+
+  wrongEmailBtn: { alignItems: "center", marginTop: 16, paddingVertical: 6 },
+  wrongEmailText: { fontSize: 13, color: "#94a3b8" },
 });

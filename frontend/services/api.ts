@@ -185,6 +185,70 @@ export async function getMe(accessToken: string): Promise<SupabaseUser> {
   return data.user;
 }
 
+/**
+ * Sign in with Google via Supabase OAuth.
+ * Uses the backend's /api/auth/supabase/oauth/google endpoint.
+ * Pass the idToken obtained from Google Sign-In on the device.
+ */
+export async function signInWithGoogle(idToken?: string): Promise<AuthResult> {
+  if (idToken) {
+    // Native Google Sign-In path: exchange idToken on backend
+    const base = getApiBase();
+    const response = await fetch(`${base}/auth/supabase/oauth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    });
+    const data = await response.json() as AuthResult & { error?: string };
+    if (!response.ok) throw new Error(data.error ?? `Google sign-in failed: ${response.status}`);
+    return data;
+  }
+  // Web OAuth flow via Supabase directly (no native SDK)
+  const { supabase } = await import("@/lib/supabase");
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { skipBrowserRedirect: true },
+  });
+  if (error) throw new Error(error.message);
+  // In native Expo, open the URL in a browser
+  const { default: WebBrowser } = await import("expo-web-browser");
+  if (data.url) {
+    await WebBrowser.openBrowserAsync(data.url);
+  }
+  // Session will be picked up by the supabase.auth.onAuthStateChange listener
+  const { data: { session } } = await supabase.auth.getSession();
+  return { user: session?.user ?? null, session: session as any };
+}
+
+/** Send a password reset email. */
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/supabase/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const data = await response.json() as { message?: string; error?: string };
+  if (!response.ok) throw new Error(data.error ?? `Failed to send reset email: ${response.status}`);
+  return { message: data.message ?? "Reset email sent" };
+}
+
+/**
+ * Verify a TOTP 2FA code after initial sign-in.
+ * tempToken is the short-lived token returned by signInWithEmail when requires2FA is true.
+ */
+export async function verify2fa(tempToken: string, token: string): Promise<{ session: AuthResult["session"] }> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/supabase/2fa/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tempToken, token }),
+  });
+  const data = await response.json() as { session: AuthResult["session"]; error?: string };
+  if (!response.ok) throw new Error(data.error ?? `2FA verification failed: ${response.status}`);
+  return data;
+}
+
 // ==================== Farm / Profile API ====================
 
 export interface FarmerProfile {

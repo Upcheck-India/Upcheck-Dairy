@@ -1,6 +1,8 @@
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import * as WebBrowser from "expo-web-browser";
+import React, { useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -11,172 +13,258 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLanguage, LANGUAGE_NATIVE, type Language } from "@/context/LanguageContext";
-import { requestEmailOtp } from "@/services/api";
+import { useFarmer } from "@/context/FarmerContext";
+import { signInWithEmail, requestEmailOtp, signInWithGoogle } from "@/services/api";
+import type { Session } from "@supabase/supabase-js";
 
-const LANGUAGES: Language[] = ["ta", "te", "kn", "ml", "hi", "en"];
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
-  const { t, language, setLanguage } = useLanguage();
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const emailRef = useRef<TextInput>(null);
+  const { setSessionFromAuth } = useFarmer();
 
-  const handleSkip = () => router.replace("/(tabs)");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [tcLoading, setTcLoading] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
 
   const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
-  const handleSendOtp = async () => {
-    const trimmed = email.trim().toLowerCase();
-    if (!isValidEmail(trimmed)) {
-      Alert.alert(
-        t.error,
-        language === "ta"
-          ? "சரியான மின்னஞ்சல் முகவரி உள்ளிடவும்"
-          : language === "hi"
-          ? "कृपया सही ईमेल पता दर्ज करें"
-          : "Please enter a valid email address"
-      );
+  // ─── Email + Password Sign In ─────────────────────────────────────
+  const handleSignIn = async () => {
+    if (!isValidEmail(email)) {
+      Alert.alert("Invalid Email", "Please enter a valid email address.");
+      return;
+    }
+    if (!password) {
+      Alert.alert("Missing Password", "Please enter your password.");
       return;
     }
     setLoading(true);
     try {
-      await requestEmailOtp(trimmed);
-      router.push({ pathname: "/(auth)/otp", params: { email: trimmed } });
+      const result = await signInWithEmail(email.trim().toLowerCase(), password);
+      if (result.requires2FA && result.tempToken) {
+        router.push({ pathname: "/(auth)/2fa", params: { tempToken: result.tempToken } });
+        return;
+      }
+      if (result.session) {
+        await setSessionFromAuth(result.session as Session);
+        router.replace("/(tabs)");
+      }
     } catch (err: any) {
-      Alert.alert(t.error, err.message ?? t.networkError);
+      Alert.alert("Sign In Failed", err.message ?? "Invalid email or password.");
     } finally {
       setLoading(false);
     }
   };
 
-  const emailLabel =
-    language === "ta" ? "மின்னஞ்சல்"
-    : language === "te" ? "ఇమెయిల్"
-    : language === "kn" ? "ಇಮೇಲ್"
-    : language === "ml" ? "ഇമെയിൽ"
-    : language === "hi" ? "ईमेल"
-    : "Email";
+  // ─── Email OTP (passwordless) ─────────────────────────────────────
+  const handleEmailOtp = async () => {
+    if (!isValidEmail(email)) {
+      Alert.alert("Invalid Email", "Please enter your email first, then tap 'Sign in with email code'.");
+      return;
+    }
+    setOtpLoading(true);
+    try {
+      await requestEmailOtp(email.trim().toLowerCase());
+      router.push({ pathname: "/(auth)/otp", params: { email: email.trim().toLowerCase() } });
+    } catch (err: any) {
+      Alert.alert("Error", err.message ?? "Failed to send code.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
 
-  const otpHint =
-    language === "ta" ? "OTP உங்கள் மின்னஞ்சலுக்கு அனுப்பப்படும்"
-    : language === "te" ? "OTP మీ ఇమెయిల్‌కి పంపబడుతుంది"
-    : language === "kn" ? "OTP ನಿಮ್ಮ ಇಮೇಲ್‌ಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ"
-    : language === "ml" ? "OTP നിങ്ങളുടെ ഇമെയിലിൽ ലഭിക്കും"
-    : language === "hi" ? "OTP आपके ईमेल पर भेजा जाएगा"
-    : "A one-time code will be sent to your email";
+  // ─── Google OAuth ─────────────────────────────────────────────────
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    try {
+      const result = await signInWithGoogle();
+      if (result.session) {
+        await setSessionFromAuth(result.session as Session);
+        router.replace("/(tabs)");
+      }
+    } catch (err: any) {
+      Alert.alert("Google Sign-In Failed", err.message ?? "Could not sign in with Google.");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  // ─── Truecaller ───────────────────────────────────────────────────
+  const handleTruecaller = async () => {
+    setTcLoading(true);
+    try {
+      // Open Truecaller SDK intent — on Android this opens the Truecaller app
+      // The callback comes back via deep link handled by the backend
+      Alert.alert(
+        "Truecaller",
+        "Truecaller authentication requires the Truecaller app installed on your device.\n\nThis will be implemented with native SDK integration.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setTcLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <LinearGradient colors={["#0f172a", "#134e4a"]} style={styles.bgGradient} />
+
       <ScrollView
-        style={styles.container}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 40 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Language selector */}
-        <View style={styles.langGrid}>
-          {LANGUAGES.map((l) => {
-            const info = LANGUAGE_NATIVE[l];
-            const active = language === l;
-            return (
-              <Pressable
-                key={l}
-                style={[styles.langPill, active && styles.langPillActive]}
-                onPress={() => setLanguage(l)}
-              >
-                <Text style={styles.langPillFlag}>{info.flag}</Text>
-                <Text style={[styles.langPillName, active && styles.langPillNameActive]}>
-                  {info.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Hero */}
-        <View style={styles.heroSection}>
-          <View style={styles.logoWrap}>
-            <Text style={styles.logoLeaf}>🌱</Text>
+        {/* Header */}
+        <View style={styles.hero}>
+          <View style={styles.logoCircle}>
+            <Text style={styles.logoEmoji}>🌱</Text>
           </View>
-          <Text style={styles.appName}>{t.appName}</Text>
-          <Text style={styles.tagline}>{t.tagline}</Text>
+          <Text style={styles.appName}>Thulir Farm</Text>
+          <Text style={styles.appTagline}>Smart Dairy Management</Text>
         </View>
 
         {/* Card */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.loginTitle}</Text>
-          <Text style={styles.cardSub}>{t.loginSub}</Text>
+          <Text style={styles.cardTitle}>Welcome back</Text>
+          <Text style={styles.cardSub}>Sign in to your account</Text>
 
-          {/* Email input */}
-          <Text style={styles.inputLabel}>{emailLabel}</Text>
-          <View style={styles.emailRow}>
-            <Feather name="mail" size={18} color="#16a34a" style={styles.inputIcon} />
-            <TextInput
-              ref={emailRef}
-              style={styles.emailInput}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              placeholderTextColor="#9ca3af"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="done"
-              onSubmitEditing={handleSendOtp}
-            />
+          {/* Email */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Email <Text style={styles.required}>*</Text></Text>
+            <View style={styles.inputWrap}>
+              <Feather name="mail" size={16} color="#64748b" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="your@email.com"
+                placeholderTextColor="#94a3b8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+              />
+            </View>
           </View>
 
-          <Text style={styles.hint}>{otpHint}</Text>
+          {/* Password */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Password <Text style={styles.required}>*</Text></Text>
+            <View style={styles.inputWrap}>
+              <Feather name="lock" size={16} color="#64748b" style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter your password"
+                placeholderTextColor="#94a3b8"
+                secureTextEntry={!showPassword}
+                returnKeyType="done"
+                onSubmitEditing={handleSignIn}
+              />
+              <Pressable onPress={() => setShowPassword((p) => !p)} style={styles.eyeBtn}>
+                <Feather name={showPassword ? "eye-off" : "eye"} size={16} color="#64748b" />
+              </Pressable>
+            </View>
+          </View>
 
+          {/* Sign In Button */}
           <Pressable
-            style={({ pressed }) => [
-              styles.sendBtn,
-              (loading || !isValidEmail(email)) && styles.sendBtnDisabled,
-              pressed && styles.sendBtnPressed,
-            ]}
-            onPress={handleSendOtp}
-            disabled={loading || !isValidEmail(email)}
+            style={({ pressed }) => [styles.primaryBtn, pressed && styles.btnPressed]}
+            onPress={handleSignIn}
+            disabled={loading}
           >
-            {loading ? (
-              <Text style={styles.sendBtnText}>{t.sending}</Text>
+            <LinearGradient colors={["#16a34a", "#0f766e"]} style={styles.primaryBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.primaryBtnText}>Sign In</Text>
+              )}
+            </LinearGradient>
+          </Pressable>
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>Or continue with</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Google */}
+          <Pressable
+            style={({ pressed }) => [styles.socialBtn, pressed && styles.btnPressed]}
+            onPress={handleGoogle}
+            disabled={googleLoading}
+          >
+            {googleLoading ? (
+              <ActivityIndicator color="#374151" size="small" />
             ) : (
               <>
-                <Feather name="send" size={18} color="#fff" />
-                <Text style={styles.sendBtnText}>{t.sendOtp}</Text>
+                <Text style={styles.googleG}>G</Text>
+                <Text style={styles.socialBtnText}>Continue with Google</Text>
               </>
             )}
           </Pressable>
 
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <Pressable style={styles.skipBtn} onPress={handleSkip}>
-            <Feather name="user-x" size={15} color="#9ca3af" />
-            <Text style={styles.skipText}>{t.skip}</Text>
+          {/* Truecaller */}
+          <Pressable
+            style={({ pressed }) => [styles.socialBtn, styles.tcBtn, pressed && styles.btnPressed]}
+            onPress={handleTruecaller}
+            disabled={tcLoading}
+          >
+            {tcLoading ? (
+              <ActivityIndicator color="#0066ff" size="small" />
+            ) : (
+              <>
+                <Text style={styles.tcIcon}>☎</Text>
+                <Text style={[styles.socialBtnText, styles.tcBtnText]}>Continue with Truecaller</Text>
+              </>
+            )}
           </Pressable>
-        </View>
 
-        <View style={styles.footer}>
-          <View style={styles.footerRow}>
-            <Feather name="shield" size={13} color="#16a34a" />
-            <Text style={styles.footerText}>
-              {language === "ta"
-                ? "உங்கள் தரவு பாதுகாப்பாக சேமிக்கப்படுகிறது"
-                : language === "hi"
-                ? "आपका डेटा सुरक्षित रहता है"
-                : "Your data is stored securely"}
-            </Text>
+          {/* Footer links */}
+          <View style={styles.linksRow}>
+            <Pressable onPress={() => router.push("/(auth)/forgot-password")}>
+              <Text style={styles.linkText}>Forgot Password?</Text>
+            </Pressable>
           </View>
+
+          <Pressable onPress={handleEmailOtp} disabled={otpLoading} style={styles.otpLink}>
+            {otpLoading ? (
+              <ActivityIndicator color="#16a34a" size="small" />
+            ) : (
+              <Text style={styles.otpLinkText}>Sign in with email code</Text>
+            )}
+          </Pressable>
+
+          {/* Create account */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.outlineBtn, pressed && styles.btnPressed]}
+            onPress={() => router.push("/(auth)/register")}
+          >
+            <Text style={styles.outlineBtnText}>Create Account</Text>
+          </Pressable>
+
+          {/* Guest skip */}
+          <Pressable style={styles.skipBtn} onPress={() => router.replace("/(tabs)")}>
+            <Feather name="user-x" size={13} color="#94a3b8" />
+            <Text style={styles.skipText}>Continue as guest</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -184,120 +272,109 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: "#fefce8" },
-  container: { flex: 1, backgroundColor: "#fefce8" },
-  content: { paddingHorizontal: 20, paddingBottom: 40 },
-  langGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 24,
-    justifyContent: "center",
-  },
-  langPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 24,
-    backgroundColor: "#fff",
-    borderWidth: 1.5,
-    borderColor: "#e5e7eb",
-  },
-  langPillActive: {
-    backgroundColor: "#16a34a",
-    borderColor: "#16a34a",
-  },
-  langPillFlag: { fontSize: 14 },
-  langPillName: { fontSize: 13, fontWeight: "600", color: "#374151" },
-  langPillNameActive: { color: "#fff" },
-  heroSection: { alignItems: "center", marginBottom: 28 },
-  logoWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#16a34a",
+  flex: { flex: 1 },
+  bgGradient: { ...StyleSheet.absoluteFillObject },
+  scroll: { paddingHorizontal: 20 },
+
+  hero: { alignItems: "center", marginBottom: 28 },
+  logoCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: "rgba(22,163,74,0.2)",
+    borderWidth: 2,
+    borderColor: "rgba(22,163,74,0.5)",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
-    shadowColor: "#16a34a",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 10,
+    marginBottom: 12,
   },
-  logoLeaf: { fontSize: 38 },
-  appName: {
-    fontSize: 30,
-    fontWeight: "800",
-    color: "#1a2e05",
-    letterSpacing: -0.5,
-    marginBottom: 4,
-  },
-  tagline: { fontSize: 14, color: "#4d7c0f", textAlign: "center" },
+  logoEmoji: { fontSize: 36 },
+  appName: { fontSize: 28, fontWeight: "800", color: "#f0fdf4", letterSpacing: -0.5 },
+  appTagline: { fontSize: 13, color: "#86efac", marginTop: 4 },
+
   card: {
     backgroundColor: "#fff",
     borderRadius: 24,
     padding: 24,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
   },
-  cardTitle: { fontSize: 20, fontWeight: "800", color: "#1a2e05", marginBottom: 4 },
-  cardSub: { fontSize: 14, color: "#6b7280", marginBottom: 20 },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 6,
-  },
-  emailRow: {
+  cardTitle: { fontSize: 22, fontWeight: "800", color: "#0f172a", marginBottom: 4 },
+  cardSub: { fontSize: 14, color: "#64748b", marginBottom: 22 },
+
+  fieldGroup: { marginBottom: 14 },
+  label: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 6 },
+  required: { color: "#ef4444" },
+  inputWrap: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#d1fae5",
-    borderRadius: 16,
-    overflow: "hidden",
-    marginBottom: 10,
-    backgroundColor: "#f0fdf4",
-    paddingHorizontal: 14,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    backgroundColor: "#f8fafc",
+    paddingHorizontal: 12,
   },
-  inputIcon: { marginRight: 10 },
-  emailInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#1a2e05",
+  inputIcon: { marginRight: 8 },
+  input: { flex: 1, fontSize: 15, color: "#0f172a", paddingVertical: 14 },
+  eyeBtn: { padding: 4 },
+
+  primaryBtn: { borderRadius: 14, overflow: "hidden", marginTop: 4 },
+  primaryBtnGrad: {
     paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  hint: { fontSize: 12, color: "#9ca3af", textAlign: "center", marginBottom: 16 },
-  sendBtn: {
+  primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  btnPressed: { opacity: 0.85 },
+
+  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 16 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#e2e8f0" },
+  dividerText: { fontSize: 12, color: "#94a3b8", fontWeight: "500" },
+
+  socialBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#16a34a",
-    borderRadius: 16,
-    paddingVertical: 16,
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 14,
+    paddingVertical: 14,
+    backgroundColor: "#fff",
+    marginBottom: 10,
   },
-  sendBtnDisabled: { backgroundColor: "#86efac" },
-  sendBtnPressed: { opacity: 0.88 },
-  sendBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
-  dividerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "#e5e7eb" },
-  dividerText: { color: "#9ca3af", fontSize: 13, fontWeight: "500" },
+  socialBtnText: { fontSize: 15, fontWeight: "600", color: "#1e293b" },
+  googleG: { fontSize: 18, fontWeight: "900", color: "#4285f4" },
+  tcBtn: { borderColor: "#0066ff22", backgroundColor: "#f0f6ff" },
+  tcIcon: { fontSize: 16, color: "#0066ff" },
+  tcBtnText: { color: "#0066ff" },
+
+  linksRow: { alignItems: "center", marginTop: 4 },
+  linkText: { fontSize: 14, color: "#16a34a", fontWeight: "600" },
+  otpLink: { alignItems: "center", marginTop: 8, paddingVertical: 4 },
+  otpLinkText: { fontSize: 14, color: "#0f766e", fontWeight: "600" },
+
+  outlineBtn: {
+    borderWidth: 1.5,
+    borderColor: "#d1fae5",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: "#f0fdf4",
+    marginTop: 4,
+  },
+  outlineBtnText: { fontSize: 15, fontWeight: "700", color: "#16a34a" },
+
   skipBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 12,
+    marginTop: 16,
+    paddingVertical: 6,
   },
-  skipText: { color: "#9ca3af", fontSize: 14 },
-  footer: { alignItems: "center", marginTop: 20 },
-  footerRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  footerText: { color: "#4d7c0f", fontSize: 12 },
+  skipText: { fontSize: 13, color: "#94a3b8" },
 });
