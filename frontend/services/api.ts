@@ -90,6 +90,9 @@ export interface RationResult {
 
 // ==================== Auth API ====================
 
+import { supabase } from "@/lib/supabase";
+import * as WebBrowser from "expo-web-browser";
+
 /** Request an email OTP (passwordless login). */
 export async function requestEmailOtp(email: string): Promise<{ message: string }> {
   const base = getApiBase();
@@ -204,14 +207,12 @@ export async function signInWithGoogle(idToken?: string): Promise<AuthResult> {
     return data;
   }
   // Web OAuth flow via Supabase directly (no native SDK)
-  const { supabase } = await import("@/lib/supabase");
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: { skipBrowserRedirect: true },
   });
   if (error) throw new Error(error.message);
   // In native Expo, open the URL in a browser
-  const { default: WebBrowser } = await import("expo-web-browser");
   if (data.url) {
     await WebBrowser.openBrowserAsync(data.url);
   }
