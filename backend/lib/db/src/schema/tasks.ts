@@ -21,9 +21,11 @@ export const taskPriority = pgEnum("task_priority", [
   "critical",
 ]);
 
+import { farms } from "./farms";
+
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
-  farmerId: uuid("farmer_id").notNull().references(() => farmers.id),
+  farmId: uuid("farm_id").notNull().references(() => farms.id, { onDelete: "cascade" }),
   animalId: integer("animal_id").references(() => animals.id),
   title: text("title").notNull(),
   titleTamil: text("title_tamil").notNull(),

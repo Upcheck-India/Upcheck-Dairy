@@ -2,6 +2,7 @@ import { pgTable, text, serial, uuid, integer, decimal, timestamp, pgEnum } from
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { farmers } from "./farmers";
+import { farms } from "./farms";
 
 export const inventoryCategory = pgEnum("inventory_category", [
   "feed",
@@ -13,7 +14,7 @@ export const inventoryCategory = pgEnum("inventory_category", [
 
 export const inventoryItems = pgTable("inventory_items", {
   id: serial("id").primaryKey(),
-  farmerId: uuid("farmer_id").notNull().references(() => farmers.id),
+  farmId: uuid("farm_id").notNull().references(() => farms.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   category: inventoryCategory("category").notNull(),
   quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),

@@ -2,6 +2,7 @@ import { pgTable, text, serial, uuid, decimal, timestamp, pgEnum } from "drizzle
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { farmers } from "./farmers";
+import { farms } from "./farms";
 
 export const expenseCategory = pgEnum("expense_category", [
   "feed",
@@ -13,7 +14,7 @@ export const expenseCategory = pgEnum("expense_category", [
 
 export const incomeEntries = pgTable("income_entries", {
   id: serial("id").primaryKey(),
-  farmerId: uuid("farmer_id").notNull().references(() => farmers.id),
+  farmId: uuid("farm_id").notNull().references(() => farms.id, { onDelete: "cascade" }),
   date: timestamp("date").notNull(),
   buyer: text("buyer").notNull(),
   quantitySold: decimal("quantity_sold", { precision: 6, scale: 2 }).notNull(),
@@ -36,7 +37,7 @@ export type InsertIncomeEntry = z.infer<typeof insertIncomeEntrySchema>;
 
 export const expenseEntries = pgTable("expense_entries", {
   id: serial("id").primaryKey(),
-  farmerId: uuid("farmer_id").notNull().references(() => farmers.id),
+  farmId: uuid("farm_id").notNull().references(() => farms.id, { onDelete: "cascade" }),
   date: timestamp("date").notNull(),
   category: expenseCategory("category").notNull(),
   description: text("description").notNull(),

@@ -2,6 +2,7 @@ import { pgTable, text, serial, uuid, integer, boolean, decimal, timestamp, varc
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { farmers } from "./farmers";
+import { farms } from "./farms";
 
 export const animalType = pgEnum("animal_type", ["cow", "buffalo", "calf"]);
 export const healthStatus = pgEnum("health_status", ["healthy", "attention", "critical"]);
@@ -16,7 +17,7 @@ export const buffaloBreed = pgEnum("buffalo_breed", [
 
 export const animals = pgTable("animals", {
   id: serial("id").primaryKey(),
-  farmerId: uuid("farmer_id").notNull().references(() => farmers.id),
+  farmId: uuid("farm_id").notNull().references(() => farms.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   type: animalType("type").notNull(),
   breed: text("breed").notNull(),

@@ -1,11 +1,50 @@
-import { Injectable, BadRequestException, InternalServerErrorException } from "@nestjs/common";
+import { Injectable, BadRequestException, InternalServerErrorException, Inject } from "@nestjs/common";
+import { FarmsRepository } from "../repositories/farms.repository";
 import { openai } from "@workspace/openai-server";
+import { type Farm, type InsertFarm } from "@workspace/db";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
 @Injectable()
-export class FarmService {
+export class FarmsService {
+  constructor(
+    @Inject(FarmsRepository) private farmsRepository: FarmsRepository
+  ) {}
+
+  // ==================== Farms CRUD ====================
+
+  async createFarm(ownerFarmerId: string, name: string, location?: string): Promise<Farm> {
+    if (!name) {
+      throw new BadRequestException("Farm name is required");
+    }
+    const id = crypto.randomUUID();
+    return this.farmsRepository.create({
+      id,
+      ownerFarmerId,
+      name,
+      location: location || null,
+    });
+  }
+
+  async getFarmById(id: string): Promise<Farm | null> {
+    return this.farmsRepository.findById(id);
+  }
+
+  async getFarmsByOwner(ownerFarmerId: string): Promise<Farm[]> {
+    return this.farmsRepository.findByOwner(ownerFarmerId);
+  }
+
+  async updateFarm(id: string, data: Partial<Farm>): Promise<Farm> {
+    return this.farmsRepository.update(id, data);
+  }
+
+  async deleteFarm(id: string): Promise<void> {
+    await this.farmsRepository.delete(id);
+  }
+
+  // ==================== Legacy AI logic ====================
+
   async diagnose(symptoms: string[], customNote?: string, animalName?: string, animalType?: string) {
     if (!symptoms || symptoms.length === 0) {
       throw new BadRequestException("At least one symptom is required");
@@ -47,7 +86,6 @@ Respond with ONLY the JSON object, no markdown code blocks.`;
       return JSON.parse(rawContent);
     } catch (err) {
       console.error("Diagnose error:", err);
-      // Fallback
       return {
         summary: "Unable to process diagnosis",
         summaryTamil: "நோயறிதல் செயல்படவில்லை",
@@ -181,16 +219,16 @@ You are an expert in:
 - AI insemination (artificial insemination), semen selection, heat detection (21-day cycle, signs of heat)
 - Breeding: gestation period (280 days cow, 310 days buffalo), calving care
 - Nutrition: TMR, green fodder (napier, maize, sorghum), concentrate feed, mineral mix, bypass protein
-- Milk quality: FAT%, SNF%, SNF standards (cow min 8.5%, buffalo min 9%), testing methods
+- Milk quality: FAT%, SNF%, SNF standards (cow min 8.5%, buffalo min 9%)
 - Government schemes: AHIDF, NDP-II, Kisan Credit Card for dairy, PM-KUSUM, NABARD loans
 - Milk pricing: MSP, cooperative pricing, private dairy rates
 - Vaccination schedule: FMD every 6 months, HS annually, BQ annually for calves, Brucellosis once for heifers
 
 Always respond in ${langInstruction}.
-Keep answers CONCISE (3-5 sentences max for simple questions, up to 8 sentences for complex topics).
+Keep answers CONCISE (3-5 sentences max).
 Use simple language a village farmer can understand.
 Add practical local context when possible.
-Never give medicine dosages — recommend consulting a local vet for specific treatments.`;
+Never give medicine dosages.`;
 
     const messages = [
       { role: "system" as const, content: systemPrompt },
@@ -221,14 +259,6 @@ Never give medicine dosages — recommend consulting a local vet for specific tr
   async calculateRation(animalType: string, breed: string, weightKg: number, milkProductionL: number, language?: string) {
     if (!animalType || !breed || typeof weightKg !== "number" || typeof milkProductionL !== "number") {
       throw new BadRequestException("animalType, breed, weightKg, and milkProductionL are required");
-    }
-
-    if (weightKg <= 0 || weightKg > 2000) {
-      throw new BadRequestException("weightKg must be between 1 and 2000");
-    }
-
-    if (milkProductionL < 0 || milkProductionL > 100) {
-      throw new BadRequestException("milkProductionL must be between 0 and 100");
     }
 
     const langMap: Record<string, string> = {
