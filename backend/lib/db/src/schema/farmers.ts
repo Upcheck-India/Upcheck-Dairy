@@ -17,6 +17,7 @@ export const farmers = pgTable("farmers", {
   totpSecret: text("totp_secret"),
   phoneVerified: boolean("phone_verified").default(false).notNull(),
   emailVerified: boolean("email_verified").default(false).notNull(),
+  passwordHash: text("password_hash"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
