@@ -14,15 +14,12 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFarmer } from "@/context/FarmerContext";
-import { verify2fa } from "@/services/api";
-import type { Session } from "@supabase/supabase-js";
+
 
 const CODE_LENGTH = 6;
 
 export default function TwoFactorScreen() {
   const insets = useSafeAreaInsets();
-  const { setSessionFromAuth } = useFarmer();
   const params = useLocalSearchParams<{ tempToken: string }>();
   const tempToken = params.tempToken ?? "";
 
@@ -64,11 +61,9 @@ export default function TwoFactorScreen() {
     }
     setLoading(true);
     try {
-      const result = await verify2fa(tempToken, enteredCode);
-      if (result.session) {
-        await setSessionFromAuth(result.session as Session);
-        router.replace("/(tabs)");
-      }
+      // 2FA not yet implemented in custom auth
+      Alert.alert("2FA", "Two-factor authentication is not yet configured. Please sign in again.");
+      router.replace("/(auth)/login");
     } catch (err: any) {
       Alert.alert("Verification Failed", err.message ?? "Invalid or expired code. Please try again.");
       setCode(Array(CODE_LENGTH).fill(""));
@@ -76,7 +71,7 @@ export default function TwoFactorScreen() {
     } finally {
       setLoading(false);
     }
-  }, [code, tempToken, setSessionFromAuth]);
+  }, [code, tempToken]);
 
   const filled = code.filter((d) => d !== "").length;
 

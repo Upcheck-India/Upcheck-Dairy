@@ -38,6 +38,8 @@ export class AuthService {
         phoneVerified: false,
         is2faEnabled: false,
       });
+    } else if (!user.emailVerified) {
+      user = await this.userRepository.update(user.id, { emailVerified: true });
     }
 
     const accessToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email });
@@ -46,14 +48,14 @@ export class AuthService {
     return { user, accessToken, refreshToken };
   }
 
-  async register(email: string, password: string, name: string): Promise<Farmer> {
+  async register(email: string, password: string, name: string): Promise<{ message: string }> {
     const existing = await this.userRepository.findByEmail(email);
     if (existing) {
-      throw new ConflictException("Email is already registered");
+      throw new ConflictException("An account with this email already exists");
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    return this.userRepository.create({
+    await this.userRepository.create({
       id: crypto.randomUUID(),
       email,
       name,
@@ -63,6 +65,10 @@ export class AuthService {
       phoneVerified: false,
       is2faEnabled: false,
     });
+
+    // Send OTP to verify email — user sees the OTP screen next
+    await this.otpService.generateAndSendOtp(email);
+    return { message: "Account created. Please check your email for a verification code." };
   }
 
   async login(email: string, password: string): Promise<{ user: Farmer; accessToken: string; refreshToken: string }> {

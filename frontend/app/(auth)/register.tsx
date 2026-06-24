@@ -15,13 +15,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFarmer } from "@/context/FarmerContext";
-import { signUpWithEmail, signInWithGoogle } from "@/services/api";
-import type { Session } from "@supabase/supabase-js";
+import { registerUser } from "@/services/api";
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
-  const { setSessionFromAuth } = useFarmer();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -31,8 +28,6 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [tcLoading, setTcLoading] = useState(false);
 
   const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
@@ -56,59 +51,18 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      const result = await signUpWithEmail(
-        email.trim().toLowerCase(),
-        password,
-        { firstName: firstName.trim(), lastName: lastName.trim() }
-      );
+      const name = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+      await registerUser(email.trim().toLowerCase(), password, name);
 
-      if (result.session) {
-        // Account created & logged in — go collect farm profile
-        await setSessionFromAuth(result.session as Session);
-        router.replace({
-          pathname: "/(auth)/signup",
-          params: { email: email.trim().toLowerCase() },
-        });
-      } else {
-        // Supabase sent a confirmation email
-        Alert.alert(
-          "Check your inbox ✉️",
-          "We've sent a confirmation link to your email. Verify it, then sign in.",
-          [{ text: "OK", onPress: () => router.replace("/(auth)/login") }]
-        );
-      }
+      // Account created — OTP sent to email. Navigate to OTP screen.
+      router.push({
+        pathname: "/(auth)/otp",
+        params: { email: email.trim().toLowerCase(), flow: "register" },
+      });
     } catch (err: any) {
       Alert.alert("Registration Failed", err.message ?? "Could not create account.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogle = async () => {
-    setGoogleLoading(true);
-    try {
-      const result = await signInWithGoogle();
-      if (result.session) {
-        await setSessionFromAuth(result.session as Session);
-        router.replace({ pathname: "/(auth)/signup", params: { email: result.user?.email ?? "" } });
-      }
-    } catch (err: any) {
-      Alert.alert("Google Sign-Up Failed", err.message ?? "Could not sign up with Google.");
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  const handleTruecaller = async () => {
-    setTcLoading(true);
-    try {
-      Alert.alert(
-        "Truecaller",
-        "Truecaller authentication requires the Truecaller app installed on your device.\n\nThis will be implemented with native SDK integration.",
-        [{ text: "OK" }]
-      );
-    } finally {
-      setTcLoading(false);
     }
   };
 
@@ -137,7 +91,7 @@ export default function RegisterScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.sub}>Join Thulir Farm to manage your dairy</Text>
+          <Text style={styles.sub}>Join Upcheck to manage your dairy farm</Text>
         </View>
 
         {/* First + Last Name */}
@@ -258,49 +212,11 @@ export default function RegisterScreen() {
           </LinearGradient>
         </Pressable>
 
-        {/* Terms */}
         <Text style={styles.terms}>
           By creating an account, you agree to our{" "}
           <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
           <Text style={styles.termsLink}>Privacy Policy</Text>.
         </Text>
-
-        {/* Social */}
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>Or sign up with</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        <Pressable
-          style={({ pressed }) => [styles.socialBtn, pressed && styles.btnPressed]}
-          onPress={handleGoogle}
-          disabled={googleLoading}
-        >
-          {googleLoading ? (
-            <ActivityIndicator color="#374151" size="small" />
-          ) : (
-            <>
-              <Text style={styles.googleG}>G</Text>
-              <Text style={styles.socialBtnText}>Continue with Google</Text>
-            </>
-          )}
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [styles.socialBtn, styles.tcBtn, pressed && styles.btnPressed]}
-          onPress={handleTruecaller}
-          disabled={tcLoading}
-        >
-          {tcLoading ? (
-            <ActivityIndicator color="#0066ff" size="small" />
-          ) : (
-            <>
-              <Text style={styles.tcIcon}>☎</Text>
-              <Text style={[styles.socialBtnText, styles.tcBtnText]}>Continue with Truecaller</Text>
-            </>
-          )}
-        </Pressable>
 
         {/* Sign In Link */}
         <Pressable style={styles.signinRow} onPress={() => router.back()}>
@@ -362,29 +278,7 @@ const styles = StyleSheet.create({
   terms: { fontSize: 12, color: "#94a3b8", textAlign: "center", marginTop: 12, lineHeight: 18 },
   termsLink: { color: "#16a34a", fontWeight: "600" },
 
-  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "#e2e8f0" },
-  dividerText: { fontSize: 12, color: "#94a3b8", fontWeight: "500" },
-
-  socialBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 14,
-    paddingVertical: 14,
-    backgroundColor: "#fff",
-    marginBottom: 10,
-  },
-  socialBtnText: { fontSize: 15, fontWeight: "600", color: "#1e293b" },
-  googleG: { fontSize: 18, fontWeight: "900", color: "#4285f4" },
-  tcBtn: { borderColor: "#0066ff22", backgroundColor: "#f0f6ff" },
-  tcIcon: { fontSize: 15, color: "#0066ff" },
-  tcBtnText: { color: "#0066ff" },
-
-  signinRow: { alignItems: "center", marginTop: 10 },
+  signinRow: { alignItems: "center", marginTop: 20 },
   signinText: { fontSize: 14, color: "#64748b" },
   signinLink: { color: "#16a34a", fontWeight: "700" },
 });

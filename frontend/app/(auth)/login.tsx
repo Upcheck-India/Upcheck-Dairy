@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 import React, { useState } from "react";
 import {
   Alert,
@@ -17,21 +16,16 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFarmer } from "@/context/FarmerContext";
-import { signInWithEmail, requestEmailOtp, signInWithGoogle } from "@/services/api";
-import type { Session } from "@supabase/supabase-js";
-
-WebBrowser.maybeCompleteAuthSession();
+import { loginUser, sendOtpCode } from "@/services/api";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { setSessionFromAuth } = useFarmer();
+  const { loginWithJwt } = useFarmer();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [tcLoading, setTcLoading] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
 
   const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
@@ -48,15 +42,9 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      const result = await signInWithEmail(email.trim().toLowerCase(), password);
-      if (result.requires2FA && result.tempToken) {
-        router.push({ pathname: "/(auth)/2fa", params: { tempToken: result.tempToken } });
-        return;
-      }
-      if (result.session) {
-        await setSessionFromAuth(result.session as Session);
-        router.replace("/(tabs)");
-      }
+      const result = await loginUser(email.trim().toLowerCase(), password);
+      await loginWithJwt(result);
+      router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert("Sign In Failed", err.message ?? "Invalid email or password.");
     } finally {
@@ -72,44 +60,12 @@ export default function LoginScreen() {
     }
     setOtpLoading(true);
     try {
-      await requestEmailOtp(email.trim().toLowerCase());
-      router.push({ pathname: "/(auth)/otp", params: { email: email.trim().toLowerCase() } });
+      await sendOtpCode(email.trim().toLowerCase());
+      router.push({ pathname: "/(auth)/otp", params: { email: email.trim().toLowerCase(), flow: "login" } });
     } catch (err: any) {
       Alert.alert("Error", err.message ?? "Failed to send code.");
     } finally {
       setOtpLoading(false);
-    }
-  };
-
-  // ─── Google OAuth ─────────────────────────────────────────────────
-  const handleGoogle = async () => {
-    setGoogleLoading(true);
-    try {
-      const result = await signInWithGoogle();
-      if (result.session) {
-        await setSessionFromAuth(result.session as Session);
-        router.replace("/(tabs)");
-      }
-    } catch (err: any) {
-      Alert.alert("Google Sign-In Failed", err.message ?? "Could not sign in with Google.");
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  // ─── Truecaller ───────────────────────────────────────────────────
-  const handleTruecaller = async () => {
-    setTcLoading(true);
-    try {
-      // Open Truecaller SDK intent — on Android this opens the Truecaller app
-      // The callback comes back via deep link handled by the backend
-      Alert.alert(
-        "Truecaller",
-        "Truecaller authentication requires the Truecaller app installed on your device.\n\nThis will be implemented with native SDK integration.",
-        [{ text: "OK" }]
-      );
-    } finally {
-      setTcLoading(false);
     }
   };
 
@@ -130,7 +86,7 @@ export default function LoginScreen() {
           <View style={styles.logoCircle}>
             <Text style={styles.logoEmoji}>🌱</Text>
           </View>
-          <Text style={styles.appName}>Thulir Farm</Text>
+          <Text style={styles.appName}>Upcheck</Text>
           <Text style={styles.appTagline}>Smart Dairy Management</Text>
         </View>
 
@@ -194,76 +150,43 @@ export default function LoginScreen() {
             </LinearGradient>
           </Pressable>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Google */}
-          <Pressable
-            style={({ pressed }) => [styles.socialBtn, pressed && styles.btnPressed]}
-            onPress={handleGoogle}
-            disabled={googleLoading}
-          >
-            {googleLoading ? (
-              <ActivityIndicator color="#374151" size="small" />
-            ) : (
-              <>
-                <Text style={styles.googleG}>G</Text>
-                <Text style={styles.socialBtnText}>Continue with Google</Text>
-              </>
-            )}
-          </Pressable>
-
-          {/* Truecaller */}
-          <Pressable
-            style={({ pressed }) => [styles.socialBtn, styles.tcBtn, pressed && styles.btnPressed]}
-            onPress={handleTruecaller}
-            disabled={tcLoading}
-          >
-            {tcLoading ? (
-              <ActivityIndicator color="#0066ff" size="small" />
-            ) : (
-              <>
-                <Text style={styles.tcIcon}>☎</Text>
-                <Text style={[styles.socialBtnText, styles.tcBtnText]}>Continue with Truecaller</Text>
-              </>
-            )}
-          </Pressable>
-
-          {/* Footer links */}
+          {/* Forgot Password */}
           <View style={styles.linksRow}>
             <Pressable onPress={() => router.push("/(auth)/forgot-password")}>
               <Text style={styles.linkText}>Forgot Password?</Text>
             </Pressable>
           </View>
 
-          <Pressable onPress={handleEmailOtp} disabled={otpLoading} style={styles.otpLink}>
-            {otpLoading ? (
-              <ActivityIndicator color="#16a34a" size="small" />
-            ) : (
-              <Text style={styles.otpLinkText}>Sign in with email code</Text>
-            )}
-          </Pressable>
-
-          {/* Create account */}
+          {/* Divider */}
           <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>Or</Text>
             <View style={styles.dividerLine} />
           </View>
 
+          {/* Sign in with email code (OTP) */}
+          <Pressable onPress={handleEmailOtp} disabled={otpLoading} style={styles.otpBtn}>
+            {otpLoading ? (
+              <ActivityIndicator color="#16a34a" size="small" />
+            ) : (
+              <>
+                <Feather name="send" size={15} color="#0f766e" />
+                <Text style={styles.otpBtnText}>Sign in with email code</Text>
+              </>
+            )}
+          </Pressable>
+
+          {/* Divider */}
+          <View style={[styles.divider, { marginTop: 8 }]}>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Create account */}
           <Pressable
             style={({ pressed }) => [styles.outlineBtn, pressed && styles.btnPressed]}
             onPress={() => router.push("/(auth)/register")}
           >
             <Text style={styles.outlineBtnText}>Create Account</Text>
-          </Pressable>
-
-          {/* Guest skip */}
-          <Pressable style={styles.skipBtn} onPress={() => router.replace("/(tabs)")}>
-            <Feather name="user-x" size={13} color="#94a3b8" />
-            <Text style={styles.skipText}>Continue as guest</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -334,28 +257,21 @@ const styles = StyleSheet.create({
   dividerLine: { flex: 1, height: 1, backgroundColor: "#e2e8f0" },
   dividerText: { fontSize: 12, color: "#94a3b8", fontWeight: "500" },
 
-  socialBtn: {
+  linksRow: { alignItems: "center", marginTop: 12 },
+  linkText: { fontSize: 14, color: "#16a34a", fontWeight: "600" },
+
+  otpBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 8,
     borderWidth: 1.5,
-    borderColor: "#e2e8f0",
+    borderColor: "#d1fae5",
     borderRadius: 14,
     paddingVertical: 14,
-    backgroundColor: "#fff",
-    marginBottom: 10,
+    backgroundColor: "#f0fdf4",
   },
-  socialBtnText: { fontSize: 15, fontWeight: "600", color: "#1e293b" },
-  googleG: { fontSize: 18, fontWeight: "900", color: "#4285f4" },
-  tcBtn: { borderColor: "#0066ff22", backgroundColor: "#f0f6ff" },
-  tcIcon: { fontSize: 16, color: "#0066ff" },
-  tcBtnText: { color: "#0066ff" },
-
-  linksRow: { alignItems: "center", marginTop: 4 },
-  linkText: { fontSize: 14, color: "#16a34a", fontWeight: "600" },
-  otpLink: { alignItems: "center", marginTop: 8, paddingVertical: 4 },
-  otpLinkText: { fontSize: 14, color: "#0f766e", fontWeight: "600" },
+  otpBtnText: { fontSize: 15, fontWeight: "600", color: "#0f766e" },
 
   outlineBtn: {
     borderWidth: 1.5,
@@ -367,14 +283,4 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   outlineBtnText: { fontSize: 15, fontWeight: "700", color: "#16a34a" },
-
-  skipBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 16,
-    paddingVertical: 6,
-  },
-  skipText: { fontSize: 13, color: "#94a3b8" },
 });

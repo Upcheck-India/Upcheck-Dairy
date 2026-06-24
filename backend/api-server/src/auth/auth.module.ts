@@ -23,7 +23,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>("JWT_SECRET") || "super-secret-key-dairy-farm-upcheck",
-        signOptions: { expiresIn: "15m" },
+        signOptions: { expiresIn: "7d" },
       }),
     }),
     NotificationsModule,

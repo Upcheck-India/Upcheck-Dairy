@@ -15,17 +15,18 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFarmer } from "@/context/FarmerContext";
-import { verifyEmailOtp, requestEmailOtp } from "@/services/api";
-import type { Session } from "@supabase/supabase-js";
+import { verifyOtpCode, sendOtpCode } from "@/services/api";
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 60;
 
 export default function OtpScreen() {
   const insets = useSafeAreaInsets();
-  const { setSessionFromAuth, farmer } = useFarmer();
-  const params = useLocalSearchParams<{ email: string }>();
+  const { loginWithJwt, farmer } = useFarmer();
+  const params = useLocalSearchParams<{ email: string; flow?: string }>();
   const email = params.email ?? "";
+  // flow=register → go to onboarding after verify; flow=login → go to tabs
+  const flow = params.flow ?? "login";
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [loading, setLoading] = useState(false);
@@ -77,19 +78,17 @@ export default function OtpScreen() {
     }
     setLoading(true);
     try {
-      const result = await verifyEmailOtp(email, enteredOtp);
+      const result = await verifyOtpCode(email, enteredOtp);
 
-      if (result.session) {
-        await setSessionFromAuth(result.session as Session);
-        // If no profile yet, collect farm details
-        if (!farmer) {
-          router.replace({ pathname: "/(auth)/signup", params: { email } });
-        } else {
-          router.replace("/(tabs)");
-        }
-      } else {
-        // Supabase returned user but no session — go create profile
+      // Store JWT and update context
+      await loginWithJwt(result);
+
+      // After register flow → go to onboarding to collect farm details
+      // After login flow → go to dashboard (unless no farm profile yet)
+      if (flow === "register" || !farmer) {
         router.replace({ pathname: "/(auth)/signup", params: { email } });
+      } else {
+        router.replace("/(tabs)");
       }
     } catch (err: any) {
       Alert.alert("Wrong Code", err.message ?? "Invalid or expired code. Please try again.");
@@ -98,13 +97,13 @@ export default function OtpScreen() {
     } finally {
       setLoading(false);
     }
-  }, [otp, email, setSessionFromAuth, farmer]);
+  }, [otp, email, flow, farmer, loginWithJwt]);
 
   const handleResend = async () => {
     if (countdown > 0) return;
     setResending(true);
     try {
-      await requestEmailOtp(email);
+      await sendOtpCode(email);
       setCountdown(RESEND_SECONDS);
       setOtp(Array(OTP_LENGTH).fill(""));
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
@@ -131,9 +130,7 @@ export default function OtpScreen() {
             <Feather name="mail" size={32} color="#16a34a" />
           </LinearGradient>
           <Text style={styles.title}>Check your email</Text>
-          <Text style={styles.sub}>
-            We sent a 6-digit code to
-          </Text>
+          <Text style={styles.sub}>We sent a 6-digit code to</Text>
           <View style={styles.emailPill}>
             <Feather name="mail" size={13} color="#16a34a" />
             <Text style={styles.emailText}>{maskedEmail}</Text>
@@ -162,7 +159,7 @@ export default function OtpScreen() {
           ))}
         </View>
 
-        <Text style={styles.expiryNote}>Code expires in 10 minutes. Check your spam folder.</Text>
+        <Text style={styles.expiryNote}>Code expires in 5 minutes. Check your spam folder.</Text>
 
         {/* Verify Button */}
         <Pressable

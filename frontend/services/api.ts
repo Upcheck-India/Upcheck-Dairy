@@ -7,25 +7,30 @@ const getApiBase = (): string => {
 
 // ==================== Types ====================
 
-export interface SupabaseSession {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  token_type: string;
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
 }
 
-export interface SupabaseUser {
+export interface AuthUser {
   id: string;
-  email?: string;
-  phone?: string;
-  user_metadata?: Record<string, any>;
-  created_at?: string;
+  email: string | null;
+  name: string;
+  phone?: string | null;
+  farmName?: string | null;
+  village?: string | null;
+  district?: string | null;
+  state?: string | null;
+  emailVerified?: boolean;
+  avatarColor?: string | null;
+  avatarInitials?: string | null;
+  createdAt?: string;
 }
 
 export interface AuthResult {
-  user: SupabaseUser | null;
-  session: SupabaseSession | null;
-  message?: string;
+  user: AuthUser;
+  accessToken: string;
+  refreshToken: string;
 }
 
 export interface DiagnoseRequest {
@@ -90,163 +95,117 @@ export interface RationResult {
 
 // ==================== Auth API ====================
 
-import { supabase } from "@/lib/supabase";
-import * as WebBrowser from "expo-web-browser";
-
-/** Request an email OTP (passwordless login). */
-export async function requestEmailOtp(email: string): Promise<{ message: string }> {
-  const base = getApiBase();
-  const response = await fetch(`${base}/auth/supabase/login-otp/request`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  const data = await response.json() as { message?: string; error?: string };
-  if (!response.ok) throw new Error(data.error ?? `Failed to send OTP: ${response.status}`);
-  return { message: data.message ?? "OTP sent" };
-}
-
-/** Verify an email OTP. Returns session + user on success. */
-export async function verifyEmailOtp(email: string, otp: string): Promise<AuthResult> {
-  const base = getApiBase();
-  const response = await fetch(`${base}/auth/supabase/login-otp/verify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp }),
-  });
-  const data = await response.json() as AuthResult & { error?: string };
-  if (!response.ok) throw new Error(data.error ?? `OTP verification failed: ${response.status}`);
-  return data;
-}
-
-/** Sign up with email + password. */
-export async function signUpWithEmail(
+/**
+ * Register a new account with email + password.
+ * Backend creates the account and sends an OTP to the email.
+ * Navigate to the OTP screen after this call.
+ */
+export async function registerUser(
   email: string,
   password: string,
-  meta?: { firstName?: string; lastName?: string; username?: string }
-): Promise<AuthResult> {
+  name: string,
+): Promise<{ message: string }> {
   const base = getApiBase();
-  const response = await fetch(`${base}/auth/supabase/signup`, {
+  const response = await fetch(`${base}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, ...meta }),
+    body: JSON.stringify({ email, password, name }),
   });
-  const data = await response.json() as AuthResult & { error?: string };
-  if (!response.ok) throw new Error(data.error ?? `Sign up failed: ${response.status}`);
-  return data;
+  const data = await response.json() as { message?: string; error?: string; message_?: string };
+  if (!response.ok) {
+    throw new Error(data.error ?? data.message ?? `Registration failed: ${response.status}`);
+  }
+  return { message: data.message ?? "OTP sent to your email" };
 }
 
-/** Sign in with email + password. May return requires2FA + tempToken. */
-export async function signInWithEmail(
+/**
+ * Standard email + password login.
+ * Returns tokens + user on success.
+ */
+export async function loginUser(
   email: string,
-  password: string
-): Promise<AuthResult & { requires2FA?: boolean; tempToken?: string }> {
+  password: string,
+): Promise<AuthResult> {
   const base = getApiBase();
-  const response = await fetch(`${base}/auth/supabase/signin`, {
+  const response = await fetch(`${base}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  const data = await response.json() as AuthResult & { requires2FA?: boolean; tempToken?: string; error?: string };
-  if (!response.ok) throw new Error(data.error ?? `Sign in failed: ${response.status}`);
+  const data = await response.json() as AuthResult & { error?: string; message?: string };
+  if (!response.ok) {
+    throw new Error(data.error ?? data.message ?? `Login failed: ${response.status}`);
+  }
   return data;
-}
-
-/** Refresh the session using a refresh token. */
-export async function refreshSession(refreshToken: string): Promise<AuthResult> {
-  const base = getApiBase();
-  const response = await fetch(`${base}/auth/supabase/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken }),
-  });
-  const data = await response.json() as AuthResult & { error?: string };
-  if (!response.ok) throw new Error(data.error ?? `Session refresh failed: ${response.status}`);
-  return data;
-}
-
-/** Sign out (invalidates the server session). */
-export async function signOut(accessToken: string): Promise<void> {
-  const base = getApiBase();
-  await fetch(`${base}/auth/supabase/signout`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-}
-
-/** Get the currently authenticated user from the server. */
-export async function getMe(accessToken: string): Promise<SupabaseUser> {
-  const base = getApiBase();
-  const response = await fetch(`${base}/auth/supabase/me`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  const data = await response.json() as { user: SupabaseUser; error?: string };
-  if (!response.ok) throw new Error(data.error ?? `Failed to fetch user: ${response.status}`);
-  return data.user;
 }
 
 /**
- * Sign in with Google via Supabase OAuth.
- * Uses the backend's /api/auth/supabase/oauth/google endpoint.
- * Pass the idToken obtained from Google Sign-In on the device.
+ * Send an OTP to the given email (passwordless login step 1, or resend).
  */
-export async function signInWithGoogle(idToken?: string): Promise<AuthResult> {
-  if (idToken) {
-    // Native Google Sign-In path: exchange idToken on backend
-    const base = getApiBase();
-    const response = await fetch(`${base}/auth/supabase/oauth/google`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
-    });
-    const data = await response.json() as AuthResult & { error?: string };
-    if (!response.ok) throw new Error(data.error ?? `Google sign-in failed: ${response.status}`);
-    return data;
-  }
-  // Web OAuth flow via Supabase directly (no native SDK)
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: { skipBrowserRedirect: true },
-  });
-  if (error) throw new Error(error.message);
-  // In native Expo, open the URL in a browser
-  if (data.url) {
-    await WebBrowser.openBrowserAsync(data.url);
-  }
-  // Session will be picked up by the supabase.auth.onAuthStateChange listener
-  const { data: { session } } = await supabase.auth.getSession();
-  return { user: session?.user ?? null, session: session as any };
-}
-
-/** Send a password reset email. */
-export async function forgotPassword(email: string): Promise<{ message: string }> {
+export async function sendOtpCode(email: string): Promise<{ message: string }> {
   const base = getApiBase();
-  const response = await fetch(`${base}/auth/supabase/forgot-password`, {
+  const response = await fetch(`${base}/auth/send-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
   const data = await response.json() as { message?: string; error?: string };
-  if (!response.ok) throw new Error(data.error ?? `Failed to send reset email: ${response.status}`);
-  return { message: data.message ?? "Reset email sent" };
+  if (!response.ok) {
+    throw new Error(data.error ?? data.message ?? `Failed to send OTP: ${response.status}`);
+  }
+  return { message: data.message ?? "OTP sent" };
 }
 
 /**
- * Verify a TOTP 2FA code after initial sign-in.
- * tempToken is the short-lived token returned by signInWithEmail when requires2FA is true.
+ * Verify an OTP code for an email.
+ * Returns tokens + user — works for both register flow and passwordless login.
  */
-export async function verify2fa(tempToken: string, token: string): Promise<{ session: AuthResult["session"] }> {
+export async function verifyOtpCode(email: string, otp: string): Promise<AuthResult> {
   const base = getApiBase();
-  const response = await fetch(`${base}/auth/supabase/2fa/login`, {
+  const response = await fetch(`${base}/auth/verify-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tempToken, token }),
+    body: JSON.stringify({ email, otp }),
   });
-  const data = await response.json() as { session: AuthResult["session"]; error?: string };
-  if (!response.ok) throw new Error(data.error ?? `2FA verification failed: ${response.status}`);
+  const data = await response.json() as AuthResult & { error?: string; message?: string };
+  if (!response.ok) {
+    throw new Error(data.error ?? data.message ?? `OTP verification failed: ${response.status}`);
+  }
+  return data;
+}
+
+/**
+ * Refresh tokens using a refresh token.
+ */
+export async function refreshAccessToken(
+  userId: string,
+  refreshToken: string,
+): Promise<AuthTokens> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, refreshToken }),
+  });
+  const data = await response.json() as AuthTokens & { error?: string };
+  if (!response.ok) {
+    throw new Error(data.error ?? `Token refresh failed: ${response.status}`);
+  }
+  return data;
+}
+
+/**
+ * Get the currently authenticated user profile.
+ */
+export async function getMyProfile(accessToken: string): Promise<AuthUser> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const data = await response.json() as AuthUser & { error?: string };
+  if (!response.ok) {
+    throw new Error(data.error ?? `Failed to fetch profile: ${response.status}`);
+  }
   return data;
 }
 
@@ -373,6 +332,40 @@ export async function parseVoiceCommand(request: VoiceCommandRequest): Promise<V
   return response.json() as Promise<VoiceCommandResponse>;
 }
 
-// Legacy aliases kept for pages that haven't migrated yet
-export const sendOtp = requestEmailOtp;
-export const verifyOtp = (phone: string, otp: string) => verifyEmailOtp(phone, otp);
+// ==================== Misc Auth ====================
+
+/**
+ * Send a password reset email via OTP.
+ * Uses the same send-otp endpoint — user gets an OTP, uses it to set a new password.
+ */
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  return sendOtpCode(email);
+}
+
+/**
+ * Stub — 2FA is not yet implemented in the custom auth system.
+ */
+export async function verify2fa(_tempToken: string, _token: string): Promise<{ session: null }> {
+  return { session: null };
+}
+
+// ==================== Legacy aliases ====================
+// Kept so existing screens that haven't migrated yet don't break
+
+/** @deprecated Use sendOtpCode instead */
+export const sendOtp = sendOtpCode;
+/** @deprecated Use verifyOtpCode instead */
+export const verifyOtp = (email: string, otp: string) => verifyOtpCode(email, otp);
+/** @deprecated Use loginUser instead */
+export const signInWithEmail = (email: string, password: string) => loginUser(email, password) as any;
+/** @deprecated Use registerUser instead */
+export const signUpWithEmail = (email: string, password: string, meta?: any) =>
+  registerUser(email, password, [meta?.firstName, meta?.lastName].filter(Boolean).join(" ") || "Farmer") as any;
+/** @deprecated OTP-based; use sendOtpCode + verifyOtpCode instead */
+export const requestEmailOtp = sendOtpCode;
+/** @deprecated Use verifyOtpCode instead */
+export const verifyEmailOtp = verifyOtpCode;
+/** @deprecated No-op; logout is client-side now */
+export const signOut = async (_accessToken: string) => {};
+/** @deprecated Use getMyProfile instead */
+export const getMe = getMyProfile;

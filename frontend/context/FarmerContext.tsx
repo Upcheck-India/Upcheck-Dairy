@@ -1,8 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import type { Session, User } from "@supabase/supabase-js";
-import { signOut as apiSignOut, fetchProfile, createOrUpdateProfile } from "@/services/api";
+import { getMyProfile, createOrUpdateProfile, type AuthUser, type AuthResult } from "@/services/api";
 
 // ==================== Types ====================
 
@@ -21,14 +19,23 @@ export interface FarmerProfile {
   totalLandAcres?: number;
 }
 
+interface StoredAuth {
+  accessToken: string;
+  refreshToken: string;
+  userId: string;
+}
+
 interface FarmerContextType {
   farmer: FarmerProfile | null;
-  user: User | null;
-  session: Session | null;
+  user: AuthUser | null;
+  accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  /** Call after OTP verify to set the session from the backend response. */
-  setSessionFromAuth: (session: Session) => Promise<void>;
+  /**
+   * Called after OTP verify or password login to store tokens and set user.
+   * Replaces the old Supabase setSessionFromAuth.
+   */
+  loginWithJwt: (result: AuthResult) => Promise<void>;
   /** Create or update the farmer profile on the backend. */
   createProfile: (data: {
     name: string;
@@ -39,15 +46,13 @@ interface FarmerContextType {
     farmName?: string;
   }) => Promise<void>;
   updateProfile: (updates: Partial<FarmerProfile>) => Promise<void>;
+  /** Client-side logout — clears AsyncStorage tokens. */
   logout: () => Promise<void>;
-  // Legacy helpers kept for compatibility with old OTP pages
-  loginWithPhone: (phone: string) => Promise<"found" | "not_found">;
-  hasProfileForPhone: (phone: string) => Promise<boolean>;
 }
 
 const FarmerContext = createContext<FarmerContextType | null>(null);
 
-const LEGACY_FARMER_KEY = "thulirafarm_farmer_profile";
+const AUTH_STORAGE_KEY = "upcheck_auth";
 
 const AVATAR_COLORS = [
   "#16a34a", "#0284c7", "#7c3aed", "#d97706", "#dc2626",
@@ -67,81 +72,69 @@ function getInitials(name: string): string {
 }
 
 export function FarmerProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [farmer, setFarmer] = useState<FarmerProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load session from Supabase on mount and listen for changes
+  // On mount: restore session from AsyncStorage
   useEffect(() => {
     let mounted = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw || !mounted) return;
+        const stored: StoredAuth = JSON.parse(raw);
+        if (!stored.accessToken) return;
 
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      if (!mounted) return;
-      setSession(s);
-      setUser(s?.user ?? null);
+        // Validate token by fetching user profile
+        const me = await getMyProfile(stored.accessToken);
+        if (!mounted) return;
+        setUser(me);
+        setAccessToken(stored.accessToken);
 
-      if (s?.user) {
-        await loadFarmerProfile(s.access_token);
-      } else {
-        // Fallback: check legacy AsyncStorage profile
-        await loadLegacyProfile();
+        // Build a FarmerProfile from the user data
+        setFarmer(userToFarmerProfile(me));
+      } catch {
+        // Token expired or invalid — clear storage
+        await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+      } finally {
+        if (mounted) setIsLoading(false);
       }
-      setIsLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
-      if (!mounted) return;
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        await loadFarmerProfile(s.access_token);
-      } else {
-        setFarmer(null);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    })();
+    return () => { mounted = false; };
   }, []);
 
-  const loadFarmerProfile = async (accessToken: string) => {
-    try {
-      const profile = await fetchProfile(accessToken);
-      if (profile) {
-        setFarmer(profile);
-      }
-    } catch {
-      // Profile may not exist yet; that's OK
-    }
-  };
-
-  const loadLegacyProfile = async () => {
-    try {
-      const data = await AsyncStorage.getItem(LEGACY_FARMER_KEY);
-      if (data) {
-        const stored: FarmerProfile = JSON.parse(data);
-        setFarmer(stored);
-      }
-    } catch { /* ignore */ }
-  };
+  function userToFarmerProfile(u: AuthUser): FarmerProfile {
+    const name = u.name || u.email?.split("@")[0] || "Farmer";
+    return {
+      id: u.id,
+      name,
+      phone: u.phone ?? undefined,
+      village: u.village ?? undefined,
+      district: u.district ?? undefined,
+      state: u.state ?? undefined,
+      farmName: u.farmName ?? undefined,
+      avatarColor: u.avatarColor ?? pickAvatarColor(name),
+      avatarInitials: u.avatarInitials ?? getInitials(name),
+      createdAt: u.createdAt,
+    };
+  }
 
   /**
-   * Called after OTP verification / sign-in to set the Supabase session.
-   * Supabase SDK will persist it automatically via AsyncStorage.
+   * Store JWT tokens and update user state.
+   * Called right after a successful login or OTP verify.
    */
-  const setSessionFromAuth = useCallback(async (newSession: Session) => {
-    const { error } = await supabase.auth.setSession({
-      access_token: newSession.access_token,
-      refresh_token: newSession.refresh_token,
-    });
-    if (!error) {
-      setSession(newSession);
-      setUser(newSession.user);
-      await loadFarmerProfile(newSession.access_token);
-    }
+  const loginWithJwt = useCallback(async (result: AuthResult) => {
+    const stored: StoredAuth = {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      userId: result.user.id,
+    };
+    await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(stored));
+    setAccessToken(result.accessToken);
+    setUser(result.user);
+    setFarmer(userToFarmerProfile(result.user));
   }, []);
 
   const createProfile = useCallback(async (data: {
@@ -152,7 +145,7 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
     state?: string;
     farmName?: string;
   }) => {
-    const accessToken = session?.access_token;
+    const token = accessToken;
     const avatarColor = pickAvatarColor(data.name);
     const avatarInitials = getInitials(data.name);
 
@@ -167,86 +160,48 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
       avatarInitials,
     };
 
-    if (accessToken) {
-      // Save to backend
-      const saved = await createOrUpdateProfile(accessToken, profileData);
-      setFarmer({ ...profileData, ...saved });
+    if (token) {
+      const saved = await createOrUpdateProfile(token, profileData);
+      setFarmer((prev) => ({ ...prev, ...profileData, ...saved } as FarmerProfile));
     } else {
-      // Fallback: save locally (legacy mode)
+      // Shouldn't happen in normal flow, but handle gracefully
       const newFarmer: FarmerProfile = {
-        id: Date.now().toString(),
+        id: user?.id ?? Date.now().toString(),
         createdAt: new Date().toISOString(),
         ...profileData,
         name: profileData.name ?? "",
       };
-      await AsyncStorage.setItem(LEGACY_FARMER_KEY, JSON.stringify(newFarmer));
       setFarmer(newFarmer);
     }
-  }, [session]);
+  }, [accessToken, user]);
 
   const updateProfile = useCallback(async (updates: Partial<FarmerProfile>) => {
     if (!farmer) return;
     const updated = { ...farmer, ...updates };
-    const accessToken = session?.access_token;
     if (accessToken) {
       await createOrUpdateProfile(accessToken, updated);
-    } else {
-      await AsyncStorage.setItem(LEGACY_FARMER_KEY, JSON.stringify(updated));
     }
     setFarmer(updated);
-  }, [farmer, session]);
+  }, [farmer, accessToken]);
 
   const logout = useCallback(async () => {
-    try {
-      if (session?.access_token) {
-        await apiSignOut(session.access_token);
-      }
-    } catch { /* ignore signout errors */ }
-    await supabase.auth.signOut();
-    await AsyncStorage.removeItem(LEGACY_FARMER_KEY);
+    await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
     setFarmer(null);
     setUser(null);
-    setSession(null);
-  }, [session]);
-
-  // ==================== Legacy compat ====================
-
-  const hasProfileForPhone = useCallback(async (phone: string): Promise<boolean> => {
-    const data = await AsyncStorage.getItem(LEGACY_FARMER_KEY);
-    if (!data) return false;
-    try {
-      const stored: FarmerProfile = JSON.parse(data);
-      return stored.phone === phone;
-    } catch { return false; }
+    setAccessToken(null);
   }, []);
-
-  const loginWithPhone = useCallback(async (phone: string): Promise<"found" | "not_found"> => {
-    // With Supabase auth, phone login is handled via OTP verify.
-    // This legacy stub checks if we already have a profile for this phone in storage.
-    const found = await hasProfileForPhone(phone);
-    if (found) {
-      const data = await AsyncStorage.getItem(LEGACY_FARMER_KEY);
-      if (data) {
-        try { setFarmer(JSON.parse(data)); } catch { /* ignore */ }
-      }
-      return "found";
-    }
-    return "not_found";
-  }, [hasProfileForPhone]);
 
   return (
     <FarmerContext.Provider value={{
       farmer,
       user,
-      session,
-      isAuthenticated: !!user || !!farmer,
+      accessToken,
+      isAuthenticated: !!user,
       isLoading,
-      setSessionFromAuth,
+      loginWithJwt,
       createProfile,
       updateProfile,
       logout,
-      loginWithPhone,
-      hasProfileForPhone,
     }}>
       {children}
     </FarmerContext.Provider>

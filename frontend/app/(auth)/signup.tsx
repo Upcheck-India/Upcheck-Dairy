@@ -23,9 +23,8 @@ const STATES = [
 
 export default function SignupScreen() {
   const { t } = useLanguage();
-  const { createProfile, session } = useFarmer();
+  const { createProfile } = useFarmer();
   const insets = useSafeAreaInsets();
-  // Accept either email or phone from params for display/legacy compat
   const params = useLocalSearchParams<{ email?: string; phone?: string }>();
   const emailOrPhone = params.email ?? params.phone ?? "";
 
