@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./auth/auth.module";
 import { FarmsModule } from "./farms/farms.module";
+import { AnimalsModule } from "./animals/animals.module";
 import { RedisModule } from "./redis/redis.module";
 import { DatabaseModule } from "./database/database.module";
 import { NotificationsModule } from "./notifications/notifications.module";
@@ -18,6 +19,7 @@ import { HealthModule } from "./health-check/health.module";
     RedisModule,
     AuthModule,
     FarmsModule,
+    AnimalsModule,
   ],
 })
 export class AppModule {}
