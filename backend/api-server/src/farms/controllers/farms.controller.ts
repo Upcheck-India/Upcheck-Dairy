@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseInterceptors, UploadedFile, Inject } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Inject, UseInterceptors, UploadedFile } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { FarmsService } from "../services/farms.service";
 import { Public, GetUser } from "../../common/decorators/auth.decorators";
+import { CreateFarmDto } from "../dto/create-farm.dto";
+import { UpdateFarmDto } from "../dto/update-farm.dto";
 import type { Farmer } from "@workspace/db";
 
 @Controller("farms")
@@ -9,7 +11,7 @@ export class FarmsController {
   constructor(@Inject(FarmsService) private readonly farmsService: FarmsService) {}
 
   @Post()
-  async create(@GetUser() user: Farmer, @Body() body: { name: string; location?: string }) {
+  async create(@GetUser() user: Farmer, @Body() body: CreateFarmDto) {
     return this.farmsService.createFarm(user.id, body.name, body.location);
   }
 
@@ -24,7 +26,7 @@ export class FarmsController {
   }
 
   @Put(":id")
-  async update(@Param("id") id: string, @Body() body: any) {
+  async update(@Param("id") id: string, @Body() body: UpdateFarmDto) {
     return this.farmsService.updateFarm(id, body);
   }
 
