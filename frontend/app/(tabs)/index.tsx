@@ -136,17 +136,6 @@ export default function AnimalsTab() {
                 </Text>
               </View>
             </Pressable>
-            {subTab === "herd" && (
-              <Pressable
-                style={[styles.addBtn, { backgroundColor: colors.primary }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setAddVisible(true);
-                }}
-              >
-                <Feather name="plus" size={22} color="#fff" />
-              </Pressable>
-            )}
           </View>
         </View>
 
@@ -282,6 +271,18 @@ export default function AnimalsTab() {
       {subTab === "breeding" && <BreedingSection />}
       {subTab === "vaccines" && <VaccinationSection />}
 
+      {subTab === "herd" && (
+        <Pressable
+          style={[styles.fabBtn, { backgroundColor: colors.primary }]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setAddVisible(true);
+          }}
+        >
+          <Feather name="plus" size={26} color="#fff" />
+        </Pressable>
+      )}
+
       <AddAnimalModal visible={addVisible} onClose={() => setAddVisible(false)} />
       <MilkLogModal
         visible={milkAnimal !== null}
@@ -311,10 +312,25 @@ const styles = StyleSheet.create({
   syncBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   syncDot: { width: 6, height: 6, borderRadius: 3 },
   syncText: { fontSize: 11, fontWeight: "600" },
-  addBtn: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
   profileBtn: { padding: 2 },
-  profileCircle: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  profileInitial: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  profileCircle: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
+  profileInitial: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  fabBtn: {
+    position: "absolute",
+    bottom: 147,
+    right: 37,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.27,
+    shadowRadius: 4.65,
+    zIndex: 999,
+  },
   subTabRow: { flexDirection: "row", borderBottomWidth: 0 },
   subTab: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",

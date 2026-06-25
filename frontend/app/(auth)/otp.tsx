@@ -88,8 +88,6 @@ export default function OtpScreen() {
       const isProfileIncomplete = !result.user.village || !result.user.district;
       if (flow === "register" || isProfileIncomplete) {
         router.replace({ pathname: "/(auth)/signup", params: { email } });
-      } else {
-        router.replace("/(tabs)");
       }
     } catch (err: any) {
       Alert.alert("Wrong Code", err.message ?? "Invalid or expired code. Please try again.");

@@ -51,8 +51,6 @@ export default function LoginScreen() {
           pathname: "/(auth)/signup",
           params: { email: email.trim().toLowerCase() },
         });
-      } else {
-        router.replace("/(tabs)");
       }
     } catch (err: any) {
       if (err.message && (err.message.toLowerCase().includes("verified") || err.message.toLowerCase().includes("verification"))) {
