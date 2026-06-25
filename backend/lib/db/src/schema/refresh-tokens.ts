@@ -5,7 +5,7 @@ import { farmers } from "./farmers";
 
 export const refreshTokens = pgTable("refresh_tokens", {
   id: serial("id").primaryKey(),
-  userId: uuid("user_id").notNull().references(() => farmers.id),
+  userId: uuid("user_id").notNull().references(() => farmers.id, { onDelete: "cascade" }),
   tokenHash: text("token_hash").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   revokedAt: timestamp("revoked_at"),
