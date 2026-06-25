@@ -51,7 +51,19 @@ export class AuthService {
   async register(email: string, password: string, name: string): Promise<{ message: string }> {
     const existing = await this.userRepository.findByEmail(email);
     if (existing) {
-      throw new ConflictException("An account with this email already exists");
+      if (existing.emailVerified) {
+        throw new ConflictException("An account with this email already exists");
+      }
+      
+      // If user exists but is not verified, update details and send a new OTP
+      const passwordHash = await bcrypt.hash(password, 10);
+      await this.userRepository.update(existing.id, {
+        name,
+        passwordHash,
+        authProvider: "email",
+      });
+      await this.otpService.generateAndSendOtp(email);
+      return { message: "Account created. Please check your email for a verification code." };
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -80,6 +92,10 @@ export class AuthService {
     const match = await bcrypt.compare(password, user.passwordHash);
     if (!match) {
       throw new UnauthorizedException("Invalid email or password");
+    }
+
+    if (!user.emailVerified) {
+      throw new UnauthorizedException("Email not verified");
     }
 
     const accessToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email });

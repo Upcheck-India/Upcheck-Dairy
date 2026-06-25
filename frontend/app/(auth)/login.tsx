@@ -46,7 +46,30 @@ export default function LoginScreen() {
       await loginWithJwt(result);
       router.replace("/(tabs)");
     } catch (err: any) {
-      Alert.alert("Sign In Failed", err.message ?? "Invalid email or password.");
+      if (err.message && (err.message.toLowerCase().includes("verified") || err.message.toLowerCase().includes("verification"))) {
+        try {
+          await sendOtpCode(email.trim().toLowerCase());
+          Alert.alert(
+            "Email Not Verified",
+            "Your email is not verified. We have sent a verification code to your email. Please verify it to log in.",
+            [
+              {
+                text: "Verify Now",
+                onPress: () => {
+                  router.push({
+                    pathname: "/(auth)/otp",
+                    params: { email: email.trim().toLowerCase(), flow: "register" },
+                  });
+                },
+              },
+            ]
+          );
+        } catch (otpErr: any) {
+          Alert.alert("Sign In Failed", otpErr.message ?? "Could not send verification code.");
+        }
+      } else {
+        Alert.alert("Sign In Failed", err.message ?? "Invalid email or password.");
+      }
     } finally {
       setLoading(false);
     }
