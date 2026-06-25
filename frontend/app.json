@@ -78,7 +78,8 @@
         {
           "microphonePermission": "ThulirFarm needs microphone access for voice commands"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { getMyProfile, createOrUpdateProfile, type AuthUser, type AuthResult } from "@/services/api";
 
@@ -77,12 +77,12 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
   const [farmer, setFarmer] = useState<FarmerProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // On mount: restore session from AsyncStorage
+  // On mount: restore session from SecureStore
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
+        const raw = await SecureStore.getItemAsync(AUTH_STORAGE_KEY);
         if (!raw || !mounted) return;
         const stored: StoredAuth = JSON.parse(raw);
         if (!stored.accessToken) return;
@@ -97,7 +97,7 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
         setFarmer(userToFarmerProfile(me));
       } catch {
         // Token expired or invalid — clear storage
-        await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+        await SecureStore.deleteItemAsync(AUTH_STORAGE_KEY);
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -131,7 +131,7 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
       refreshToken: result.refreshToken,
       userId: result.user.id,
     };
-    await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(stored));
+    await SecureStore.setItemAsync(AUTH_STORAGE_KEY, JSON.stringify(stored));
     setAccessToken(result.accessToken);
     setUser(result.user);
     setFarmer(userToFarmerProfile(result.user));
@@ -185,7 +185,7 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
   }, [farmer, accessToken]);
 
   const logout = useCallback(async () => {
-    await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+    await SecureStore.deleteItemAsync(AUTH_STORAGE_KEY);
     setFarmer(null);
     setUser(null);
     setAccessToken(null);
