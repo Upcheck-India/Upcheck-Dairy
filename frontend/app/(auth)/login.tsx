@@ -44,7 +44,16 @@ export default function LoginScreen() {
     try {
       const result = await loginUser(email.trim().toLowerCase(), password);
       await loginWithJwt(result);
-      router.replace("/(tabs)");
+      
+      const isProfileIncomplete = !result.user.village || !result.user.district;
+      if (isProfileIncomplete) {
+        router.replace({
+          pathname: "/(auth)/signup",
+          params: { email: email.trim().toLowerCase() },
+        });
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (err: any) {
       if (err.message && (err.message.toLowerCase().includes("verified") || err.message.toLowerCase().includes("verification"))) {
         try {

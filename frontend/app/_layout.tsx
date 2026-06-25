@@ -22,16 +22,17 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useFarmer();
+  const { isAuthenticated, isLoading, farmer } = useFarmer();
   const segments = useSegments();
 
   if (isLoading) return null;
 
   const firstSegment = segments[0] as string | undefined;
   const inAuth = firstSegment === "(auth)";
-  const inTabs = firstSegment === "(tabs)";
 
-  if (isAuthenticated && inAuth) {
+  // Only redirect authenticated users to tabs if they have completed their profile details
+  const hasProfile = !!(farmer && farmer.village && farmer.district);
+  if (isAuthenticated && inAuth && hasProfile) {
     return <Redirect href="/(tabs)" />;
   }
 

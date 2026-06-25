@@ -85,7 +85,8 @@ export default function OtpScreen() {
 
       // After register flow → go to onboarding to collect farm details
       // After login flow → go to dashboard (unless no farm profile yet)
-      if (flow === "register" || !farmer) {
+      const isProfileIncomplete = !result.user.village || !result.user.district;
+      if (flow === "register" || isProfileIncomplete) {
         router.replace({ pathname: "/(auth)/signup", params: { email } });
       } else {
         router.replace("/(tabs)");
