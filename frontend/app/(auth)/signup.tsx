@@ -51,7 +51,6 @@ export default function SignupScreen() {
         // If this is an email login, we don't pass phone; if legacy phone flow, pass it
         phone: params.phone ? params.phone : undefined,
       });
-      router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert(t.error, err.message ?? t.networkError);
     } finally {
