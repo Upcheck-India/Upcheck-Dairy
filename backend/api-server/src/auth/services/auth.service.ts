@@ -117,4 +117,21 @@ export class AuthService {
 
     return { accessToken: newAccessToken, refreshToken: newRefreshToken };
   }
+
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<{ message: string }> {
+    const isValid = await this.otpService.verifyOtp(email, otp);
+    if (!isValid) {
+      throw new UnauthorizedException("Invalid or expired verification code");
+    }
+
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.userRepository.update(user.id, { passwordHash });
+
+    return { message: "Password reset successfully" };
+  }
 }

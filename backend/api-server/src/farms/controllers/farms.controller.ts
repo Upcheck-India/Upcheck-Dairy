@@ -4,6 +4,7 @@ import { FarmsService } from "../services/farms.service";
 import { Public, GetUser } from "../../common/decorators/auth.decorators";
 import { CreateFarmDto } from "../dto/create-farm.dto";
 import { UpdateFarmDto } from "../dto/update-farm.dto";
+import { UserRepository } from "../../auth/repositories/user.repository";
 import type { Farmer } from "@workspace/db";
 
 @Controller("farms")
@@ -39,7 +40,28 @@ export class FarmsController {
 
 @Controller("farm")
 export class LegacyFarmController {
-  constructor(@Inject(FarmsService) private readonly farmsService: FarmsService) {}
+  constructor(
+    @Inject(FarmsService) private readonly farmsService: FarmsService,
+    @Inject(UserRepository) private readonly userRepository: UserRepository
+  ) {}
+
+  @Get("profile")
+  async getProfile(@GetUser() user: Farmer) {
+    return user;
+  }
+
+  @Post("profile")
+  async createOrUpdateProfile(@GetUser() user: Farmer, @Body() body: Partial<Farmer>) {
+    const updates: Partial<Farmer> = {};
+    if (body.name !== undefined) updates.name = body.name;
+    if (body.phone !== undefined) updates.phone = body.phone;
+    if (body.farmName !== undefined) updates.farmName = body.farmName;
+    if (body.village !== undefined) updates.village = body.village;
+    if (body.district !== undefined) updates.district = body.district;
+    if (body.avatarInitials !== undefined) updates.avatarInitials = body.avatarInitials;
+
+    return this.userRepository.update(user.id, updates);
+  }
 
   @Public()
   @Post("diagnose")

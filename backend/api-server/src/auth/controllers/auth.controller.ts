@@ -57,4 +57,15 @@ export class AuthController {
   async getMe(@GetUser() user: Farmer) {
     return user;
   }
+
+  /** Reset password using email, OTP, and new password */
+  @Public()
+  @Post("reset-password")
+  async resetPassword(@Body() body: { email: string; otp: string; newPassword: string }) {
+    return this.authService.resetPassword(
+      body.email.trim().toLowerCase(),
+      body.otp.trim(),
+      body.newPassword
+    );
+  }
 }

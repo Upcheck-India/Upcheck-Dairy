@@ -343,6 +343,27 @@ export async function forgotPassword(email: string): Promise<{ message: string }
 }
 
 /**
+ * Reset password using email, OTP code, and new password.
+ */
+export async function resetPassword(
+  email: string,
+  otp: string,
+  newPassword: string
+): Promise<{ message: string }> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp, newPassword }),
+  });
+  const data = await response.json() as { message?: string; error?: string };
+  if (!response.ok) {
+    throw new Error(data.error ?? data.message ?? "Failed to reset password");
+  }
+  return { message: data.message ?? "Password reset successfully" };
+}
+
+/**
  * Stub — 2FA is not yet implemented in the custom auth system.
  */
 export async function verify2fa(_tempToken: string, _token: string): Promise<{ session: null }> {
