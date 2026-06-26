@@ -16,6 +16,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider } from "@/context/AppContext";
 import { FarmerProvider, useFarmer } from "@/context/FarmerContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { DatabaseProvider } from "@/context/DatabaseContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -32,12 +33,19 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // Only redirect authenticated users to tabs if they have completed their profile details
   const hasProfile = !!(farmer && farmer.village && farmer.district);
-  if (isAuthenticated && inAuth && hasProfile) {
-    return <Redirect href="/(tabs)" />;
-  }
+  const onOnboarding = firstSegment === "(auth)" && segments[1] === "onboarding";
 
-  // Only redirect to login if not in auth AND not in tabs (guest mode allowed for tabs)
-  // But if explicitly in login/signup page, don't redirect
+  if (isAuthenticated) {
+    if (hasProfile) {
+      if (inAuth) {
+        return <Redirect href="/(tabs)" />;
+      }
+    } else {
+      if (!onOnboarding) {
+        return <Redirect href="/(auth)/onboarding" />;
+      }
+    }
+  }
 
   return <>{children}</>;
 }
@@ -80,17 +88,19 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <LanguageProvider>
-            <FarmerProvider>
-              <AppProvider>
-                <GestureHandlerRootView>
-                  <AuthGuard>
-                    <RootLayoutNav />
-                  </AuthGuard>
-                </GestureHandlerRootView>
-              </AppProvider>
-            </FarmerProvider>
-          </LanguageProvider>
+          <DatabaseProvider>
+            <LanguageProvider>
+              <FarmerProvider>
+                <AppProvider>
+                  <GestureHandlerRootView>
+                    <AuthGuard>
+                      <RootLayoutNav />
+                    </AuthGuard>
+                  </GestureHandlerRootView>
+                </AppProvider>
+              </FarmerProvider>
+            </LanguageProvider>
+          </DatabaseProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

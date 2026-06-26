@@ -14,9 +14,8 @@ import {
     LanguageSelector,
     PrimaryButton,
     DotIndicator,
+    FeatureCard,
 } from "@/components/onboarding";
-
-import FeatureCard from "@/components/onboarding/FeatureCard";
 
 import {
     Layout,
@@ -94,19 +93,19 @@ export default function WelcomeScreen() {
             <View style={styles.featureContainer}>
 
                 <FeatureCard
-                    icon="droplet"
+                    icon="shield"
                     title={t.onboardingWelcomeFeature1Title}
                     description={t.onboardingWelcomeFeature1Desc}
                 />
 
                 <FeatureCard
-                    icon="heart"
+                    icon="droplet"
                     title={t.onboardingWelcomeFeature2Title}
                     description={t.onboardingWelcomeFeature2Desc}
                 />
 
                 <FeatureCard
-                    icon="bar-chart-2"
+                    icon="credit-card"
                     title={t.onboardingWelcomeFeature3Title}
                     description={t.onboardingWelcomeFeature3Desc}
                 />

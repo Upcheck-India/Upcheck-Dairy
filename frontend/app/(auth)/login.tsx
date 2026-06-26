@@ -48,7 +48,7 @@ export default function LoginScreen() {
       const isProfileIncomplete = !result.user.village || !result.user.district;
       if (isProfileIncomplete) {
         router.replace({
-          pathname: "/(auth)/signup",
+          pathname: "/(auth)/onboarding",
           params: { email: email.trim().toLowerCase() },
         });
       }
