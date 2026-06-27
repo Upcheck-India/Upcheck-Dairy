@@ -8,10 +8,15 @@ export interface FarmerProfile {
   id: string;
   name: string;
   phone?: string;
+  email?: string;
   village?: string;
   district?: string;
   state?: string;
   farmName?: string;
+  pincode?: string;
+  locationPermission?: boolean;
+  notificationsEnabled?: boolean;
+  onboardingCompleted?: boolean;
   avatarColor?: string;
   avatarInitials?: string;
   createdAt?: string;

@@ -215,6 +215,7 @@ export interface FarmerProfile {
   id: string;
   name: string;
   phone?: string;
+  email?: string;
   farmName?: string;
   village?: string;
   district?: string;
@@ -226,6 +227,7 @@ export interface FarmerProfile {
   avatarInitials?: string;
   avatarColor?: string;
   createdAt?: string;
+  totalLandAcres?: number;
 }
 
 export async function fetchProfile(accessToken: string): Promise<FarmerProfile | null> {
