@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { AuthModule } from "./auth/auth.module";
 import { FarmsModule } from "./farms/farms.module";
 import { AnimalsModule } from "./animals/animals.module";
@@ -14,6 +16,18 @@ import { HealthModule } from "./health-check/health.module";
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    // Asynchronously configure ThrottlerModule to load configurations from environment variables
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          // Load TTL (time-to-live) and limit. Fall back to standard defaults if not provided.
+          ttl: Number(config.get<number>("RATE_LIMIT_TTL") ?? 60000),
+          limit: Number(config.get<number>("RATE_LIMIT_LIMIT") ?? 100),
+        },
+      ],
+    }),
     DatabaseModule,
     NotificationsModule,
     HealthModule,
@@ -22,6 +36,13 @@ import { HealthModule } from "./health-check/health.module";
     FarmsModule,
     AnimalsModule,
     MilkModule,
+  ],
+  providers: [
+    // Register the global ThrottlerGuard so all routes are rate-limited by default
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}
