@@ -55,6 +55,10 @@ export default function SuccessScreen() {
                 district: data.district,
                 state: data.state,
                 farmName: data.farmName,
+                pincode: data.pincode,
+                locationPermission: data.locationPermission,
+                notificationsEnabled: data.notificationsEnabled,
+                onboardingCompleted: true,
             });
 
             // 2. Add animals to the local database

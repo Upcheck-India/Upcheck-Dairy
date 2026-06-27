@@ -219,6 +219,10 @@ export interface FarmerProfile {
   village?: string;
   district?: string;
   state?: string;
+  pincode?: string;
+  locationPermission?: boolean;
+  notificationsEnabled?: boolean;
+  onboardingCompleted?: boolean;
   avatarInitials?: string;
   avatarColor?: string;
   createdAt?: string;
