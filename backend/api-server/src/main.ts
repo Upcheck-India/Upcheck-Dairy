@@ -4,12 +4,28 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { ValidationPipe } from "@nestjs/common";
 import { logger } from "./lib/logger";
+import helmet from "helmet";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS
   app.enableCors();
+
+  // Register Helmet middleware globally to secure Express HTTP headers.
+  // Since this backend is a pure API server, we disable Helmet's UI-oriented CSP defaults
+  // and set a strict Content Security Policy (CSP) of 'default-src none' to prevent
+  // the browser from executing any scripts or loading any resources from this origin.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'none'"],
+        },
+      },
+    })
+  );
 
   // Use global validation pipe
   app.useGlobalPipes(new ValidationPipe({
