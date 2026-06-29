@@ -25,6 +25,7 @@ import { BreedingProvider } from "../src/modules/breeding/context/BreedingProvid
 import { VaccinationProvider } from "../src/modules/vaccination/context/VaccinationProvider";
 import { InventoryProvider } from "../src/modules/inventory/context/InventoryProvider";
 import { TaskProvider } from "../src/modules/tasks/context/TaskProvider";
+import { FinanceProvider } from "../src/modules/finance/context/FinanceProvider";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -127,13 +128,15 @@ export default function RootLayout() {
                           <VaccinationProvider>
                             <InventoryProvider>
                               <TaskProvider>
-                                <AppProvider>
-                                  <GestureHandlerRootView>
-                                    <AuthGuard>
-                                      <RootLayoutNav />
-                                    </AuthGuard>
-                                  </GestureHandlerRootView>
-                                </AppProvider>
+                                <FinanceProvider>
+                                  <AppProvider>
+                                    <GestureHandlerRootView>
+                                      <AuthGuard>
+                                        <RootLayoutNav />
+                                      </AuthGuard>
+                                    </GestureHandlerRootView>
+                                  </AppProvider>
+                                </FinanceProvider>
                               </TaskProvider>
                             </InventoryProvider>
                           </VaccinationProvider>

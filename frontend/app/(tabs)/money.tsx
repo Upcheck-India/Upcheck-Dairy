@@ -19,17 +19,16 @@ import {
 import Svg, { Rect, Text as SvgText, Line } from "react-native-svg";
 
 import {
-  ExpenseEntry,
-  IncomeEntry,
   InventoryItem,
-  generateId,
-  getTodayString,
   useApp,
 } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import InventoryModal from "@/components/InventoryModal";
 import { useInventory } from "../../src/modules/inventory/hooks/useInventory";
+import { useFinance } from "../../src/modules/finance/hooks/useFinance";
+import { useFarm } from "../../src/modules/farms/hooks/useFarm";
+import type { ExpenseCategory } from "../../src/modules/finance/types/FinanceDto";
 
 function formatRupee(amount: number) {
   if (amount >= 100000) return "₹" + (amount / 100000).toFixed(1) + "L";
@@ -94,9 +93,16 @@ export default function MoneyTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { language, t } = useLanguage();
+  const { activeFarm } = useFarm();
   const {
-    incomeEntries, expenseEntries, addIncomeEntry, addExpenseEntry, get7DayFinancials,
+    incomeEntries, expenseEntries,
+    addIncome, addExpense,
+    refresh: refreshFinance,
+    loading: financeLoading,
+  } = useFinance();
+  const {
     isLoaded, reloadData,
+    get7DayFinancials,
   } = useApp();
   const {
     inventoryItems,
@@ -117,7 +123,7 @@ export default function MoneyTab() {
   const [received, setReceived] = useState("");
   const [fatPct, setFatPct] = useState("");
 
-  const [expCategory, setExpCategory] = useState<ExpenseEntry["category"]>("feed");
+  const [expCategory, setExpCategory] = useState<ExpenseCategory>("feed");
   const [expDesc, setExpDesc] = useState("");
   const [expAmount, setExpAmount] = useState("");
 
@@ -141,7 +147,7 @@ export default function MoneyTab() {
   const lowStockItems = inventoryItems.filter((item) => item.quantity <= item.minQuantity && item.minQuantity > 0);
   const inventoryValue = inventoryItems.reduce((s, i) => s + (i.quantity * (i.pricePerUnit ?? 0)), 0);
 
-  const handleAddIncome = () => {
+  const handleAddIncome = async () => {
     const q = parseFloat(qty);
     const r = parseFloat(rate);
     const rec = parseFloat(received);
@@ -149,32 +155,63 @@ export default function MoneyTab() {
       Alert.alert(t.error, lx({ ta: "அனைத்து தகவல்களையும் உள்ளிடவும்", te: "అన్ని వివరాలు నమోదు చేయండి", kn: "ಎಲ್ಲ ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ", ml: "എല്ലാ വിവരങ്ങളും നൽകൂ", hi: "सभी जानकारी भरें", en: "Please fill all fields" }));
       return;
     }
-    const expected = q * r;
-    addIncomeEntry({ id: generateId(), date: getTodayString(), buyer: buyer.trim(), quantitySold: q, ratePerLitre: r, totalExpected: expected, totalReceived: rec, fatPercentage: fatPct ? parseFloat(fatPct) : undefined });
-    const diff = expected - rec;
-    if (Math.abs(diff) > 5) {
-      Alert.alert(
-        diff > 0
-          ? lx({ ta: "⚠ குறைவாக கிடைத்தது!", te: "⚠ తక్కువ వచ్చింది!", kn: "⚠ ಕಡಿಮೆ ಬಂದಿದೆ!", ml: "⚠ കുറഞ്ഞ ലഭ്യം!", hi: "⚠ कम भुगतान!", en: "⚠ Underpaid!" })
-          : lx({ ta: "✓ அதிகமாக கிடைத்தது", te: "✓ అదనంగా వచ్చింది", kn: "✓ ಹೆಚ್ಚು ಬಂದಿದೆ", ml: "✓ അധികം ലഭ്യം", hi: "✓ अधिक भुगतान", en: "✓ Overpaid" }),
-        `${lx({ ta: "எதிர்பார்த்தது", te: "అంచనా", kn: "ನಿರೀಕ್ಷಿತ", ml: "പ്രതീക്ഷ", hi: "अनुमान", en: "Expected" })}: ${formatRupeeFull(expected)}\n${lx({ ta: "கிடைத்தது", te: "అందింది", kn: "ಸ್ವೀಕರಿಸಿದ", ml: "ലഭിച്ചത്", hi: "प्राप्त", en: "Received" })}: ${formatRupeeFull(rec)}`
-      );
+    if (!activeFarm?.id) {
+      Alert.alert(t.error, "No active farm selected.");
+      return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setBuyer(""); setQty(""); setRate("42"); setReceived(""); setFatPct("");
-    setIncomeModal(false);
+    const expected = q * r;
+    try {
+      await addIncome({
+        farmId: activeFarm.id,
+        date: new Date().toISOString(),
+        buyer: buyer.trim(),
+        quantitySold: q,
+        ratePerLitre: r,
+        totalExpected: expected,
+        totalReceived: rec,
+        fatPercentage: fatPct ? parseFloat(fatPct) : undefined,
+      });
+      const diff = expected - rec;
+      if (Math.abs(diff) > 5) {
+        Alert.alert(
+          diff > 0
+            ? lx({ ta: "⚠ குறைவாக கிடைத்தது!", te: "⚠ తక్కువ వచ్చింది!", kn: "⚠ ಕಡಿಮೆ ಬಂದಿದೆ!", ml: "⚠ കുറഞ്ഞ ലഭ്യം!", hi: "⚠ कम भुगतान!", en: "⚠ Underpaid!" })
+            : lx({ ta: "✓ அதிகமாக கிடைத்தது", te: "✓ అదనంగా వచ్చింది", kn: "✓ ಹೆಚ್ಚು ಬಂದಿದೆ", ml: "✓ അധികം ലഭ്യം", hi: "✓ अधिक भुगतान", en: "✓ Overpaid" }),
+          `${lx({ ta: "எதிர்பார்த்தது", te: "అంచనా", kn: "ನಿರೀಕ್ಷಿತ", ml: "പ്രതീക്ഷ", hi: "अनुमान", en: "Expected" })}: ${formatRupeeFull(expected)}\n${lx({ ta: "கிடைத்தது", te: "అందింది", kn: "ಸ್ವೀಕರಿಸಿದ", ml: "ലഭിച്ചത്", hi: "प्राप्त", en: "Received" })}: ${formatRupeeFull(rec)}`
+        );
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setBuyer(""); setQty(""); setRate("42"); setReceived(""); setFatPct("");
+      setIncomeModal(false);
+    } catch (err) {
+      Alert.alert(t.error, String(err));
+    }
   };
 
-  const handleAddExpense = () => {
+  const handleAddExpense = async () => {
     const amt = parseFloat(expAmount);
     if (!expDesc.trim() || isNaN(amt)) {
       Alert.alert(t.error, lx({ ta: "தகவல்கள் உள்ளிடவும்", te: "వివరాలు నమోదు చేయండి", kn: "ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ", ml: "വിവരങ്ങൾ നൽകൂ", hi: "जानकारी भरें", en: "Please fill all fields" }));
       return;
     }
-    addExpenseEntry({ id: generateId(), date: getTodayString(), category: expCategory, description: expDesc.trim(), amount: amt });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setExpDesc(""); setExpAmount("");
-    setExpenseModal(false);
+    if (!activeFarm?.id) {
+      Alert.alert(t.error, "No active farm selected.");
+      return;
+    }
+    try {
+      await addExpense({
+        farmId: activeFarm.id,
+        date: new Date().toISOString(),
+        category: expCategory,
+        description: expDesc.trim(),
+        amount: amt,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setExpDesc(""); setExpAmount("");
+      setExpenseModal(false);
+    } catch (err) {
+      Alert.alert(t.error, String(err));
+    }
   };
 
   const handleDeleteInventory = (item: any) => {
@@ -228,7 +265,7 @@ export default function MoneyTab() {
       ) : (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: isWeb ? 120 : 100 }]} showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await Promise.all([reloadData(), refreshInventory()]); setRefreshing(false); }} tintColor={colors.primary} colors={[colors.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await Promise.all([reloadData(), refreshInventory(), refreshFinance()]); setRefreshing(false); }} tintColor={colors.primary} colors={[colors.primary]} />
         }
       >
         {/* 7-day chart */}
@@ -293,7 +330,7 @@ export default function MoneyTab() {
                 <View key={e.id} style={[styles.entryRow, { backgroundColor: colors.card, borderColor: hasDiscrepancy ? colors.warning + "80" : colors.border, borderLeftWidth: hasDiscrepancy ? 4 : 1, borderLeftColor: hasDiscrepancy ? colors.warning : colors.border }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.entryTitle, { color: colors.foreground }]}>{e.buyer}</Text>
-                    <Text style={[styles.entrySub, { color: colors.mutedForeground }]}>{e.quantitySold}L × ₹{e.ratePerLitre}/L • {e.date}</Text>
+                    <Text style={[styles.entrySub, { color: colors.mutedForeground }]}>{e.quantitySold}L × ₹{e.ratePerLitre}/L • {e.dateString}</Text>
                     {e.fatPercentage && <Text style={[styles.entrySub, { color: colors.mutedForeground }]}>FAT: {e.fatPercentage}%</Text>}
                     {hasDiscrepancy && (
                       <Text style={[styles.discrepancy, { color: diff < 0 ? colors.destructive : colors.success }]}>
@@ -350,7 +387,7 @@ export default function MoneyTab() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.entryTitle, { color: colors.foreground }]}>{e.description}</Text>
-                    <Text style={[styles.entrySub, { color: colors.mutedForeground }]}>{getExpCatLabel(e.category)} • {e.date}</Text>
+                    <Text style={[styles.entrySub, { color: colors.mutedForeground }]}>{getExpCatLabel(e.category)} • {e.dateString}</Text>
                   </View>
                   <Text style={[styles.expAmount, { color: colors.destructive }]}>-{formatRupeeFull(e.amount)}</Text>
                 </View>
@@ -501,7 +538,7 @@ export default function MoneyTab() {
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t.addExpense}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 8 }}>
               {Object.keys(EXPENSE_CAT_LABELS).map((key) => (
-                <Pressable key={key} style={[styles.catChip, { backgroundColor: expCategory === key ? colors.primary : colors.muted, borderColor: expCategory === key ? colors.primary : colors.border }]} onPress={() => setExpCategory(key as ExpenseEntry["category"])}>
+                <Pressable key={key} style={[styles.catChip, { backgroundColor: expCategory === key ? colors.primary : colors.muted, borderColor: expCategory === key ? colors.primary : colors.border }]} onPress={() => setExpCategory(key as ExpenseCategory)}>
                   <Text style={[styles.catLabel, { color: expCategory === key ? "#fff" : colors.mutedForeground }]}>{getExpCatLabel(key)}</Text>
                 </Pressable>
               ))}
