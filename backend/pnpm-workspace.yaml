@@ -2,6 +2,10 @@ packages:
   - 'api-server'
   - 'lib/*'
 
+allowBuilds:
+  bcrypt: true
+  esbuild: true
+
 catalog:
   drizzle-orm: ^0.39.0
   drizzle-kit: ^0.30.0

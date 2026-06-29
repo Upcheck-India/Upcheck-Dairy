@@ -16,28 +16,61 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider } from "@/context/AppContext";
 import { FarmerProvider, useFarmer } from "@/context/FarmerContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { DatabaseProvider } from "@/context/DatabaseContext";
+import { FarmProvider, useFarmContext } from "../src/modules/farms/context/FarmProvider";
+import { AnimalProvider } from "../src/modules/animals/context/AnimalProvider";
+import { MilkProvider } from "../src/modules/milk/context/MilkProvider";
+import { HealthProvider } from "../src/modules/health/context/HealthProvider";
+import { BreedingProvider } from "../src/modules/breeding/context/BreedingProvider";
+import { VaccinationProvider } from "../src/modules/vaccination/context/VaccinationProvider";
+import { InventoryProvider } from "../src/modules/inventory/context/InventoryProvider";
+import { TaskProvider } from "../src/modules/tasks/context/TaskProvider";
+import { FinanceProvider } from "../src/modules/finance/context/FinanceProvider";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, farmer } = useFarmer();
+  const { isAuthenticated, isLoading: isAuthLoading, farmer } = useFarmer();
+  const { loading: isFarmLoading, farmsLoaded, farms } = useFarmContext();
   const segments = useSegments();
 
-  if (isLoading) return null;
+  if (isAuthLoading) return null;
 
   const firstSegment = segments[0] as string | undefined;
   const inAuth = firstSegment === "(auth)";
 
   // Only redirect authenticated users to tabs if they have completed their profile details
   const hasProfile = !!(farmer && farmer.village && farmer.district);
-  if (isAuthenticated && inAuth && hasProfile) {
-    return <Redirect href="/(tabs)" />;
-  }
+  const onOnboarding = firstSegment === "(auth)" && segments[1] === "onboarding";
 
-  // Only redirect to login if not in auth AND not in tabs (guest mode allowed for tabs)
-  // But if explicitly in login/signup page, don't redirect
+  if (isAuthenticated) {
+    if (!hasProfile) {
+      if (!onOnboarding) {
+        return <Redirect href="/(auth)/onboarding" />;
+      }
+      return <>{children}</>;
+    }
+
+    // Guard on farms loading state
+    if (isFarmLoading || !farmsLoaded) {
+      return null;
+    }
+
+    const onFarmsScreen = firstSegment === "farms";
+
+    // Enforce active farm if not on onboarding/farms screen
+    if (farms.length === 0) {
+      if (!onFarmsScreen) {
+        return <Redirect href="/farms" />;
+      }
+    } else {
+      if (inAuth) {
+        return <Redirect href="/(tabs)" />;
+      }
+    }
+  }
 
   return <>{children}</>;
 }
@@ -53,6 +86,14 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="profile"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="farms"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="herd"
         options={{ headerShown: false, presentation: "card" }}
       />
     </Stack>
@@ -80,17 +121,37 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <LanguageProvider>
-            <FarmerProvider>
-              <AppProvider>
-                <GestureHandlerRootView>
-                  <AuthGuard>
-                    <RootLayoutNav />
-                  </AuthGuard>
-                </GestureHandlerRootView>
-              </AppProvider>
-            </FarmerProvider>
-          </LanguageProvider>
+          <DatabaseProvider>
+            <LanguageProvider>
+              <FarmerProvider>
+                <FarmProvider>
+                  <AnimalProvider>
+                    <MilkProvider>
+                      <HealthProvider>
+                        <BreedingProvider>
+                          <VaccinationProvider>
+                            <InventoryProvider>
+                              <TaskProvider>
+                                <FinanceProvider>
+                                  <AppProvider>
+                                    <GestureHandlerRootView>
+                                      <AuthGuard>
+                                        <RootLayoutNav />
+                                      </AuthGuard>
+                                    </GestureHandlerRootView>
+                                  </AppProvider>
+                                </FinanceProvider>
+                              </TaskProvider>
+                            </InventoryProvider>
+                          </VaccinationProvider>
+                        </BreedingProvider>
+                      </HealthProvider>
+                    </MilkProvider>
+                  </AnimalProvider>
+                </FarmProvider>
+              </FarmerProvider>
+            </LanguageProvider>
+          </DatabaseProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

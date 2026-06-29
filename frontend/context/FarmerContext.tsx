@@ -8,10 +8,15 @@ export interface FarmerProfile {
   id: string;
   name: string;
   phone?: string;
+  email?: string;
   village?: string;
   district?: string;
   state?: string;
   farmName?: string;
+  pincode?: string;
+  locationPermission?: boolean;
+  notificationsEnabled?: boolean;
+  onboardingCompleted?: boolean;
   avatarColor?: string;
   avatarInitials?: string;
   createdAt?: string;
@@ -44,6 +49,10 @@ interface FarmerContextType {
     district?: string;
     state?: string;
     farmName?: string;
+    pincode?: string;
+    locationPermission?: boolean;
+    notificationsEnabled?: boolean;
+    onboardingCompleted?: boolean;
   }) => Promise<void>;
   updateProfile: (updates: Partial<FarmerProfile>) => Promise<void>;
   /** Client-side logout — clears AsyncStorage tokens. */
@@ -144,6 +153,10 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
     district?: string;
     state?: string;
     farmName?: string;
+    pincode?: string;
+    locationPermission?: boolean;
+    notificationsEnabled?: boolean;
+    onboardingCompleted?: boolean;
   }) => {
     const token = accessToken;
     const avatarColor = pickAvatarColor(data.name);
@@ -156,6 +169,10 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
       district: data.district?.trim(),
       state: data.state ?? "Tamil Nadu",
       farmName: data.farmName?.trim() || undefined,
+      pincode: data.pincode,
+      locationPermission: data.locationPermission,
+      notificationsEnabled: data.notificationsEnabled,
+      onboardingCompleted: data.onboardingCompleted,
       avatarColor,
       avatarInitials,
     };

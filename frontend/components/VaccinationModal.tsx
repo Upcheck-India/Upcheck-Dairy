@@ -3,9 +3,11 @@ import React, { useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
-import { useApp, Vaccination, VaccineType, generateId, getTodayString } from "@/context/AppContext";
+import { VaccineType, getTodayString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
+import { useVaccination } from "../src/modules/vaccination/hooks/useVaccination";
 
 interface Props {
   visible: boolean;
@@ -26,7 +28,8 @@ const VACCINE_TYPES: Array<{ type: VaccineType; label: string; labelTa: string; 
 
 export default function VaccinationModal({ visible, onClose, preselectedAnimalId }: Props) {
   const colors = useColors();
-  const { animals, addVaccination } = useApp();
+  const { animals } = useAnimals();
+  const { createVaccination } = useVaccination();
   const { language } = useLanguage();
 
   const adultAnimals = animals.filter((a) => a.type !== "calf");
@@ -42,25 +45,28 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
   const selectedTypeInfo = VACCINE_TYPES.find((v) => v.type === vaccineType);
   const isTa = language === "ta";
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedAnimalId) { Alert.alert("Error", "Please select an animal"); return; }
     if (!scheduledDate) { Alert.alert("Error", "Please enter a date"); return; }
 
     setSaving(true);
-    const vax: Vaccination = {
-      id: generateId(),
-      animalId: selectedAnimalId,
-      vaccineName: vaccineName.trim() || (selectedTypeInfo?.label ?? vaccineType),
-      vaccineType,
-      scheduledDate,
-      batchNo: batchNo.trim() || undefined,
-      cost: cost ? parseFloat(cost) : undefined,
-      note: note.trim() || undefined,
-    };
-    addVaccination(vax);
-    setSaving(false);
-    resetForm();
-    onClose();
+    try {
+      await createVaccination({
+        animalId: Number(selectedAnimalId),
+        vaccineName: vaccineName.trim() || (selectedTypeInfo?.label ?? vaccineType),
+        vaccineType,
+        scheduledDate: new Date(scheduledDate).toISOString(),
+        batchNo: batchNo.trim() || undefined,
+        cost: cost ? parseFloat(cost) : undefined,
+        note: note.trim() || undefined,
+      });
+      resetForm();
+      onClose();
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to schedule vaccination");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const resetForm = () => {

@@ -1,10 +1,12 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useApp, BreedingEventType } from "@/context/AppContext";
+import { BreedingEventType } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import BreedingEventModal from "./BreedingEventModal";
 import { useColors } from "@/hooks/useColors";
+import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
+import { useBreeding } from "../src/modules/breeding/hooks/useBreeding";
 
 type EventConfig = {
   iconName: keyof typeof Feather.glyphMap;
@@ -12,7 +14,7 @@ type EventConfig = {
   label: Record<string, string>;
 };
 
-const EVENT_CONFIG: Record<BreedingEventType, EventConfig> = {
+const EVENT_CONFIG: Record<any, EventConfig> = {
   heat: {
     iconName: "thermometer", color: "#f59e0b",
     label: { ta: "ஈட்டு", te: "వేడి", kn: "ಉಷ್ಣ", ml: "ചൂട്", hi: "गर्मी", en: "In Heat" },
@@ -31,7 +33,7 @@ const EVENT_CONFIG: Record<BreedingEventType, EventConfig> = {
   },
   calving: {
     iconName: "heart", color: "#10b981",
-    label: { ta: "குட்டி போட்டது", te: "లేగ దూడ పుట்టింది", kn: "ಕರು ಹಾಕಿದೆ", ml: "കിടാവ് ജനിച்ചു", hi: "बच्चा हुआ", en: "Calved" },
+    label: { ta: "குட்டி போட்டது", te: "లేగ దూడ పుట்ட்டிంది", kn: "ಕರು ಹಾಕಿದೆ", ml: "കിടാവ് ജനിച്ചു", hi: "बच्चा हुआ", en: "Calved" },
   },
   abort: {
     iconName: "alert-triangle", color: "#ef4444",
@@ -44,17 +46,18 @@ const CALVING_GENDER: Record<string, Record<string, string>> = {
   female: { ta: "பெண் கன்று", te: "ఆడ దూడ", kn: "ಹೆಣ್ಣು ಕರು", ml: "പെൺ കിടാവ്", hi: "मादा बछड़ा", en: "Female calf" },
 };
 
-function daysSince(dateStr: string): number {
+function daysSince(dateStr: any): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function daysUntil(dateStr: string): number {
+function daysUntil(dateStr: any): number {
   return Math.floor((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
 export default function BreedingSection() {
   const colors = useColors();
-  const { animals, breedingEvents } = useApp();
+  const { animals } = useAnimals();
+  const { breedingEvents } = useBreeding();
   const { language, t } = useLanguage();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedAnimalId, setSelectedAnimalId] = useState<string | undefined>();
@@ -85,7 +88,7 @@ export default function BreedingSection() {
         adultAnimals.map((animal) => {
           const events = breedingEvents
             .filter((e) => e.animalId === animal.id)
-            .sort((a, b) => b.date.localeCompare(a.date));
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
           return (
             <View key={animal.id} style={styles.animalCard}>
@@ -119,7 +122,7 @@ export default function BreedingSection() {
               {animal.expectedCalvingDate && (
                 <View style={styles.calvingAlert}>
                   <Text style={styles.calvingAlertText}>
-                    🐣 {t.calvingExpected} {animal.expectedCalvingDate}
+                    🐣 {t.calvingExpected} {new Date(animal.expectedCalvingDate).toLocaleDateString(language === "ta" ? "ta-IN" : "en-US", { month: "short", day: "numeric", year: "numeric" })}
                     {daysUntil(animal.expectedCalvingDate) >= 0
                       ? ` (${daysUntil(animal.expectedCalvingDate)} ${t.daysLabel})`
                       : ` (${t.overdueLabel})`}
@@ -141,7 +144,7 @@ export default function BreedingSection() {
                         {i < events.slice(0, 4).length - 1 && <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />}
                         <View style={styles.timelineContent}>
                           <Text style={[styles.timelineEventName, { color: colors.foreground }]}>{cfg.label[language] ?? cfg.label.en}</Text>
-                          <Text style={[styles.timelineDate, { color: colors.mutedForeground }]}>{event.date} · {daysSince(event.date)}{t.daysAgoSuffix}</Text>
+                          <Text style={[styles.timelineDate, { color: colors.mutedForeground }]}>{new Date(event.date).toLocaleDateString(language === "ta" ? "ta-IN" : "en-US", { month: "short", day: "numeric" })} · {daysSince(event.date)}{t.daysAgoSuffix}</Text>
                           {event.bullName && <Text style={[styles.timelineNote, { color: colors.secondaryForeground }]}>Bull: {event.bullName}</Text>}
                           {event.calvingGender && (
                             <Text style={[styles.timelineNote, { color: colors.secondaryForeground }]}>

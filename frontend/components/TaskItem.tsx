@@ -3,8 +3,9 @@ import * as Haptics from "expo-haptics";
 import React, { useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Task, useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { useTasks } from "../src/modules/tasks/hooks/useTasks";
+import { Task } from "../src/modules/tasks/models/Task";
 
 const TASK_ICONS: Record<string, string> = {
   milk: "droplet",
@@ -20,7 +21,7 @@ interface TaskItemProps {
 
 export default function TaskItem({ task }: TaskItemProps) {
   const colors = useColors();
-  const { toggleTaskComplete } = useApp();
+  const { toggleTaskComplete } = useTasks();
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePress = () => {
@@ -37,7 +38,7 @@ export default function TaskItem({ task }: TaskItemProps) {
         useNativeDriver: true,
       }),
     ]).start();
-    toggleTaskComplete(task.id);
+    toggleTaskComplete(Number(task.id)).catch((err) => console.error(err));
   };
 
   const iconName = TASK_ICONS[task.type] ?? "check-square";

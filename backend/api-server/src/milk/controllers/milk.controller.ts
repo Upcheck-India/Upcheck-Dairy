@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Inject } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers } from "@nestjs/common";
 import { MilkService } from "../services/milk.service";
 import { CreateMilkEntryDto } from "../dto/create-milk-entry.dto";
 import { UpdateMilkEntryDto } from "../dto/update-milk-entry.dto";
@@ -12,6 +12,11 @@ export class MilkController {
   @Post()
   async create(@GetUser() user: Farmer, @Body() dto: CreateMilkEntryDto) {
     return this.milkService.create(user.id, dto);
+  }
+
+  @Get()
+  async getMyMilk(@GetUser() user: Farmer, @Headers("x-farm-id") farmId: string) {
+    return this.milkService.getFarmHistory(user.id, farmId);
   }
 
   @Get("animal/:animalId")

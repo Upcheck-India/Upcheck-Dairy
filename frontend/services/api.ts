@@ -215,13 +215,19 @@ export interface FarmerProfile {
   id: string;
   name: string;
   phone?: string;
+  email?: string;
   farmName?: string;
   village?: string;
   district?: string;
   state?: string;
+  pincode?: string;
+  locationPermission?: boolean;
+  notificationsEnabled?: boolean;
+  onboardingCompleted?: boolean;
   avatarInitials?: string;
   avatarColor?: string;
   createdAt?: string;
+  totalLandAcres?: number;
 }
 
 export async function fetchProfile(accessToken: string): Promise<FarmerProfile | null> {

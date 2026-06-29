@@ -20,6 +20,8 @@ import HealthNoteModal from "@/components/HealthNoteModal";
 import { generateId, getTodayString, HealthStatus, useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
+import { useHealth } from "../../src/modules/health/hooks/useHealth";
 
 const LOCALE_MAP: Record<string, string> = {
   ta: "ta-IN", te: "te-IN", kn: "kn-IN", ml: "ml-IN", hi: "hi-IN", en: "en-IN",
@@ -29,7 +31,9 @@ export default function AnimalDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { animals, milkEntries, healthEvents, updateAnimal, deleteAnimal, addHealthEvent } = useApp();
+  const { milkEntries } = useApp();
+  const { animals, updateAnimal, removeAnimal } = useAnimals();
+  const { healthEvents, createEvent } = useHealth();
   const { t, language } = useLanguage();
   const [milkLogVisible, setMilkLogVisible] = useState(false);
   const [healthNoteVisible, setHealthNoteVisible] = useState(false);
@@ -89,16 +93,16 @@ export default function AnimalDetail() {
         text: t.animalDetailDeleteConfirm,
         style: "destructive",
         onPress: () => {
-          deleteAnimal(animal.id);
+          removeAnimal(Number(animal.id));
           router.back();
         },
       },
     ]);
   };
 
-  const setHealthStatus = (status: HealthStatus) => {
+  const setHealthStatus = (status: any) => {
     Haptics.selectionAsync();
-    updateAnimal({ ...animal, healthStatus: status });
+    updateAnimal(Number(animal.id), { healthStatus: status });
   };
 
   const handleCamera = () => {
@@ -119,7 +123,7 @@ export default function AnimalDetail() {
             quality: 0.7,
           });
           if (!result.canceled && result.assets[0]) {
-            updateAnimal({ ...animal, photoUri: result.assets[0].uri });
+            updateAnimal(Number(animal.id), { photoUri: result.assets[0].uri });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }
         },
@@ -139,7 +143,7 @@ export default function AnimalDetail() {
             quality: 0.7,
           });
           if (!result.canceled && result.assets[0]) {
-            updateAnimal({ ...animal, photoUri: result.assets[0].uri });
+            updateAnimal(Number(animal.id), { photoUri: result.assets[0].uri });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }
         },
@@ -152,12 +156,13 @@ export default function AnimalDetail() {
   };
 
   const handleSelectHealthNote = (description: string) => {
-    addHealthEvent({
-      id: generateId(),
-      animalId: animal.id,
-      date: getTodayString(),
+    createEvent({
+      animalId: Number(animal.id),
+      date: new Date().toISOString(),
       type: "observation",
       description,
+    }).catch(err => {
+      console.error("[AnimalDetail] Failed to create health event:", err);
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setHealthNoteVisible(false);
@@ -352,7 +357,7 @@ export default function AnimalDetail() {
                     {e.description}
                   </Text>
                   <Text style={[styles.healthEntryDate, { color: colors.mutedForeground }]}>
-                    {e.date}
+                    {new Date(e.date).toLocaleDateString(LOCALE_MAP[language] ?? "en-IN", { day: "numeric", month: "short", year: "numeric" })}
                     {e.veterinarianName ? ` • Dr. ${e.veterinarianName}` : ""}
                   </Text>
                 </View>

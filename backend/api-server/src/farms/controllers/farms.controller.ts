@@ -59,6 +59,12 @@ export class LegacyFarmController {
     if (body.village !== undefined) updates.village = body.village;
     if (body.district !== undefined) updates.district = body.district;
     if (body.avatarInitials !== undefined) updates.avatarInitials = body.avatarInitials;
+    if (body.state !== undefined) updates.state = body.state;
+    if (body.pincode !== undefined) updates.pincode = body.pincode;
+    if (body.onboardingCompleted !== undefined) updates.onboardingCompleted = body.onboardingCompleted;
+    if (body.locationPermission !== undefined) updates.locationPermission = body.locationPermission;
+    if (body.notificationsEnabled !== undefined) updates.notificationPermission = body.notificationsEnabled;
+    if (body.notificationPermission !== undefined) updates.notificationPermission = body.notificationPermission;
 
     return this.userRepository.update(user.id, updates);
   }
