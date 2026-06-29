@@ -26,20 +26,22 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useFarm } from "../../src/modules/farms/hooks/useFarm";
 import { FarmSelector } from "../../src/modules/farms/components/FarmSelector";
+import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
 
 type SubTab = "herd" | "breeding" | "vaccines";
 
 export default function AnimalsTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { animals, milkAnomalies, syncStatus, vaccinations, breedingEvents, isLoaded, reloadData } = useApp();
+  const { milkAnomalies, syncStatus, vaccinations, breedingEvents, isLoaded: appLoaded, reloadData } = useApp();
   const { farmer } = useFarmer();
   const { activeFarm } = useFarm();
+  const { animals, loading: animalsLoading, refresh: refreshAnimals } = useAnimals();
   const { language, t } = useLanguage();
   const [subTab, setSubTab] = useState<SubTab>("herd");
   const [addVisible, setAddVisible] = useState(false);
   const [selectorVisible, setSelectorVisible] = useState(false);
-  const [milkAnimal, setMilkAnimal] = useState<Animal | null>(null);
+  const [milkAnimal, setMilkAnimal] = useState<any | null>(null);
   const [filter, setFilter] = useState("all");
   const [celebration, setCelebration] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -69,7 +71,7 @@ export default function AnimalsTab() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await reloadData();
+    await Promise.all([reloadData(), refreshAnimals()]);
     setRefreshing(false);
   };
 
@@ -245,7 +247,7 @@ export default function AnimalsTab() {
             </View>
           )}
 
-          {!isLoaded ? (
+          {animalsLoading ? (
             <View style={styles.empty}>
               <ActivityIndicator size="large" color={colors.primary} />
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>

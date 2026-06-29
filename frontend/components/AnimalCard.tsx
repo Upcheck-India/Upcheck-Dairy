@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 
-import { Animal } from "@/context/AppContext";
+import { Animal } from "../src/modules/animals/models/Animal";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 

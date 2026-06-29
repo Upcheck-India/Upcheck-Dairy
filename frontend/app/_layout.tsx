@@ -18,6 +18,7 @@ import { FarmerProvider, useFarmer } from "@/context/FarmerContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { DatabaseProvider } from "@/context/DatabaseContext";
 import { FarmProvider, useFarmContext } from "../src/modules/farms/context/FarmProvider";
+import { AnimalProvider } from "../src/modules/animals/context/AnimalProvider";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -113,13 +114,15 @@ export default function RootLayout() {
             <LanguageProvider>
               <FarmerProvider>
                 <FarmProvider>
-                  <AppProvider>
-                    <GestureHandlerRootView>
-                      <AuthGuard>
-                        <RootLayoutNav />
-                      </AuthGuard>
-                    </GestureHandlerRootView>
-                  </AppProvider>
+                  <AnimalProvider>
+                    <AppProvider>
+                      <GestureHandlerRootView>
+                        <AuthGuard>
+                          <RootLayoutNav />
+                        </AuthGuard>
+                      </GestureHandlerRootView>
+                    </AppProvider>
+                  </AnimalProvider>
                 </FarmProvider>
               </FarmerProvider>
             </LanguageProvider>

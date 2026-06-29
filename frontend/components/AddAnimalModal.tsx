@@ -14,9 +14,10 @@ import {
   View,
 } from "react-native";
 
-import { Animal, AnimalType, COW_BREEDS, BUFFALO_BREEDS, generateId, useApp } from "@/context/AppContext";
+import { Animal, AnimalType, COW_BREEDS, BUFFALO_BREEDS, generateId } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 
 interface AddAnimalModalProps {
   visible: boolean;
@@ -31,7 +32,7 @@ function getBreedsForType(type: AnimalType): string[] {
 
 export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps) {
   const colors = useColors();
-  const { addAnimal } = useApp();
+  const { createAnimal } = useAnimals();
   const { t } = useLanguage();
   const [name, setName] = useState("");
   const [type, setType] = useState<AnimalType>("cow");
@@ -84,15 +85,15 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
       Alert.alert(t.error, t.addAnimalBreedRequired);
       return;
     }
-    const animal: Animal = {
-      id: generateId(),
+    createAnimal({
       name: name.trim(),
       type,
       breed: finalBreed,
-      tagNumber: tagNumber.trim() || generateId().slice(0, 6).toUpperCase(),
+      tagNumber: tagNumber.trim() || undefined,
       healthStatus: "healthy",
-    };
-    addAnimal(animal);
+    }).catch(err => {
+      console.error("[AddAnimalModal] Failed to create animal:", err);
+    });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onClose();
   };

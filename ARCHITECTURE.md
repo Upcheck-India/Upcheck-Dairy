@@ -26,28 +26,252 @@ src/
 
 ---
 
-## 2. Layer Boundaries & Guidelines
+## 2. Dependency Flow
 
-### Core Layer
-- **Responsibility**: Expose application infrastructure only.
-- **Rules**:
-  - No domain or business logic.
-  - Independent of React lifecycle (can be called outside hooks/providers).
+Dependencies must only flow in one direction:
 
-### Repository Layer (inside `modules/*/api/`)
-- **Responsibility**: Perform backend REST calls, manage caching/namespaced storage, DTO mapping.
-- **Rules**:
-  - Must never contain UI code, show alerts, modals, or handle React state.
-  - Return Domain Models instead of raw API response JSON (DTOs).
+```text
+Screen
+   │
+   ▼
+Component
+   │
+   ▼
+Hook (e.g., useAnimals)
+   │
+   ▼
+Provider (React Context)
+   │
+   ▼
+Repository (Persistence) ───► Mapper (DTO Converter)
+   │
+   └────────────────────────► ApiClient (Core HTTP Client)
+```
 
-### Provider Layer (inside `modules/*/context/`)
-- **Responsibility**: React Context Providers for global/feature UI state.
-- **Rules**:
-  - Manage React states, loading states, and active records.
-  - Do not call fetch or AsyncStorage directly—always delegate to Repositories.
+Lower layers must never depend on higher layers.
 
-### Component Layer (inside `modules/*/components/` and `shared/components/`)
-- **Responsibility**: Pure UI rendering.
-- **Rules**:
-  - Should only consume custom hooks (e.g. `useFarm`) or receive props.
-  - No direct data fetching or heavy business logic.
+**Examples**:
+* **Allowed**: `Provider` → `Repository`
+* **Allowed**: `Repository` → `Mapper`
+* **Allowed**: `Repository` → `ApiClient`
+* **Forbidden**: `Repository` → `Provider`
+* **Forbidden**: `Component` → `Repository`
+* **Forbidden**: `Core` → `Modules`
+
+---
+
+## 3. Core vs Shared
+
+### Core
+Contains application infrastructure.
+- **Initialization**: Initialized once during application startup. Core services are long-lived singletons.
+- **Examples**: `ApiClient`, `Storage`, `EventBus`, `Constants`, `Configuration`.
+- **Rule**: Core never contains business logic or feature states.
+
+### Shared
+Contains reusable UI/utility code.
+- **Examples**: `shared/components/`, `shared/hooks/`, `shared/types/`, `shared/utils/`.
+- **Rule**: Shared must never depend on feature modules.
+
+---
+
+## 4. Module Boundaries & Ownership
+
+Each business entity has exactly one owning module:
+
+### Animals Module
+- Animal profiles
+- Breed & tag number
+- Age & lifecycle stages
+- Weight & Body Condition Score
+
+### Milk Module
+- Milk collection logs
+- Session data (morning/evening)
+- Milk history & yield metrics
+
+### Health Module
+- Disease records & symptoms
+- Treatments & medications
+- Vaccinations
+
+### Finance Module
+- Income logs & invoice records
+- Feed, medicine, and operational expenses
+- Revenue sales analytics
+
+No feature module may modify another module's state directly. Interactions must happen through the backend or shared infrastructure. Feature modules may never import another feature module directly.
+
+---
+
+## 5. Standard Module Layout
+
+Every business module should follow this structure:
+
+```text
+modules/[feature_name]/
+├── api/             # Repositories & Mappers
+├── components/      # Feature-specific components
+├── context/         # React state providers
+├── hooks/           # Context hooks
+├── models/          # Domain Models
+├── screens/         # Feature screens
+├── types/           # Request/Response/Data Types
+└── utils/           # Helper functions
+```
+
+---
+
+## 6. Repository Lifecycle & Data Flow
+
+Every data request follows this end-to-end pipeline:
+
+```text
+Request ──► ApiClient ──► DTO ──► Mapper ──► Domain Model ──► Cache (optional) ──► Provider
+```
+
+Repositories are the **single source of truth** for data access. The Repository orchestrates both the `ApiClient` (fetching DTOs) and the `Mapper` (translating DTOs into Domain Models), handling offline local storage transparently. Consumers never know where the data originated.
+
+---
+
+## 7. Domain Models & DTOs
+
+### DTOs
+DTOs are transport contracts. They represent the data shape returned or accepted by the backend API. They may change independently of Domain Models. Providers, Components, and Screens must never depend on DTOs.
+
+### Domain Models
+Domain Models are immutable business representations.
+- **Allowed**: Expose computed getters, formatting helpers, business rules, validation helpers, and derived states.
+- **Forbidden**: Expose mutable UI state (e.g. `animal.selected = true` or `loading` states), perform API requests, read storage, or access React Context.
+
+---
+
+## 8. State Ownership
+
+Different layers own specific categories of application states:
+- **Persistent Business Data**: Owned by the `Repository` (backed by Cache/API).
+- **Transient UI State** (e.g., loading, current error, selected list filter): Owned by the `Provider`.
+- **Presentation State** (e.g., expanded card index, temporary form input): Owned by the `Component` / `Screen` locally.
+- **Application Infrastructure**: Owned by `Core`.
+
+---
+
+## 9. Dependency Injection & Instantiation
+
+- Repositories and Core services are exposed as singleton instances (e.g. `export const animalRepository = new AnimalRepository()`).
+- Providers depend on repository interfaces rather than concrete implementations whenever practical.
+- Components, Screens, and Hooks must never instantiate repositories or core services directly.
+
+---
+
+## 10. Error Flow
+
+Errors flow upwards through layers:
+
+```text
+ApiClient (throws HTTP error)
+   │
+   ▼
+Repository (maps database/network errors to domain exceptions)
+   │
+   ▼
+Provider (catches and exposes clean error states to UI)
+   │
+   ▼
+Screen (decides what message to show)
+   │
+   ▼
+Component (renders error banner/fallback UI)
+```
+
+---
+
+## 11. Layer Rules
+
+### Provider Rules
+- **Responsible for**: UI state (loading, error, list states), selected records, calling repositories.
+- **Must NOT**: Know API URLs, use `fetch`, read `AsyncStorage` directly, map DTOs.
+
+### Repository Rules
+- **Responsible for**: HTTP requests, local cache (private, transparent to provider), DTO mapping, storage.
+- **Must NOT**: Use React, navigate, show UI, show toasts, open modals.
+
+### Screen Rules
+Screens compose components.
+- **May**: Call hooks, trigger actions.
+- **Must NOT**: Perform HTTP requests, read `AsyncStorage`, implement business logic.
+
+---
+
+## 12. Naming Conventions
+
+- **Repositories**: `[Feature]Repository` (e.g. `AnimalRepository`, `FarmRepository`)
+- **Providers**: `[Feature]Provider` (e.g. `AnimalProvider`, `FarmProvider`)
+- **Hooks**: `use[Feature]()` (e.g. `useAnimals()`, `useFarm()`)
+- **Components**: PascalCase (e.g. `AnimalCard`, `FarmSelector`)
+- **DTOs**: `[Action][Feature]Request/ResponseDto` (e.g. `CreateAnimalRequestDto`, `AnimalResponseDto`)
+
+---
+
+## 13. EventBus
+
+The EventBus is intended only for global application events.
+- **Examples**: `USER_LOGGED_OUT`, `THEME_CHANGED`.
+- Repositories and providers may subscribe to events.
+- Components should generally rely on React state/context instead.
+
+---
+
+## 14. Testing Strategy
+
+- **Repositories**: Unit tested using a mocked `ApiClient` and mock Storage.
+- **Providers**: Tested with mocked Repositories.
+- **Components**: Tested using mocked hooks/providers.
+- **Screens**: Tested through mocked user interactions.
+- **Domain Models**: Unit tested independently for business rules, formatting, and computed properties.
+- **ApiClient**: Integration tested independently against static mock endpoints.
+
+---
+
+## 15. Complete End-to-End System Alignment
+
+Both sides of the stack mirror each other's layering:
+
+```text
+Frontend: Screen ──► Component ──► Hook ──► Provider ──► Repository ──► ApiClient/Mapper ──► HTTP
+                                                                                              │
+                                                                                              ▼
+Backend:  Controller ──► Service ──► Repository ──► Database ◄────────────────────────────────┘
+```
+
+---
+
+## 16. Anti-Patterns
+
+- ❌ Screens must not call `ApiClient`.
+- ❌ Screens must not use `AsyncStorage`.
+- ❌ Providers must not map DTOs.
+- ❌ Repositories must not import React.
+- ❌ Components must not call repositories.
+- ❌ Domain Models must not perform HTTP requests.
+- ❌ Shared must not import feature modules.
+- ❌ Core must never import modules.
+
+---
+
+## 17. Feature Modules Status
+
+### Current Modules
+- [x] **Auth**: authentication and settings
+- [x] **Farms**: Farm management and active farm context
+- [x] **Animals**: Animal profiles, breed, tag, weight, and lifecycle
+
+### Upcoming Modules
+- [ ] **Milk**: collection logging, daily production metrics
+- [ ] **Health**: diseases, vaccinations, treatments
+- [ ] **Breeding**: heat cycle monitoring, pregnancy, calving history
+- [ ] **Inventory**: feed, medicines, supplies, equipment
+- [ ] **Tasks**: daily routines, reminders, schedules
+- [ ] **Finance**: income, feed/medicine expenses, sales
+- [ ] **Analytics**: yields, profit margins, cost-to-feed forecasting
+- [ ] **AI (GauGuru)**: voice diagnostics, assistant chat interfaces
