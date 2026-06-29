@@ -13,9 +13,11 @@ import {
   View,
 } from "react-native";
 
-import { Animal, MilkEntry, generateId, getTodayString, useApp } from "@/context/AppContext";
+import { generateId, getTodayString } from "@/context/AppContext";
+import { Animal } from "../src/modules/animals/models/Animal";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { useMilk } from "../src/modules/milk/hooks/useMilk";
 
 interface MilkLogModalProps {
   visible: boolean;
@@ -31,7 +33,7 @@ export default function MilkLogModal({
   onSuccess,
 }: MilkLogModalProps) {
   const colors = useColors();
-  const { addMilkEntry } = useApp();
+  const { createMilk } = useMilk();
   const { t } = useLanguage();
   const [quantity, setQuantity] = useState("");
   const [session, setSession] = useState<"morning" | "evening">(
@@ -64,17 +66,16 @@ export default function MilkLogModal({
       Alert.alert(t.error, t.milkLogInvalidQty);
       return;
     }
-    const entry: MilkEntry = {
-      id: generateId(),
-      animalId: animal.id,
+    createMilk({
+      animalId: Number(animal.id),
       session,
       quantity: qty,
-      date: getTodayString(),
-      timestamp: Date.now(),
+      date: new Date().toISOString(),
       fat: fat ? parseFloat(fat) : undefined,
       notes: notes || undefined,
-    };
-    addMilkEntry(entry);
+    }).catch(err => {
+      console.error("[MilkLogModal] Failed to create milk entry:", err);
+    });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onSuccess?.();
     onClose();

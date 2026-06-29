@@ -58,11 +58,14 @@ This roadmap defines the implementation order for UpCheck Dairy feature modules.
 - [ ] Rebuild Income, Expenses, milk sales, and feed costs under `FinanceRepository`
 - [ ] Implement `FinanceProvider` and custom `useFinance` hook
 
-### ⏹ Phase 9: Dashboard
+### ⏹ Phase 9: Offline Sync
+- [ ] Build conflict resolution engine, retry queue, background synchronization, and stale data policies
+
+### ⏹ Phase 10: Dashboard
 - [ ] Refactor dashboard composition layer (combines data from `useAnimals`, `useMilk`, `useFinance`, etc.)
 
-### ⏹ Phase 10: Analytics
+### ⏹ Phase 11: Analytics
 - [ ] Implement `AnalyticsRepository` fetching cost-to-feed, production forecasting, and profit margins
 
-### ⏹ Phase 11: AI Integration (GauGuru)
+### ⏹ Phase 12: AI Integration (GauGuru)
 - [ ] Build Chat screens and voice assistance orchestrating the structured feature module APIs

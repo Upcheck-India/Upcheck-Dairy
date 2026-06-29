@@ -20,6 +20,7 @@ import HealthNoteModal from "@/components/HealthNoteModal";
 import { generateId, getTodayString, HealthStatus, useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
 
 const LOCALE_MAP: Record<string, string> = {
   ta: "ta-IN", te: "te-IN", kn: "kn-IN", ml: "ml-IN", hi: "hi-IN", en: "en-IN",
@@ -29,7 +30,8 @@ export default function AnimalDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { animals, milkEntries, healthEvents, updateAnimal, deleteAnimal, addHealthEvent } = useApp();
+  const { milkEntries, healthEvents, addHealthEvent } = useApp();
+  const { animals, updateAnimal, removeAnimal } = useAnimals();
   const { t, language } = useLanguage();
   const [milkLogVisible, setMilkLogVisible] = useState(false);
   const [healthNoteVisible, setHealthNoteVisible] = useState(false);
@@ -89,16 +91,16 @@ export default function AnimalDetail() {
         text: t.animalDetailDeleteConfirm,
         style: "destructive",
         onPress: () => {
-          deleteAnimal(animal.id);
+          removeAnimal(Number(animal.id));
           router.back();
         },
       },
     ]);
   };
 
-  const setHealthStatus = (status: HealthStatus) => {
+  const setHealthStatus = (status: any) => {
     Haptics.selectionAsync();
-    updateAnimal({ ...animal, healthStatus: status });
+    updateAnimal(Number(animal.id), { healthStatus: status });
   };
 
   const handleCamera = () => {
@@ -119,7 +121,7 @@ export default function AnimalDetail() {
             quality: 0.7,
           });
           if (!result.canceled && result.assets[0]) {
-            updateAnimal({ ...animal, photoUri: result.assets[0].uri });
+            updateAnimal(Number(animal.id), { photoUri: result.assets[0].uri });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }
         },
@@ -139,7 +141,7 @@ export default function AnimalDetail() {
             quality: 0.7,
           });
           if (!result.canceled && result.assets[0]) {
-            updateAnimal({ ...animal, photoUri: result.assets[0].uri });
+            updateAnimal(Number(animal.id), { photoUri: result.assets[0].uri });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }
         },
