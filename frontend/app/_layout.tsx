@@ -21,6 +21,7 @@ import { FarmProvider, useFarmContext } from "../src/modules/farms/context/FarmP
 import { AnimalProvider } from "../src/modules/animals/context/AnimalProvider";
 import { MilkProvider } from "../src/modules/milk/context/MilkProvider";
 import { HealthProvider } from "../src/modules/health/context/HealthProvider";
+import { BreedingProvider } from "../src/modules/breeding/context/BreedingProvider";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -119,13 +120,15 @@ export default function RootLayout() {
                   <AnimalProvider>
                     <MilkProvider>
                       <HealthProvider>
-                        <AppProvider>
-                          <GestureHandlerRootView>
-                            <AuthGuard>
-                              <RootLayoutNav />
-                            </AuthGuard>
-                          </GestureHandlerRootView>
-                        </AppProvider>
+                        <BreedingProvider>
+                          <AppProvider>
+                            <GestureHandlerRootView>
+                              <AuthGuard>
+                                <RootLayoutNav />
+                              </AuthGuard>
+                            </GestureHandlerRootView>
+                          </AppProvider>
+                        </BreedingProvider>
                       </HealthProvider>
                     </MilkProvider>
                   </AnimalProvider>

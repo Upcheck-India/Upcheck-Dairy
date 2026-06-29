@@ -3,9 +3,11 @@ import React, { useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
-import { useApp, BreedingEvent, BreedingEventType, generateId, getTodayString } from "@/context/AppContext";
+import { BreedingEventType, getTodayString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
+import { useBreeding } from "../src/modules/breeding/hooks/useBreeding";
 
 interface Props {
   visible: boolean;
@@ -30,7 +32,8 @@ function addDays(dateStr: string, days: number): string {
 
 export default function BreedingEventModal({ visible, onClose, preselectedAnimalId }: Props) {
   const colors = useColors();
-  const { animals, addBreedingEvent } = useApp();
+  const { animals } = useAnimals();
+  const { createBreeding } = useBreeding();
   const { language } = useLanguage();
 
   const adultAnimals = animals.filter((a) => a.type !== "calf");
@@ -53,20 +56,23 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
     if (!date) { Alert.alert("Error", "Please enter the date"); return; }
 
     setSaving(true);
-    const event: BreedingEvent = {
-      id: generateId(),
-      animalId: selectedAnimalId,
-      eventType,
-      date,
-      note: note.trim() || undefined,
-      bullName: bullName.trim() || undefined,
-      expectedCalvingDate,
-      calvingGender: calvingGender || undefined,
-    };
-    addBreedingEvent(event);
-    setSaving(false);
-    resetForm();
-    onClose();
+    try {
+      await createBreeding({
+        animalId: Number(selectedAnimalId),
+        eventType,
+        date: new Date(date).toISOString(),
+        note: note.trim() || undefined,
+        bullName: bullName.trim() || undefined,
+        expectedCalvingDate: expectedCalvingDate ? new Date(expectedCalvingDate).toISOString() : undefined,
+        calvingGender: calvingGender || undefined,
+      });
+      resetForm();
+      onClose();
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to save breeding event");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const resetForm = () => {

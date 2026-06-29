@@ -27,13 +27,15 @@ import { useColors } from "@/hooks/useColors";
 import { useFarm } from "../../src/modules/farms/hooks/useFarm";
 import { FarmSelector } from "../../src/modules/farms/components/FarmSelector";
 import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
+import { useBreeding } from "../../src/modules/breeding/hooks/useBreeding";
 
 type SubTab = "herd" | "breeding" | "vaccines";
 
 export default function AnimalsTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { milkAnomalies, syncStatus, vaccinations, breedingEvents, isLoaded: appLoaded, reloadData } = useApp();
+  const { milkAnomalies, syncStatus, vaccinations, isLoaded: appLoaded, reloadData } = useApp();
+  const { breedingEvents, refresh: refreshBreeding } = useBreeding();
   const { farmer } = useFarmer();
   const { activeFarm } = useFarm();
   const { animals, loading: animalsLoading, refresh: refreshAnimals } = useAnimals();
@@ -71,7 +73,7 @@ export default function AnimalsTab() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([reloadData(), refreshAnimals()]);
+    await Promise.all([reloadData(), refreshAnimals(), refreshBreeding()]);
     setRefreshing(false);
   };
 
@@ -93,7 +95,7 @@ export default function AnimalsTab() {
   const breedingAlertCount = animals.filter((a) => {
     if (a.type === "calf" || a.isPregnant) return false;
     const lastHeat = breedingEvents.filter((e) => e.animalId === a.id && e.eventType === "heat")
-      .sort((x, y) => y.date.localeCompare(x.date))[0];
+      .sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime())[0];
     if (!lastHeat) return false;
     const days = Math.floor((Date.now() - new Date(lastHeat.date).getTime()) / 86400000);
     return days >= 18 && days <= 24;
