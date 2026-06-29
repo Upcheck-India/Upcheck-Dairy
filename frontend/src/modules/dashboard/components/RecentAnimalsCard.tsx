@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { Animal } from "../../animals/models/Animal";
@@ -42,9 +42,13 @@ export function RecentAnimalsCard({
               onPress={() => onAnimalPress(animal.id)}
             >
               <View style={styles.animalLeft}>
-                <View style={[styles.avatar, { backgroundColor: animal.avatarColor }]}>
-                  <Text style={styles.avatarText}>{animal.name.charAt(0).toUpperCase()}</Text>
-                </View>
+                {animal.photoUri ? (
+                  <Image source={{ uri: animal.photoUri }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatar, { backgroundColor: animal.avatarColor }]}>
+                    <Text style={styles.avatarText}>{animal.name.charAt(0).toUpperCase()}</Text>
+                  </View>
+                )}
                 <View style={styles.info}>
                   <Text style={[styles.name, { color: colors.foreground }]}>{animal.name}</Text>
                   <Text style={[styles.sub, { color: colors.mutedForeground }]}>

@@ -129,7 +129,7 @@ export function DashboardScreen() {
     .slice(0, 3);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPad + 12 }]}>
       <DashboardHeader
         farmName={activeFarm ? activeFarm.getDisplayName() : "Select Farm"}
         userName={farmer?.name || "Farmer"}
@@ -202,7 +202,6 @@ export function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 12,
   },
   scrollBody: {
     paddingVertical: 12,
