@@ -27,20 +27,18 @@ import { useColors } from "@/hooks/useColors";
 import { useFarm } from "../../src/modules/farms/hooks/useFarm";
 import { FarmSelector } from "../../src/modules/farms/components/FarmSelector";
 import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
-import { useBreeding } from "../../src/modules/breeding/hooks/useBreeding";
-import { useVaccination } from "../../src/modules/vaccination/hooks/useVaccination";
+import { useDashboard } from "../../src/modules/dashboard/hooks/useDashboard";
 
 type SubTab = "herd" | "breeding" | "vaccines";
 
 export default function AnimalsTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { milkAnomalies, syncStatus, isLoaded: appLoaded, reloadData } = useApp();
-  const { breedingEvents, refresh: refreshBreeding } = useBreeding();
-  const { vaccinations, refresh: refreshVaccinations } = useVaccination();
+  const { syncStatus, isLoaded: appLoaded, reloadData } = useApp();
   const { farmer } = useFarmer();
   const { activeFarm } = useFarm();
-  const { animals, loading: animalsLoading, refresh: refreshAnimals } = useAnimals();
+  const { animals, loading: animalsLoading } = useAnimals();
+  const { milkAnomalies, upcomingVaxCount, breedingAlertCount, refreshAll: dashboardRefreshAll } = useDashboard();
   const { language, t } = useLanguage();
   const [subTab, setSubTab] = useState<SubTab>("herd");
   const [addVisible, setAddVisible] = useState(false);
@@ -75,7 +73,7 @@ export default function AnimalsTab() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([reloadData(), refreshAnimals(), refreshBreeding(), refreshVaccinations()]);
+    await Promise.all([reloadData(), dashboardRefreshAll()]);
     setRefreshing(false);
   };
 
@@ -88,20 +86,6 @@ export default function AnimalsTab() {
       ? `⏳ ${t.savingLabel}`
       : "⚠ offline";
 
-  const upcomingVaxCount = vaccinations.filter((v) => {
-    if (v.administeredDate) return false;
-    const days = Math.floor((new Date(v.scheduledDate).getTime() - Date.now()) / 86400000);
-    return days <= 7;
-  }).length;
-
-  const breedingAlertCount = animals.filter((a) => {
-    if (a.type === "calf" || a.isPregnant) return false;
-    const lastHeat = breedingEvents.filter((e) => e.animalId === a.id && e.eventType === "heat")
-      .sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime())[0];
-    if (!lastHeat) return false;
-    const days = Math.floor((Date.now() - new Date(lastHeat.date).getTime()) / 86400000);
-    return days >= 18 && days <= 24;
-  }).length;
 
   const SUB_TABS: Array<{ id: SubTab; iconName: keyof typeof Feather.glyphMap; label: string; badge?: number }> = [
     { id: "herd", iconName: "grid", label: t.herdTab },

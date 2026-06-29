@@ -256,6 +256,8 @@ Backend:  Controller ──► Service ──► Repository ──► Database �
 - ❌ Domain Models must not perform HTTP requests.
 - ❌ Shared must not import feature modules.
 - ❌ Core must never import modules.
+- ❌ Domain services must not know React (they should be pure functions or classes that take raw data and return results).
+- ❌ Composition modules (Dashboard, AI, Analytics) must never duplicate feature business rules; they only orchestrate existing feature modules.
 
 ---
 
@@ -265,13 +267,14 @@ Backend:  Controller ──► Service ──► Repository ──► Database �
 - [x] **Auth**: authentication and settings
 - [x] **Farms**: Farm management and active farm context
 - [x] **Animals**: Animal profiles, breed, tag, weight, and lifecycle
+- [x] **Milk**: collection logging, daily production metrics
+- [x] **Health**: diseases, vaccinations, treatments
+- [x] **Breeding**: heat cycle monitoring, pregnancy, calving history
+- [x] **Inventory**: feed, medicines, supplies, equipment
+- [x] **Tasks**: daily routines, reminders, schedules
+- [x] **Finance**: income, feed/medicine expenses, sales
+- [x] **Dashboard**: composition hook orchestrating feature hook metrics
 
 ### Upcoming Modules
-- [ ] **Milk**: collection logging, daily production metrics
-- [ ] **Health**: diseases, vaccinations, treatments
-- [ ] **Breeding**: heat cycle monitoring, pregnancy, calving history
-- [ ] **Inventory**: feed, medicines, supplies, equipment
-- [ ] **Tasks**: daily routines, reminders, schedules
-- [ ] **Finance**: income, feed/medicine expenses, sales
 - [ ] **Analytics**: yields, profit margins, cost-to-feed forecasting
 - [ ] **AI (GauGuru)**: voice diagnostics, assistant chat interfaces
