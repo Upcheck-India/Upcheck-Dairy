@@ -12,6 +12,7 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { HealthModule } from "./health-check/health.module";
 import { HealthEventsModule } from "./health-events/health-events.module";
 import { BreedingEventsModule } from "./breeding-events/breeding-events.module";
+import { VaccinationsModule } from "./vaccinations/vaccinations.module";
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { BreedingEventsModule } from "./breeding-events/breeding-events.module";
     MilkModule,
     HealthEventsModule,
     BreedingEventsModule,
+    VaccinationsModule,
   ],
   providers: [
     // Register the global ThrottlerGuard so all routes are rate-limited by default

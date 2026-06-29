@@ -28,14 +28,16 @@ import { useFarm } from "../../src/modules/farms/hooks/useFarm";
 import { FarmSelector } from "../../src/modules/farms/components/FarmSelector";
 import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
 import { useBreeding } from "../../src/modules/breeding/hooks/useBreeding";
+import { useVaccination } from "../../src/modules/vaccination/hooks/useVaccination";
 
 type SubTab = "herd" | "breeding" | "vaccines";
 
 export default function AnimalsTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { milkAnomalies, syncStatus, vaccinations, isLoaded: appLoaded, reloadData } = useApp();
+  const { milkAnomalies, syncStatus, isLoaded: appLoaded, reloadData } = useApp();
   const { breedingEvents, refresh: refreshBreeding } = useBreeding();
+  const { vaccinations, refresh: refreshVaccinations } = useVaccination();
   const { farmer } = useFarmer();
   const { activeFarm } = useFarm();
   const { animals, loading: animalsLoading, refresh: refreshAnimals } = useAnimals();
@@ -73,7 +75,7 @@ export default function AnimalsTab() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([reloadData(), refreshAnimals(), refreshBreeding()]);
+    await Promise.all([reloadData(), refreshAnimals(), refreshBreeding(), refreshVaccinations()]);
     setRefreshing(false);
   };
 

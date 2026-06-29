@@ -1,29 +1,31 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import VaccinationModal from "./VaccinationModal";
 import { useColors } from "@/hooks/useColors";
+import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
+import { useVaccination } from "../src/modules/vaccination/hooks/useVaccination";
 
-function daysUntil(dateStr: string): number {
-  return Math.floor((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+function daysUntil(date: Date | string): number {
+  return Math.floor((new Date(date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
 export default function VaccinationSection() {
   const colors = useColors();
-  const { animals, vaccinations, markVaccinationDone, deleteVaccination } = useApp();
+  const { animals } = useAnimals();
+  const { vaccinations, markDone, removeVaccination } = useVaccination();
   const { t } = useLanguage();
   const [modalVisible, setModalVisible] = useState(false);
   const [preselectedId, setPreselectedId] = useState<string | undefined>();
 
   const upcoming = vaccinations
     .filter((v) => !v.administeredDate)
-    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+    .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
 
   const recent = vaccinations
     .filter((v) => !!v.administeredDate)
-    .sort((a, b) => (b.administeredDate ?? "").localeCompare(a.administeredDate ?? ""))
+    .sort((a, b) => new Date(b.administeredDate!).getTime() - new Date(a.administeredDate!).getTime())
     .slice(0, 10);
 
   const handleMarkDone = (id: string) => {
@@ -36,14 +38,16 @@ export default function VaccinationSection() {
           text: t.yes,
           onPress: () => {
             const today = new Date().toISOString().split("T")[0]!;
-            markVaccinationDone(id, today);
+            markDone(Number(id), today).catch(err => {
+              console.error("[VaccinationSection] Failed to mark vaccine done:", err);
+            });
           },
         },
       ]
     );
   };
 
-  const getStatusColor = (scheduledDate: string) => {
+  const getStatusColor = (scheduledDate: Date | string) => {
     const days = daysUntil(scheduledDate);
     if (days < 0) return "#dc2626";
     if (days <= 3) return "#f97316";
@@ -51,7 +55,7 @@ export default function VaccinationSection() {
     return "#16a34a";
   };
 
-  const getStatusLabel = (scheduledDate: string) => {
+  const getStatusLabel = (scheduledDate: Date | string) => {
     const days = daysUntil(scheduledDate);
     if (days < 0) return `${-days} ${t.daysLabel} ${t.overdueLabel}`;
     if (days === 0) return t.today + "!";
@@ -89,7 +93,7 @@ export default function VaccinationSection() {
                   <View>
                     <Text style={styles.vaxAnimalName}>{animal.name}</Text>
                     <Text style={styles.vaxName}>{vax.vaccineName}</Text>
-                    <Text style={styles.vaxDate}>{t.scheduledDateLabel} {vax.scheduledDate}</Text>
+                    <Text style={styles.vaxDate}>{t.scheduledDateLabel} {new Date(vax.scheduledDate).toLocaleDateString()}</Text>
                   </View>
                 </View>
                 <View style={styles.vaxRight}>
@@ -99,7 +103,11 @@ export default function VaccinationSection() {
                       <Feather name="check" size={14} color="#16a34a" />
                       <Text style={styles.doneBtnText}>{t.markDoneBtn}</Text>
                     </Pressable>
-                    <Pressable onPress={() => deleteVaccination(vax.id)} style={styles.deleteBtn}>
+                    <Pressable onPress={() => {
+                      removeVaccination(Number(vax.id)).catch(err => {
+                        console.error("[VaccinationSection] Failed to delete vaccination:", err);
+                      });
+                    }} style={styles.deleteBtn}>
                       <Feather name="trash-2" size={14} color="#dc2626" />
                     </Pressable>
                   </View>
@@ -108,7 +116,7 @@ export default function VaccinationSection() {
               {vax.nextDueDate && (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 }}>
                   <Feather name="refresh-cw" size={10} color={colors.accent} />
-                  <Text style={[styles.nextDue, { color: colors.accent }]}>{t.nextDueLabel} {vax.nextDueDate}</Text>
+                  <Text style={[styles.nextDue, { color: colors.accent }]}>{t.nextDueLabel} {new Date(vax.nextDueDate).toLocaleDateString()}</Text>
                 </View>
               )}
             </View>
@@ -130,11 +138,11 @@ export default function VaccinationSection() {
                     <View>
                       <Text style={styles.vaxAnimalName}>{animal.name}</Text>
                       <Text style={styles.vaxName}>{vax.vaccineName}</Text>
-                      <Text style={styles.vaxDate}>{t.givenDateLabel} {vax.administeredDate}</Text>
+                      <Text style={styles.vaxDate}>{t.givenDateLabel} {new Date(vax.administeredDate!).toLocaleDateString()}</Text>
                       {vax.nextDueDate && (
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
                           <Feather name="refresh-cw" size={10} color={colors.accent} />
-                          <Text style={[styles.nextDue, { color: colors.accent, marginTop: 0 }]}>{t.nextDueLabel} {vax.nextDueDate}</Text>
+                          <Text style={[styles.nextDue, { color: colors.accent, marginTop: 0 }]}>{t.nextDueLabel} {new Date(vax.nextDueDate).toLocaleDateString()}</Text>
                         </View>
                       )}
                     </View>
