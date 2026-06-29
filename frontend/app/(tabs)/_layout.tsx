@@ -79,9 +79,9 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: t.tabAnimals,
+            title: t.tabDashboard || "Dashboard",
             tabBarIcon: ({ color, focused }) => (
-              <Feather name={focused ? "grid" : "grid"} size={22} color={color} />
+              <Feather name={focused ? "home" : "home"} size={22} color={color} />
             ),
             headerRight: () => <ProfileAvatar />,
           }}

@@ -92,6 +92,10 @@ function RootLayoutNav() {
         name="farms"
         options={{ headerShown: false, presentation: "card" }}
       />
+      <Stack.Screen
+        name="herd"
+        options={{ headerShown: false, presentation: "card" }}
+      />
     </Stack>
   );
 }

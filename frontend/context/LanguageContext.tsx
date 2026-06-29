@@ -1,4 +1,4 @@
-﻿import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 export type Language = "ta" | "te" | "kn" | "ml" | "hi" | "en";
@@ -24,9 +24,9 @@ export const LANGUAGE_NATIVE: Record<Language, { name: string; flag: string; eng
 const base = {
   appName: "ThulirFarm",
   tagline: "Your Farm, In Your Hands",
-  tabAnimals: "My Animals", tabHelp: "Help", tabMoney: "Money", tabToday: "Today",
+  tabAnimals: "My Animals", tabDashboard: "Dashboard", tabHelp: "Help", tabMoney: "Money", tabToday: "Today",
   animals: "Animals", addAnimal: "Add Animal", noAnimals: "No Animals",
-  noAnimalsHint: "Tap + to add your first animal",
+  noAnimalsHint: "Tap + to add your first animal", searchPlaceholder: "Search by name or tag...",
   filterAll: "All", filterCow: "Cow", filterBuffalo: "Buffalo",
   filterHealthy: "Healthy", filterAttention: "Attention", filterCritical: "Critical",
   milkLog: "Log Milk", milkLogSuccess: "Milk logged!", milkToday: "Today's Milk",

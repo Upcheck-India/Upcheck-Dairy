@@ -1,6 +1,8 @@
 # UpCheck Dairy Architecture
+Version: 1.0
+Status: 🔒 Frozen
 
-This document describes the architectural boundaries and guidelines for the UpCheck Dairy mobile application.
+This document defines the architectural boundaries of the UpCheck Dairy application. New features should fit within these architectural boundaries. Changes to the architecture itself should be rare and justified by cross-cutting concerns rather than individual feature needs.
 
 ---
 
@@ -111,13 +113,14 @@ Every business module should follow this structure:
 ```text
 modules/[feature_name]/
 ├── api/             # Repositories & Mappers
-├── components/      # Feature-specific components
+├── components/      # Feature-specific presentation components
 ├── context/         # React state providers
 ├── hooks/           # Context hooks
 ├── models/          # Domain Models
-├── screens/         # Feature screens
-├── types/           # Request/Response/Data Types
-└── utils/           # Helper functions
+├── screens/         # Feature screens (if feature owns routes)
+├── services/        # Pure domain/business services
+├── types/           # Request/Response DTOs & shared types
+└── utils/           # Small generic helper functions
 ```
 
 ---
@@ -246,7 +249,70 @@ Backend:  Controller ──► Service ──► Repository ──► Database �
 
 ---
 
-## 16. Anti-Patterns
+## 16. Composition Modules
+
+Composition Modules orchestrate multiple feature modules without owning business data.
+
+### Standard Layout
+```text
+modules/[composition_feature]/
+├── components/      # UI components (pure presentation - props only)
+├── hooks/           # useDashboard() or orchestration hook
+├── models/          # Composition-specific ViewModels/UI models
+├── screens/         # Layout orchestration screens
+├── services/        # Composition orchestration services
+├── types/           # DashboardState and similar UI state models
+└── utils/           # Composition helpers
+```
+
+### Rules:
+- May consume multiple feature hooks.
+- Must not duplicate feature business rules.
+- Must not directly access repositories.
+- May define composition-specific models and presentation components.
+- Composition modules may consume feature modules, but feature modules must never depend on composition modules.
+- Presentation components in composition modules may only receive props and must not call hooks or contexts directly.
+
+### Composition Screen Rules:
+Composition Screens orchestrate multiple feature modules.
+- **They may**: Consume multiple feature hooks, manage navigation, manage local presentation state, and compose presentation components.
+- **They must NOT**: Access repositories directly, implement feature business rules, or duplicate domain calculations already provided by feature modules or domain services.
+
+### Lifecycle:
+```text
+Composition Screen
+        │
+        ▼
+Composition Hook (e.g. useDashboard)
+        │
+        ▼
+Feature Hooks (e.g. useAnimals, useMilk)
+        │
+        ▼
+Feature Providers
+        │
+        ▼
+Repositories
+```
+
+---
+
+## 17. Domain Services
+
+Domain Services encapsulate business logic that does not naturally belong to a single Domain Model.
+
+### Rules:
+- Pure TypeScript.
+- No React.
+- No HTTP.
+- No AsyncStorage.
+- No navigation.
+- Consume Domain Models or primitive values.
+- Return Domain Models or presentation-neutral results.
+
+---
+
+## 18. Anti-Patterns
 
 - ❌ Screens must not call `ApiClient`.
 - ❌ Screens must not use `AsyncStorage`.
