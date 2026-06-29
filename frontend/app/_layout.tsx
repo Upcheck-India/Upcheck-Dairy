@@ -23,6 +23,7 @@ import { MilkProvider } from "../src/modules/milk/context/MilkProvider";
 import { HealthProvider } from "../src/modules/health/context/HealthProvider";
 import { BreedingProvider } from "../src/modules/breeding/context/BreedingProvider";
 import { VaccinationProvider } from "../src/modules/vaccination/context/VaccinationProvider";
+import { InventoryProvider } from "../src/modules/inventory/context/InventoryProvider";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -123,13 +124,15 @@ export default function RootLayout() {
                       <HealthProvider>
                         <BreedingProvider>
                           <VaccinationProvider>
-                            <AppProvider>
-                              <GestureHandlerRootView>
-                                <AuthGuard>
-                                  <RootLayoutNav />
-                                </AuthGuard>
-                              </GestureHandlerRootView>
-                            </AppProvider>
+                            <InventoryProvider>
+                              <AppProvider>
+                                <GestureHandlerRootView>
+                                  <AuthGuard>
+                                    <RootLayoutNav />
+                                  </AuthGuard>
+                                </GestureHandlerRootView>
+                              </AppProvider>
+                            </InventoryProvider>
                           </VaccinationProvider>
                         </BreedingProvider>
                       </HealthProvider>

@@ -29,6 +29,7 @@ import {
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import InventoryModal from "@/components/InventoryModal";
+import { useInventory } from "../../src/modules/inventory/hooks/useInventory";
 
 function formatRupee(amount: number) {
   if (amount >= 100000) return "₹" + (amount / 100000).toFixed(1) + "L";
@@ -75,7 +76,7 @@ const EXPENSE_CAT_LABELS: Record<string, Record<string, string>> = {
   medicine: { ta: "மருந்து", te: "మందు", kn: "ಔಷಧ", ml: "മരുന്ന്", hi: "दवाई", en: "Medicine" },
   labor: { ta: "👷 தொழிலாளர்", te: "👷 కూలీ", kn: "👷 ಕಾರ್ಮಿಕ", ml: "👷 തൊഴിലാളി", hi: "👷 मजदूरी", en: "👷 Labor" },
   equipment: { ta: "🔧 உபகரணம்", te: "🔧 పరికరాలు", kn: "🔧 ಸಾಧನ", ml: "🔧 ഉപകരണം", hi: "🔧 उपकरण", en: "🔧 Equipment" },
-  other: { ta: "📦 மற்றவை", te: "📦 ఇతరాలు", kn: "📦 ಇತರ", ml: "📦 മറ്റുള്ളവ", hi: "📦 अन्य", en: "📦 Other" },
+  other: { ta: "📦 மற்றவை", te: "📦 ఇతరాలు", kn: "📦 ఇతర", ml: "📦 മറ്റുള്ളവ", hi: "📦 अन्य", en: "📦 Other" },
 };
 
 const CATEGORY_COLORS: Record<InventoryItem["category"], string> = {
@@ -95,14 +96,19 @@ export default function MoneyTab() {
   const { language, t } = useLanguage();
   const {
     incomeEntries, expenseEntries, addIncomeEntry, addExpenseEntry, get7DayFinancials,
-    inventoryItems, deleteInventoryItem, adjustInventoryQuantity,
     isLoaded, reloadData,
   } = useApp();
+  const {
+    inventoryItems,
+    removeItem: deleteInventoryItem,
+    adjustQuantity: adjustInventoryQuantity,
+    refresh: refreshInventory,
+  } = useInventory();
   const [activeTab, setActiveTab] = useState<MoneyTab>("income");
   const [incomeModal, setIncomeModal] = useState(false);
   const [expenseModal, setExpenseModal] = useState(false);
   const [inventoryModal, setInventoryModal] = useState(false);
-  const [editInventoryItem, setEditInventoryItem] = useState<InventoryItem | undefined>();
+  const [editInventoryItem, setEditInventoryItem] = useState<any | undefined>();
   const [refreshing, setRefreshing] = useState(false);
 
   const [buyer, setBuyer] = useState("");
@@ -171,11 +177,13 @@ export default function MoneyTab() {
     setExpenseModal(false);
   };
 
-  const handleDeleteInventory = (item: InventoryItem) => {
+  const handleDeleteInventory = (item: any) => {
     Alert.alert(
       t.deleteConfirmTitle,
       `${t.deleteItemBodyPrefix} ${item.name}?`,
-      [{ text: t.cancel, style: "cancel" }, { text: t.deleteConfirmBtn, style: "destructive", onPress: () => deleteInventoryItem(item.id) }]
+      [{ text: t.cancel, style: "cancel" }, { text: t.deleteConfirmBtn, style: "destructive", onPress: () => {
+        deleteInventoryItem(Number(item.id)).catch(err => console.error(err));
+      } }]
     );
   };
 
@@ -220,7 +228,7 @@ export default function MoneyTab() {
       ) : (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: isWeb ? 120 : 100 }]} showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await reloadData(); setRefreshing(false); }} tintColor={colors.primary} colors={[colors.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await Promise.all([reloadData(), refreshInventory()]); setRefreshing(false); }} tintColor={colors.primary} colors={[colors.primary]} />
         }
       >
         {/* 7-day chart */}
@@ -404,13 +412,17 @@ export default function MoneyTab() {
 
                     <View style={styles.stockRow}>
                       <View style={styles.stockQtyRow}>
-                        <Pressable style={[styles.qtyBtn, { backgroundColor: colors.muted }]} onPress={() => adjustInventoryQuantity(item.id, -1)}>
+                        <Pressable style={[styles.qtyBtn, { backgroundColor: colors.muted }]} onPress={() => {
+                          adjustInventoryQuantity(Number(item.id), -1).catch(err => console.error(err));
+                        }}>
                           <Feather name="minus" size={14} color={colors.foreground} />
                         </Pressable>
                         <Text style={[styles.stockQty, { color: isLow ? colors.destructive : colors.foreground }]}>
                           {item.quantity} {item.unit}
                         </Text>
-                        <Pressable style={[styles.qtyBtn, { backgroundColor: colors.muted }]} onPress={() => adjustInventoryQuantity(item.id, 1)}>
+                        <Pressable style={[styles.qtyBtn, { backgroundColor: colors.muted }]} onPress={() => {
+                          adjustInventoryQuantity(Number(item.id), 1).catch(err => console.error(err));
+                        }}>
                           <Feather name="plus" size={14} color={colors.foreground} />
                         </Pressable>
                       </View>

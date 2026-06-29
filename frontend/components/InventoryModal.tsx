@@ -3,18 +3,20 @@ import React, { useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
-import { useApp, InventoryItem, generateId, getTodayString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { useInventory } from "../src/modules/inventory/hooks/useInventory";
+import { useFarm } from "../src/modules/farms/hooks/useFarm";
+import { InventoryItem } from "../src/modules/inventory/models/InventoryItem";
 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  editItem?: InventoryItem;
+  editItem?: any;
 }
 
 const CATEGORIES: Array<{
-  key: InventoryItem["category"]; label: string; labelTa: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; color: string;
+  key: any; label: string; labelTa: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; color: string;
 }> = [
   { key: "feed", label: "Feed", labelTa: "தீவனம்", icon: "sprout", color: "#16a34a" },
   { key: "medicine", label: "Medicine", labelTa: "மருந்து", icon: "pill", color: "#0284c7" },
@@ -25,20 +27,21 @@ const CATEGORIES: Array<{
 
 const COMMON_UNITS = ["kg", "litre", "bag", "bottle", "box", "piece", "dose"];
 const COMMON_ITEMS: Record<string, string[]> = {
-  feed: ["Napier Grass", "Maize Silage", "Concentrate Feed", "Paddy Straw", "Groundnut Cake", "Cotton Seed Cake", "Mineral Mix"],
-  medicine: ["FMD Vaccine", "HS Vaccine", "Ivermectin", "Calcium Gel", "Antibiotic", "Fly Spray"],
+  feed: ["Dairy Feed (Gold)", "Green Fodder (Napier)", "Dry Straw", "Cotton Seed Cake"],
+  medicine: ["Dewormer Bolus", "Mastitis Cream", "Calcium Gel", "Oxytetracycline LA"],
   supplement: ["Bypass Protein", "Yeast Culture", "Vitamin A+D", "Chelated Minerals"],
   equipment: ["Milking Machine Filter", "Teat Cup Liner", "Milk Can", "Halter Rope"],
   other: ["Disinfectant", "Bedding Sand", "Ear Tags"],
 };
 
 export default function InventoryModal({ visible, onClose, editItem }: Props) {
-  const { addInventoryItem, updateInventoryItem } = useApp();
+  const { createItem, updateItem } = useInventory();
+  const { activeFarm } = useFarm();
   const { language } = useLanguage();
   const colors = useColors();
   const isTa = language === "ta";
 
-  const [category, setCategory] = useState<InventoryItem["category"]>(editItem?.category ?? "feed");
+  const [category, setCategory] = useState<any>(editItem?.category ?? "feed");
   const [name, setName] = useState(editItem?.name ?? "");
   const [quantity, setQuantity] = useState(editItem?.quantity?.toString() ?? "");
   const [unit, setUnit] = useState(editItem?.unit ?? "kg");
@@ -46,25 +49,40 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
   const [pricePerUnit, setPricePerUnit] = useState(editItem?.pricePerUnit?.toString() ?? "");
   const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) { Alert.alert("Error", isTa ? "பொருளின் பெயர் சேர்க்கவும்" : "Please enter item name"); return; }
     if (!quantity || isNaN(parseFloat(quantity))) { Alert.alert("Error", isTa ? "அளவு சேர்க்கவும்" : "Please enter quantity"); return; }
+    if (!activeFarm?.id) { Alert.alert("Error", "No active farm selected"); return; }
 
     setSaving(true);
-    const item: InventoryItem = {
-      id: editItem?.id ?? generateId(),
-      name: name.trim(),
-      category,
-      quantity: parseFloat(quantity),
-      unit,
-      minQuantity: minQty ? parseFloat(minQty) : 0,
-      pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : undefined,
-      lastUpdated: getTodayString(),
-    };
-    if (editItem) updateInventoryItem(item); else addInventoryItem(item);
-    setSaving(false);
-    resetForm();
-    onClose();
+    try {
+      if (editItem) {
+        await updateItem(Number(editItem.id), {
+          name: name.trim(),
+          category,
+          quantity: parseFloat(quantity),
+          unit,
+          minQuantity: minQty ? parseFloat(minQty) : 0,
+          pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : undefined,
+        });
+      } else {
+        await createItem({
+          farmId: activeFarm.id,
+          name: name.trim(),
+          category,
+          quantity: parseFloat(quantity),
+          unit,
+          minQuantity: minQty ? parseFloat(minQty) : 0,
+          pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : undefined,
+        });
+      }
+      resetForm();
+      onClose();
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to save inventory item");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const resetForm = () => {
@@ -120,7 +138,7 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{isTa ? "பொதுவான பொருட்கள்" : "Common Items"}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={{ flexDirection: "row", gap: 8, paddingBottom: 4 }}>
-                  {suggestions.map((s) => (
+                  {suggestions.map((s: string) => (
                     <Pressable 
                       key={s} 
                       style={[styles.suggestionChip, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]} 
