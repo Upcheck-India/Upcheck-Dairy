@@ -10,6 +10,7 @@ import { RedisModule } from "./redis/redis.module";
 import { DatabaseModule } from "./database/database.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { HealthModule } from "./health-check/health.module";
+import { HealthEventsModule } from "./health-events/health-events.module";
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { HealthModule } from "./health-check/health.module";
     FarmsModule,
     AnimalsModule,
     MilkModule,
+    HealthEventsModule,
   ],
   providers: [
     // Register the global ThrottlerGuard so all routes are rate-limited by default
