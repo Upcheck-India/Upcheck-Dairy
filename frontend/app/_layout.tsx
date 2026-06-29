@@ -17,16 +17,18 @@ import { AppProvider } from "@/context/AppContext";
 import { FarmerProvider, useFarmer } from "@/context/FarmerContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { DatabaseProvider } from "@/context/DatabaseContext";
+import { FarmProvider, useFarmContext } from "../src/modules/farms/context/FarmProvider";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, farmer } = useFarmer();
+  const { isAuthenticated, isLoading: isAuthLoading, farmer } = useFarmer();
+  const { loading: isFarmLoading, farmsLoaded, farms } = useFarmContext();
   const segments = useSegments();
 
-  if (isLoading) return null;
+  if (isAuthLoading) return null;
 
   const firstSegment = segments[0] as string | undefined;
   const inAuth = firstSegment === "(auth)";
@@ -36,13 +38,28 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const onOnboarding = firstSegment === "(auth)" && segments[1] === "onboarding";
 
   if (isAuthenticated) {
-    if (hasProfile) {
-      if (inAuth) {
-        return <Redirect href="/(tabs)" />;
-      }
-    } else {
+    if (!hasProfile) {
       if (!onOnboarding) {
         return <Redirect href="/(auth)/onboarding" />;
+      }
+      return <>{children}</>;
+    }
+
+    // Guard on farms loading state
+    if (isFarmLoading || !farmsLoaded) {
+      return null;
+    }
+
+    const onFarmsScreen = firstSegment === "farms";
+
+    // Enforce active farm if not on onboarding/farms screen
+    if (farms.length === 0) {
+      if (!onFarmsScreen) {
+        return <Redirect href="/farms" />;
+      }
+    } else {
+      if (inAuth) {
+        return <Redirect href="/(tabs)" />;
       }
     }
   }
@@ -61,6 +78,10 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="profile"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="farms"
         options={{ headerShown: false, presentation: "card" }}
       />
     </Stack>
@@ -91,13 +112,15 @@ export default function RootLayout() {
           <DatabaseProvider>
             <LanguageProvider>
               <FarmerProvider>
-                <AppProvider>
-                  <GestureHandlerRootView>
-                    <AuthGuard>
-                      <RootLayoutNav />
-                    </AuthGuard>
-                  </GestureHandlerRootView>
-                </AppProvider>
+                <FarmProvider>
+                  <AppProvider>
+                    <GestureHandlerRootView>
+                      <AuthGuard>
+                        <RootLayoutNav />
+                      </AuthGuard>
+                    </GestureHandlerRootView>
+                  </AppProvider>
+                </FarmProvider>
               </FarmerProvider>
             </LanguageProvider>
           </DatabaseProvider>

@@ -24,6 +24,8 @@ import { Animal, useApp } from "@/context/AppContext";
 import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { useFarm } from "../../src/modules/farms/hooks/useFarm";
+import { FarmSelector } from "../../src/modules/farms/components/FarmSelector";
 
 type SubTab = "herd" | "breeding" | "vaccines";
 
@@ -32,9 +34,11 @@ export default function AnimalsTab() {
   const insets = useSafeAreaInsets();
   const { animals, milkAnomalies, syncStatus, vaccinations, breedingEvents, isLoaded, reloadData } = useApp();
   const { farmer } = useFarmer();
+  const { activeFarm } = useFarm();
   const { language, t } = useLanguage();
   const [subTab, setSubTab] = useState<SubTab>("herd");
   const [addVisible, setAddVisible] = useState(false);
+  const [selectorVisible, setSelectorVisible] = useState(false);
   const [milkAnimal, setMilkAnimal] = useState<Animal | null>(null);
   const [filter, setFilter] = useState("all");
   const [celebration, setCelebration] = useState(false);
@@ -113,9 +117,15 @@ export default function AnimalsTab() {
       >
         <View style={styles.headerRow}>
           <View>
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-              {t.myAnimalsTitle}
-            </Text>
+            <Pressable
+              style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+              onPress={() => setSelectorVisible(true)}
+            >
+              <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+                🏡 {activeFarm ? activeFarm.getDisplayName() : "Select Farm"}
+              </Text>
+              <Feather name="chevron-down" size={16} color={colors.foreground} style={{ marginTop: 2 }} />
+            </Pressable>
             <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
               {animals.length} {t.animalsCountSuffix}
             </Text>
@@ -284,6 +294,7 @@ export default function AnimalsTab() {
       )}
 
       <AddAnimalModal visible={addVisible} onClose={() => setAddVisible(false)} />
+      <FarmSelector visible={selectorVisible} onClose={() => setSelectorVisible(false)} />
       <MilkLogModal
         visible={milkAnimal !== null}
         animal={milkAnimal}
