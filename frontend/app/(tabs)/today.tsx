@@ -106,14 +106,17 @@ async function setupDailyNotification() {
   } catch { /* ignore */ }
 }
 
+import { useTasks } from "../../src/modules/tasks/hooks/useTasks";
+
 export default function TodayTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { language, t } = useLanguage();
   const {
-    tasks, generateDailyTasks, getTodayMilkTotal, getTodayIncome, getTodayExpenses,
+    getTodayMilkTotal, getTodayIncome, getTodayExpenses,
     animals, syncStatus, milkAnomalies, smartAlerts, isLoaded, reloadData,
   } = useApp();
+  const { tasks, generateDailyTasks, refresh: refreshTasks } = useTasks();
   const { farmer } = useFarmer();
   const [celebration, setCelebration] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
@@ -124,12 +127,14 @@ export default function TodayTab() {
   const topPad = isWeb ? 67 : insets.top;
 
   const today = new Date().toISOString().split("T")[0]!;
-  const todayTasks = tasks.filter((task) => task.date === today);
+  const todayTasks = tasks.filter((task) => task.formattedDateString === today);
   const completedCount = todayTasks.filter((task) => task.completed).length;
   const totalCount = todayTasks.length;
   const progress = totalCount > 0 ? completedCount / totalCount : 0;
 
-  useEffect(() => { generateDailyTasks(); }, []);
+  useEffect(() => {
+    generateDailyTasks(today).catch(err => console.error(err));
+  }, [today]);
 
   useEffect(() => {
     Animated.timing(progressAnim, { toValue: progress, duration: 500, useNativeDriver: false }).start();
@@ -182,8 +187,8 @@ export default function TodayTab() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await reloadData();
-      generateDailyTasks();
+      await Promise.all([reloadData(), refreshTasks()]);
+      await generateDailyTasks(today);
     } catch (e) {
       console.error('Refresh failed', e);
     }

@@ -14,6 +14,7 @@ import { HealthEventsModule } from "./health-events/health-events.module";
 import { BreedingEventsModule } from "./breeding-events/breeding-events.module";
 import { VaccinationsModule } from "./vaccinations/vaccinations.module";
 import { InventoryItemsModule } from "./inventory-items/inventory-items.module";
+import { TasksModule } from "./tasks/tasks.module";
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { InventoryItemsModule } from "./inventory-items/inventory-items.module";
     BreedingEventsModule,
     VaccinationsModule,
     InventoryItemsModule,
+    TasksModule,
   ],
   providers: [
     // Register the global ThrottlerGuard so all routes are rate-limited by default
