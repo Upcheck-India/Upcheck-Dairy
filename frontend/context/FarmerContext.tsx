@@ -53,7 +53,7 @@ interface FarmerContextType {
     locationPermission?: boolean;
     notificationsEnabled?: boolean;
     onboardingCompleted?: boolean;
-  }) => Promise<void>;
+  }) => Promise<FarmerProfile>;
   updateProfile: (updates: Partial<FarmerProfile>) => Promise<void>;
   /** Client-side logout — clears AsyncStorage tokens. */
   logout: () => Promise<void>;
@@ -120,6 +120,7 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
       id: u.id,
       name,
       phone: u.phone ?? undefined,
+      email: u.email ?? undefined,
       village: u.village ?? undefined,
       district: u.district ?? undefined,
       state: u.state ?? undefined,
@@ -157,7 +158,7 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
     locationPermission?: boolean;
     notificationsEnabled?: boolean;
     onboardingCompleted?: boolean;
-  }) => {
+  }): Promise<FarmerProfile> => {
     const token = accessToken;
     const avatarColor = pickAvatarColor(data.name);
     const avatarInitials = getInitials(data.name);
@@ -179,18 +180,21 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
 
     if (token) {
       const saved = await createOrUpdateProfile(token, profileData);
-      setFarmer((prev) => ({ ...prev, ...profileData, ...saved } as FarmerProfile));
-    } else {
-      // Shouldn't happen in normal flow, but handle gracefully
-      const newFarmer: FarmerProfile = {
-        id: user?.id ?? Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        ...profileData,
-        name: profileData.name ?? "",
-      };
-      setFarmer(newFarmer);
+      const merged = { ...(farmer ?? {}), ...profileData, ...saved } as FarmerProfile;
+      setFarmer(merged);
+      return merged;
     }
-  }, [accessToken, user]);
+
+    // Shouldn't happen in normal flow, but handle gracefully
+    const newFarmer: FarmerProfile = {
+      id: user?.id ?? Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      ...profileData,
+      name: profileData.name ?? "",
+    };
+    setFarmer(newFarmer);
+    return newFarmer;
+  }, [accessToken, user, farmer]);
 
   const updateProfile = useCallback(async (updates: Partial<FarmerProfile>) => {
     if (!farmer) return;

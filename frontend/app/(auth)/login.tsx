@@ -44,14 +44,6 @@ export default function LoginScreen() {
     try {
       const result = await loginUser(email.trim().toLowerCase(), password);
       await loginWithJwt(result);
-      
-      const isProfileIncomplete = !result.user.village || !result.user.district;
-      if (isProfileIncomplete) {
-        router.replace({
-          pathname: "/(auth)/onboarding",
-          params: { email: email.trim().toLowerCase() },
-        });
-      }
     } catch (err: any) {
       if (err.message && (err.message.toLowerCase().includes("verified") || err.message.toLowerCase().includes("verification"))) {
         try {

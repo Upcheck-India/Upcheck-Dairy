@@ -48,7 +48,7 @@ export default function SuccessScreen() {
         setSaving(true);
         try {
             // 1. Save profile details to backend & context
-            await createProfile({
+            const savedFarmer = await createProfile({
                 name: data.ownerName,
                 phone: data.phone,
                 village: data.village,
@@ -62,7 +62,7 @@ export default function SuccessScreen() {
             });
 
             // 2. Add animals to the local database
-            const farmerId = farmer?.id || "";
+            const farmerId = savedFarmer.id;
             const animalEntries = Object.entries(data.animals);
 
             for (const [type, count] of animalEntries) {

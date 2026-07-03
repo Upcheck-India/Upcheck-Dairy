@@ -256,7 +256,10 @@ export async function createOrUpdateProfile(
     },
     body: JSON.stringify(profile),
   });
-  if (!response.ok) throw new Error("Failed to save profile");
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(body || `Failed to save profile (${response.status})`);
+  }
   return response.json() as Promise<FarmerProfile>;
 }
 

@@ -120,18 +120,6 @@ export default function FarmDetailsScreen() {
                         returnKeyType="next"
                     />
 
-                    <InputField
-                        label={t.onboardingFarmDetailsEmailLabel}
-                        placeholder={t.onboardingFarmDetailsEmailPlaceholder}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={data.email}
-                        onChangeText={(text) =>
-                            setField("email", text)
-                        }
-                        returnKeyType="done"
-                    />
-
                 </View>
 
             </Card>

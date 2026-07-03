@@ -3,10 +3,12 @@ import React, {
     useContext,
     useMemo,
     useState,
+    useEffect,
     ReactNode,
 } from "react";
 
 import type { Language } from "./LanguageContext";
+import { useFarmer } from "./FarmerContext";
 
 /* -------------------------------------------------------------------------- */
 /*                                  TYPES                                     */
@@ -159,8 +161,21 @@ export function OnboardingProvider({
 }: {
     children: ReactNode;
 }) {
+    const { farmer, user } = useFarmer();
     const [data, setData] =
         useState<OnboardingData>(defaultData);
+
+    useEffect(() => {
+        if (farmer) {
+            setData((prev) => ({
+                ...prev,
+                ownerName: prev.ownerName || farmer.name || "",
+                phone: prev.phone || farmer.phone || "",
+                email: prev.email || farmer.email || user?.email || "",
+                farmName: prev.farmName || farmer.farmName || "",
+            }));
+        }
+    }, [farmer, user]);
 
     /**
      * Screen Order
