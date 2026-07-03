@@ -88,7 +88,6 @@ export interface ExpenseEntry {
 export interface Task {
   id: string;
   title: string;
-  titleTamil: string;
   time: string;
   session: "morning" | "evening" | "anytime";
   completed: boolean;
@@ -546,13 +545,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (existingToday.length > 0) return prevTasks;
 
       const defaultTasks: Task[] = [
-        { id: generateId(), title: "Morning Milking", titleTamil: "காலை கறவை", time: "5:00 AM", session: "morning", completed: false, date: today, type: "milk", priority: "high" },
-        { id: generateId(), title: "Morning Feed", titleTamil: "காலை தீவனம்", time: "6:00 AM", session: "morning", completed: false, date: today, type: "feed", priority: "normal" },
-        { id: generateId(), title: "Clean Shed", titleTamil: "தொழுவம் சுத்தம்", time: "6:30 AM", session: "morning", completed: false, date: today, type: "clean", priority: "normal" },
-        { id: generateId(), title: "Evening Milking", titleTamil: "மாலை கறவை", time: "4:00 PM", session: "evening", completed: false, date: today, type: "milk", priority: "high" },
-        { id: generateId(), title: "Evening Feed", titleTamil: "மாலை தீவனம்", time: "4:30 PM", session: "evening", completed: false, date: today, type: "feed", priority: "normal" },
-        { id: generateId(), title: "Record Income", titleTamil: "வருமானம் பதிவு", time: "7:00 PM", session: "evening", completed: false, date: today, type: "other", priority: "normal" },
-        { id: generateId(), title: "Mineral Mix — Water Trough", titleTamil: "தண்ணீர் தொட்டி சுத்தம்", time: "8:00 AM", session: "morning", completed: false, date: today, type: "feed", priority: "low" },
+        { id: generateId(), title: "Morning Milking", time: "5:00 AM", session: "morning", completed: false, date: today, type: "milk", priority: "high" },
+        { id: generateId(), title: "Morning Feed", time: "6:00 AM", session: "morning", completed: false, date: today, type: "feed", priority: "normal" },
+        { id: generateId(), title: "Clean Shed", time: "6:30 AM", session: "morning", completed: false, date: today, type: "clean", priority: "normal" },
+        { id: generateId(), title: "Evening Milking", time: "4:00 PM", session: "evening", completed: false, date: today, type: "milk", priority: "high" },
+        { id: generateId(), title: "Evening Feed", time: "4:30 PM", session: "evening", completed: false, date: today, type: "feed", priority: "normal" },
+        { id: generateId(), title: "Record Income", time: "7:00 PM", session: "evening", completed: false, date: today, type: "other", priority: "normal" },
+        { id: generateId(), title: "Mineral Mix — Water Trough", time: "8:00 AM", session: "morning", completed: false, date: today, type: "feed", priority: "low" },
       ];
 
       const next = [...prevTasks, ...defaultTasks];

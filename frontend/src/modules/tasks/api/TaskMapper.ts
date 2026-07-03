@@ -8,7 +8,6 @@ export class TaskMapper {
       farmId: dto.farmId,
       animalId: dto.animalId ? dto.animalId.toString() : null,
       title: dto.title,
-      titleTamil: dto.titleTamil,
       time: dto.time,
       session: dto.session,
       completed: dto.completed,

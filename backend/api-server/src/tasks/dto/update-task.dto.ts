@@ -15,10 +15,6 @@ export class UpdateTaskDto {
 
   @IsString()
   @IsOptional()
-  titleTamil?: string;
-
-  @IsString()
-  @IsOptional()
   time?: string;
 
   @IsString()

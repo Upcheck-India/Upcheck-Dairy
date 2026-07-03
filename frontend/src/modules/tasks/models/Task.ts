@@ -3,7 +3,6 @@ export class Task {
   readonly farmId: string;
   readonly animalId: string | null;
   readonly title: string;
-  readonly titleTamil: string;
   readonly time: string;
   readonly session: string;
   readonly completed: boolean;
@@ -17,7 +16,6 @@ export class Task {
     farmId: string;
     animalId?: string | null;
     title: string;
-    titleTamil: string;
     time: string;
     session: string;
     completed: boolean;
@@ -30,7 +28,6 @@ export class Task {
     this.farmId = data.farmId;
     this.animalId = data.animalId ?? null;
     this.title = data.title;
-    this.titleTamil = data.titleTamil;
     this.time = data.time;
     this.session = data.session;
     this.completed = data.completed;

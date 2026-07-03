@@ -23,6 +23,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFarmContext } from "../src/modules/farms/context/FarmProvider";
 import { farmRepository } from "../src/modules/farms/api/FarmRepository";
 import { Farm } from "../src/modules/farms/models/Farm";
+import { apiClient } from "../src/core/api/ApiClient";
+import { Storage } from "../src/core/storage/Storage";
+import { AnimalMapper } from "../src/modules/animals/api/AnimalMapper";
 
 type ViewState = "main" | "personal" | "farms" | "farm_detail";
 
@@ -96,6 +99,49 @@ export default function ProfileScreen() {
   const [editingFieldLabel, setEditingFieldLabel] = useState<string>("");
   const [editingFieldValue, setEditingFieldValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
+
+  const [allAnimals, setAllAnimals] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // Helper to fetch animals for a specific farm with caching fallbacks
+  const fetchAnimalsForFarm = async (farmId: string): Promise<any[]> => {
+    const cacheKey = `thulirfarm:${farmId}:animals`;
+    try {
+      const dtos = await apiClient.get<any[]>(`/animals/farm/${farmId}`);
+      await Storage.set(cacheKey, dtos);
+      return AnimalMapper.toDomainList(dtos);
+    } catch (e) {
+      console.warn(`[ProfileScreen] Failed to fetch animals for farm ${farmId}, loading cache`, e);
+      const cached = await Storage.get<any[]>(cacheKey);
+      if (cached) {
+        return AnimalMapper.toDomainList(cached);
+      }
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    const loadAllStats = async () => {
+      if (farms.length === 0) return;
+      setLoadingStats(true);
+      try {
+        const promises = farms.map(farm => fetchAnimalsForFarm(farm.id));
+        const results = await Promise.all(promises);
+        if (!active) return;
+        setAllAnimals(results.flat());
+      } catch (err) {
+        console.error("[ProfileScreen] Error loading aggregated stats:", err);
+      } finally {
+        if (active) setLoadingStats(false);
+      }
+    };
+
+    loadAllStats();
+    return () => {
+      active = false;
+    };
+  }, [farms, animals]);
 
   const getLabel = (key: string) => {
     const labels: Record<string, Record<string, string>> = {
@@ -302,8 +348,13 @@ export default function ProfileScreen() {
     ? farmer.name.trim().split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
     : "??";
 
-  const healthyCows = animals.filter((a: any) => a.healthStatus === "healthy").length;
-  const attentionCows = animals.filter((a: any) => a.healthStatus !== "healthy").length;
+  const totalAnimalsCount = allAnimals.length > 0 ? allAnimals.length : animals.length;
+  const healthyCows = allAnimals.length > 0 
+    ? allAnimals.filter((a: any) => a.healthStatus === "healthy").length 
+    : animals.filter((a: any) => a.healthStatus === "healthy").length;
+  const attentionCows = allAnimals.length > 0 
+    ? allAnimals.filter((a: any) => a.healthStatus !== "healthy").length 
+    : animals.filter((a: any) => a.healthStatus !== "healthy").length;
 
   const memberSinceStr = farmer?.createdAt
     ? new Date(farmer.createdAt).toLocaleDateString(
@@ -314,6 +365,12 @@ export default function ProfileScreen() {
 
   const locationString = [farmer?.village, farmer?.state].filter(Boolean).join(", ") || farmer?.district || "—";
   const farmsCount = farms.length;
+
+  const selectedFarmAnimalsCount = selectedFarm
+    ? (allAnimals.length > 0 
+        ? allAnimals.filter((a: any) => a.farmId === selectedFarm.id).length 
+        : (selectedFarm.id === activeFarm?.id ? animals.length : 0))
+    : 0;
 
   const getViewTitle = () => {
     switch (currentView) {
@@ -381,7 +438,9 @@ export default function ProfileScreen() {
                     <View style={styles.infoLine}>
                       <Feather name="calendar" size={12} color="#4b5563" />
                       <Text style={styles.smallText}>
-                        {language === "ta" ? "உறுப்பினர்: " : language === "hi" ? "सदस्यता: " : "Member since "}
+                        <Text style={{ fontWeight: "700" }}>
+                          {language === "ta" ? "உறுப்பினர்: " : language === "hi" ? "सदस्यता: " : "Member since "}
+                        </Text>
                         {memberSinceStr}
                       </Text>
                     </View>
@@ -409,7 +468,7 @@ export default function ProfileScreen() {
                 <View style={[styles.statIconWrap, { backgroundColor: "#f0fdf4" }]}>
                   <MaterialCommunityIcons name="cow" size={18} color="#16a34a" />
                 </View>
-                <Text style={styles.statNum}>{animals.length}</Text>
+                <Text style={styles.statNum}>{totalAnimalsCount}</Text>
                 <Text style={styles.statLabel}>{t.totalAnimals}</Text>
                 <Text style={styles.statSub}>
                   {language === "ta" ? "அனைத்து விலங்குகள்" : language === "hi" ? "सभी पशु" : "All animals"}
@@ -590,8 +649,8 @@ export default function ProfileScreen() {
               icon="cow"
               iconType="material"
               label={t.totalAnimals}
-              value={animals.length.toString()}
-              onPress={() => handleOpenEdit("totalAnimals", t.totalAnimals, animals.length.toString())}
+              value={selectedFarmAnimalsCount.toString()}
+              onPress={() => handleOpenEdit("totalAnimals", t.totalAnimals, selectedFarmAnimalsCount.toString())}
             />
           </View>
         )}
@@ -756,8 +815,8 @@ const styles = StyleSheet.create({
   // Profile Card
   gradientCard: {
     borderRadius: 16,
-    padding: 16,
-    paddingBottom: 55, // space for landscape illustration
+    padding: 12,
+    paddingBottom: 40, // space for landscape illustration
     position: "relative",
     overflow: "hidden",
     borderWidth: 1,
@@ -772,67 +831,68 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
+    marginRight: 8,
   },
   avatar: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
     elevation: 2,
   },
-  avatarText: { fontSize: 26, fontWeight: "800", color: "#fff" },
+  avatarText: { fontSize: 24, fontWeight: "800", color: "#fff" },
   profileDetails: {
-    marginLeft: 12,
+    marginLeft: 10,
     flex: 1,
-    gap: 3,
+    gap: 2,
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
   },
-  farmerName: { fontSize: 18, fontWeight: "700", color: "#111827" },
+  farmerName: { fontSize: 16, fontWeight: "700", color: "#111827" },
   roleBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 3,
     backgroundColor: "#dcfce7",
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 1.5,
     borderRadius: 4,
     alignSelf: "flex-start",
   },
-  roleText: { fontSize: 10, color: "#16a34a", fontWeight: "600" },
+  roleText: { fontSize: 9, color: "#16a34a", fontWeight: "600" },
   infoLine: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
   },
   smallText: { fontSize: 11, color: "#4b5563" },
 
   // Right Farm Card in header
   farmCard: {
-    width: 68,
-    height: 80,
+    width: 64,
+    height: 74,
     borderRadius: 12,
     backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: "#bbf7d0",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 6,
+    paddingVertical: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
-  farmCount: { fontSize: 16, fontWeight: "800", color: "#111827", marginTop: 2 },
-  farmText: { fontSize: 10, color: "#4b5563" },
+  farmCount: { fontSize: 15, fontWeight: "800", color: "#111827", marginTop: 2 },
+  farmText: { fontSize: 9, color: "#4b5563" },
 
   // Landscape Svg
   landscapeContainer: {

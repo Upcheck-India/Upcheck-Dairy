@@ -50,13 +50,13 @@ export class TasksService {
     }
 
     const defaultTasksData = [
-      { farmId, title: "Morning Milking", titleTamil: "காலை கறவை", time: "5:00 AM", session: "morning", completed: false, date: startOfDay, type: "milk", priority: "high" },
-      { farmId, title: "Morning Feed", titleTamil: "காலை தீவனம்", time: "6:00 AM", session: "morning", completed: false, date: startOfDay, type: "feed", priority: "normal" },
-      { farmId, title: "Clean Shed", titleTamil: "தொழுவம் சுத்தம்", time: "6:30 AM", session: "morning", completed: false, date: startOfDay, type: "clean", priority: "normal" },
-      { farmId, title: "Evening Milking", titleTamil: "மாலை கறவை", time: "4:00 PM", session: "evening", completed: false, date: startOfDay, type: "milk", priority: "high" },
-      { farmId, title: "Evening Feed", titleTamil: "மாலை தீவனம்", time: "4:30 PM", session: "evening", completed: false, date: startOfDay, type: "feed", priority: "normal" },
-      { farmId, title: "Record Income", titleTamil: "வருமானம் பதிவு", time: "7:00 PM", session: "evening", completed: false, date: startOfDay, type: "other", priority: "normal" },
-      { farmId, title: "Mineral Mix — Water Trough", titleTamil: "தண்ணீர் தொட்டி சுத்தம்", time: "8:00 AM", session: "morning", completed: false, date: startOfDay, type: "feed", priority: "low" },
+      { farmId, title: "Morning Milking", time: "5:00 AM", session: "morning", completed: false, date: startOfDay, type: "milk", priority: "high" },
+      { farmId, title: "Morning Feed", time: "6:00 AM", session: "morning", completed: false, date: startOfDay, type: "feed", priority: "normal" },
+      { farmId, title: "Clean Shed", time: "6:30 AM", session: "morning", completed: false, date: startOfDay, type: "clean", priority: "normal" },
+      { farmId, title: "Evening Milking", time: "4:00 PM", session: "evening", completed: false, date: startOfDay, type: "milk", priority: "high" },
+      { farmId, title: "Evening Feed", time: "4:30 PM", session: "evening", completed: false, date: startOfDay, type: "feed", priority: "normal" },
+      { farmId, title: "Record Income", time: "7:00 PM", session: "evening", completed: false, date: startOfDay, type: "other", priority: "normal" },
+      { farmId, title: "Mineral Mix — Water Trough", time: "8:00 AM", session: "morning", completed: false, date: startOfDay, type: "feed", priority: "low" },
     ] as any[];
 
     return this.tasksRepository.createMany(defaultTasksData);
