@@ -119,6 +119,7 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
     return {
       id: u.id,
       name,
+      email: u.email ?? undefined,
       phone: u.phone ?? undefined,
       village: u.village ?? undefined,
       district: u.district ?? undefined,
