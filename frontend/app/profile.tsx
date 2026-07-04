@@ -1,6 +1,7 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState, useEffect } from "react";
+import * as Haptics from "expo-haptics";
 import {
   Alert,
   Pressable,
@@ -344,6 +345,19 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleToggleNotifications = async () => {
+    const newValue = !farmer?.notificationsEnabled;
+    try {
+      await updateProfile({ notificationsEnabled: newValue });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      Alert.alert(
+        language === "ta" ? "தவறு" : "Error",
+        e.message || "Failed to update notification settings"
+      );
+    }
+  };
+
   const initials = farmer?.name
     ? farmer.name.trim().split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
     : "??";
@@ -524,6 +538,13 @@ export default function ProfileScreen() {
               />
 
               <ProfileOption
+                icon="bell"
+                title={language === "ta" ? "அறிவிப்புகள்" : "Notifications"}
+                subtitle={farmer?.notificationsEnabled ? (language === "ta" ? "செயல்படுத்தப்பட்டது" : "Enabled") : (language === "ta" ? "முடக்கப்பட்டது" : "Disabled")}
+                onPress={handleToggleNotifications}
+              />
+
+              <ProfileOption
                 icon="info"
                 title={getLabel("appInfo")}
                 subtitle={getLabel("appInfoDesc")}
@@ -552,6 +573,7 @@ export default function ProfileScreen() {
               value={farmer?.phone || "—"}
               onPress={() => handleOpenEdit("phone", t.phone, farmer?.phone || "")}
             />
+
             <DetailRow
               icon="mail"
               label={getLabel("email")}

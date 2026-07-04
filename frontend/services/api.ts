@@ -25,6 +25,8 @@ export interface AuthUser {
   avatarColor?: string | null;
   avatarInitials?: string | null;
   createdAt?: string;
+  notificationPermission?: boolean;
+  notificationsEnabled?: boolean;
 }
 
 export interface AuthResult {
