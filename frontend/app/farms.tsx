@@ -50,19 +50,29 @@ export default function FarmsScreen() {
 
     setActionLoading(true);
     try {
+      const isNew = !editingFarmId;
+      const wasEmpty = farms.length === 0;
+      let targetFarmId = editingFarmId;
+
       if (editingFarmId) {
         await farmRepository.update(editingFarmId, {
           name: farmName.trim(),
           location: farmLocation.trim() || undefined,
         });
       } else {
-        await farmRepository.create({
+        const createdFarm = await farmRepository.create({
           name: farmName.trim(),
           location: farmLocation.trim() || undefined,
         });
+        targetFarmId = createdFarm.id;
       }
       await refreshFarms();
       setModalVisible(false);
+
+      if (isNew && wasEmpty && targetFarmId) {
+        await switchFarm(targetFarmId);
+        router.replace("/(tabs)");
+      }
     } catch (e: any) {
       Alert.alert("Error", e.message || "Failed to save farm");
     } finally {

@@ -177,20 +177,19 @@ export function OnboardingProvider({
         }
     }, [farmer, user]);
 
-    /**
-     * Screen Order
-     *
-     * 0 → Welcome
-     * 1 → Farm Details
-     * 2 → Location
-     * 3 → Animals
-     * 4 → Permissions
-     * 5 → Success
-     */
+     /**
+      * Screen Order
+      *
+      * 0 → Welcome
+      * 1 → Farm Details
+      * 2 → Location
+      * 3 → Permissions
+      * 4 → Success
+      */
 
     const [currentStep, setCurrentStep] = useState(0);
 
-    const totalSteps = 6;
+    const totalSteps = 5;
 
     /* ---------------------------------------------------------------------- */
     /*                            FIELD UPDATES                               */
@@ -323,21 +322,15 @@ export function OnboardingProvider({
                 );
 
             /**
-             * Animals
-             */
-            case 3:
-                return totalAnimals > 0;
-
-            /**
              * Permissions
              */
-            case 4:
+            case 3:
                 return true;
 
             /**
              * Success
              */
-            case 5:
+            case 4:
                 return true;
 
             default:

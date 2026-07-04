@@ -27,12 +27,15 @@ import { useFarmer } from "@/context/FarmerContext";
 import { useDatabase } from "@/context/DatabaseContext";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { farmRepository } from "../../src/modules/farms/api/FarmRepository";
+import { useFarmContext } from "../../src/modules/farms/context/FarmProvider";
 
 export default function SuccessScreen() {
     const { farmer, createProfile } = useFarmer();
     const { addAnimal } = useDatabase();
     const { data, goToStep } = useOnboarding();
     const { t } = useLanguage();
+    const { switchFarm, refreshFarms } = useFarmContext();
     const [saving, setSaving] = useState(false);
 
     const animalTypeNames: Record<string, string> = {
@@ -61,43 +64,16 @@ export default function SuccessScreen() {
                 onboardingCompleted: true,
             });
 
-            // 2. Add animals to the local database
-            const farmerId = savedFarmer.id;
-            const animalEntries = Object.entries(data.animals);
+            // 2. Create the first farm automatically
+            const farmLocation = `${data.village}, ${data.district}, ${data.state}`;
+            const farm = await farmRepository.create({
+                name: data.farmName.trim() || `${data.ownerName.trim()}'s Farm`,
+                location: farmLocation,
+            });
 
-            for (const [type, count] of animalEntries) {
-                if (count > 0) {
-                    for (let i = 1; i <= count; i++) {
-                        // Generate animal name
-                        const name = `${type.charAt(0).toUpperCase() + type.slice(1)} ${i}`;
-
-                        // Map standard animal type
-                        let dbType: 'cow' | 'buffalo' | 'calf' = 'cow';
-                        if (type === 'buffalo') dbType = 'buffalo';
-                        else if (type === 'calf') dbType = 'calf';
-
-                        await addAnimal({
-                            farmerId,
-                            name,
-                            type: dbType,
-                            breed: "Jersey",
-                            tagNumber: `TAG-${type.toUpperCase().slice(0, 3)}-${Math.floor(1000 + Math.random() * 9000)}`,
-                            photoUri: "",
-                            healthStatus: "healthy",
-                            notes: "Added during onboarding setup",
-                            birthDate: Date.now() - 365 * 24 * 60 * 60 * 1000 * 3, // 3 years old
-                            lactationNumber: 1,
-                            lastCalvingDate: 0,
-                            expectedCalvingDate: 0,
-                            isPregnant: false,
-                            bodyConditionScore: 3.5,
-                            weightKg: 400,
-                            lastMilkEntryDate: 0,
-                            lastMilkQuantity: 0,
-                        } as any);
-                    }
-                }
-            }
+            // 3. Switch to the newly created farm and refresh the list
+            await switchFarm(farm.id);
+            await refreshFarms();
 
             router.replace("/(tabs)" as any);
         } catch (err: any) {
@@ -139,7 +115,7 @@ export default function SuccessScreen() {
                     </View>
 
                     {/* Location */}
-                    <View style={[styles.summaryItem, styles.borderTop]}>
+                    <View style={[styles.summaryItem, styles.borderTop, { marginBottom: 0 }]}>
                         <View style={styles.iconWrapper}>
                             <Feather name="map-pin" size={18} color="#138A4A" />
                         </View>
@@ -147,22 +123,6 @@ export default function SuccessScreen() {
                             <Text style={styles.summaryLabel}>{t.onboardingSuccessLocation}</Text>
                             <Text style={styles.summaryValue}>
                                 {`${data.village.trim()}, ${data.district.trim()}, ${data.state.trim()}`}
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* Animals Added */}
-                    <View style={[styles.summaryItem, styles.borderTop, { marginBottom: 0 }]}>
-                        <View style={styles.iconWrapper}>
-                            <Feather name="clipboard" size={18} color="#138A4A" />
-                        </View>
-                        <View style={styles.summaryDetails}>
-                            <Text style={styles.summaryLabel}>{t.onboardingSuccessAnimalsAdded}</Text>
-                            <Text style={styles.summaryValue}>
-                                {Object.entries(data.animals)
-                                    .filter(([_, val]) => val > 0)
-                                    .map(([key, val]) => `${animalTypeNames[key] || key} (${val})`)
-                                    .join(", ")}
                             </Text>
                         </View>
                     </View>
