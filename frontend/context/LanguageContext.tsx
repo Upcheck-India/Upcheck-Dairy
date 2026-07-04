@@ -30,6 +30,7 @@ const base = {
   filterAll: "All", filterCow: "Cow", filterBuffalo: "Buffalo",
   filterHealthy: "Healthy", filterAttention: "Attention", filterCritical: "Critical",
   milkLog: "Log Milk", milkLogSuccess: "Milk logged!", milkToday: "Today's Milk",
+  estimatedPayout: "Estimated Payout",
   milkLogTitle: "Log Milk Entry", session: "Session", morning: "Morning", evening: "Evening",
   quantity: "Quantity (Litres)", fatPercentage: "Fat % (optional)", save: "Save", cancel: "Cancel",
   health: "Health", healthy: "Healthy", attention: "Needs Attention", critical: "Critical",

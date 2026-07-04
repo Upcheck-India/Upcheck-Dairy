@@ -23,6 +23,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
 import { useHealth } from "../../src/modules/health/hooks/useHealth";
 import { useMilk } from "../../src/modules/milk/hooks/useMilk";
+import { MilkEntry } from "../../src/modules/milk/models/MilkEntry";
 
 const LOCALE_MAP: Record<string, string> = {
   ta: "ta-IN", te: "te-IN", kn: "kn-IN", ml: "ml-IN", hi: "hi-IN", en: "en-IN",
@@ -34,10 +35,11 @@ export default function AnimalDetail() {
   const insets = useSafeAreaInsets();
   const { animals, updateAnimal, removeAnimal } = useAnimals();
   const { healthEvents, createEvent } = useHealth();
-  const { milkEntries: rawMilkEntries } = useMilk();
+  const { milkEntries: rawMilkEntries, removeMilk } = useMilk();
   const { t, language } = useLanguage();
   const [milkLogVisible, setMilkLogVisible] = useState(false);
   const [healthNoteVisible, setHealthNoteVisible] = useState(false);
+  const [entryToEdit, setEntryToEdit] = useState<MilkEntry | null>(null);
 
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
@@ -170,6 +172,31 @@ export default function AnimalDetail() {
     setHealthNoteVisible(false);
   };
 
+  const isTa = language === "ta";
+
+  const handleDeleteMilkEntry = (entry: MilkEntry) => {
+    Alert.alert(
+      isTa ? "பதிவை நீக்கவா?" : "Delete Entry",
+      isTa ? "இந்த பால் பதிவை நீக்க விரும்புகிறீர்களா?" : "Are you sure you want to delete this milk log?",
+      [
+        { text: t.cancel || "Cancel", style: "cancel" },
+        {
+          text: isTa ? "நீக்கு" : "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await removeMilk(Number(entry.id));
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (err) {
+              console.error("[AnimalDetail] Failed to delete milk entry:", err);
+              Alert.alert("Error", "Failed to delete milk entry");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
@@ -270,6 +297,7 @@ export default function AnimalDetail() {
             style={[styles.actionBtn, { backgroundColor: colors.primary }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setEntryToEdit(null);
               setMilkLogVisible(true);
             }}
           >
@@ -404,9 +432,29 @@ export default function AnimalDetail() {
                   </Text>
                 )}
               </View>
-              <Text style={[styles.milkEntryQty, { color: colors.foreground }]}>
-                {e.quantity.toFixed(1)}L
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <Text style={[styles.milkEntryQty, { color: colors.foreground }]}>
+                  {e.quantity.toFixed(1)}L
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setEntryToEdit(e);
+                    setMilkLogVisible(true);
+                  }}
+                  style={styles.entryActionBtn}
+                  hitSlop={8}
+                >
+                  <Feather name="edit-2" size={14} color={colors.primary} />
+                </Pressable>
+                <Pressable
+                  onPress={() => handleDeleteMilkEntry(e)}
+                  style={styles.entryActionBtn}
+                  hitSlop={8}
+                >
+                  <Feather name="trash-2" size={14} color={colors.destructive} />
+                </Pressable>
+              </View>
             </View>
           ))
         )}
@@ -415,7 +463,11 @@ export default function AnimalDetail() {
       <MilkLogModal
         visible={milkLogVisible}
         animal={animal}
-        onClose={() => setMilkLogVisible(false)}
+        entryToEdit={entryToEdit}
+        onClose={() => {
+          setMilkLogVisible(false);
+          setEntryToEdit(null);
+        }}
       />
       <HealthNoteModal
         visible={healthNoteVisible}
@@ -543,6 +595,12 @@ const styles = StyleSheet.create({
   },
   milkEntryDate: { fontSize: 13 },
   milkEntryFat: { fontSize: 11, marginTop: 2 },
+  entryActionBtn: {
+    padding: 4,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   milkEntryQty: { fontSize: 16, fontWeight: "700" },
   noData: { fontSize: 14, textAlign: "center", paddingVertical: 16 },
   notFound: { fontSize: 18, marginBottom: 12 },

@@ -8,6 +8,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 import { useVaccination } from "../src/modules/vaccination/hooks/useVaccination";
+import { scheduleVaccinationReminder } from "../utils/notifications";
 
 interface Props {
   visible: boolean;
@@ -51,15 +52,22 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
 
     setSaving(true);
     try {
+      const vaxName = vaccineName.trim() || (selectedTypeInfo?.label ?? vaccineType);
       await createVaccination({
         animalId: Number(selectedAnimalId),
-        vaccineName: vaccineName.trim() || (selectedTypeInfo?.label ?? vaccineType),
+        vaccineName: vaxName,
         vaccineType,
         scheduledDate: new Date(scheduledDate).toISOString(),
         batchNo: batchNo.trim() || undefined,
         cost: cost ? parseFloat(cost) : undefined,
         note: note.trim() || undefined,
       });
+
+      // Schedule reminders in the background
+      const animal = animals.find((a) => a.id === selectedAnimalId);
+      const name = animal?.name || "Animal";
+      scheduleVaccinationReminder(name, vaxName, new Date(scheduledDate), language).catch(e => console.warn(e));
+
       resetForm();
       onClose();
     } catch (e: any) {

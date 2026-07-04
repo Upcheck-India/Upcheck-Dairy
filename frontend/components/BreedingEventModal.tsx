@@ -8,6 +8,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 import { useBreeding } from "../src/modules/breeding/hooks/useBreeding";
+import { scheduleHeatReminder, scheduleCalvingReminder } from "../utils/notifications";
 
 interface Props {
   visible: boolean;
@@ -66,6 +67,16 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
         expectedCalvingDate: expectedCalvingDate ? new Date(expectedCalvingDate).toISOString() : undefined,
         calvingGender: calvingGender || undefined,
       });
+
+      // Schedule reminders in the background
+      const name = animal?.name || "Animal";
+      if (eventType === "heat") {
+        scheduleHeatReminder(name, new Date(date), language).catch(e => console.warn(e));
+      }
+      if (expectedCalvingDate) {
+        scheduleCalvingReminder(name, new Date(expectedCalvingDate), language).catch(e => console.warn(e));
+      }
+
       resetForm();
       onClose();
     } catch (e: any) {
