@@ -12,10 +12,9 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from "react-native";
 
-import { generateId, getTodayString, useApp } from "@/context/AppContext";
-import { getISTDateString } from "../utils/date";
 import { Animal } from "../src/modules/animals/models/Animal";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
@@ -36,7 +35,6 @@ export default function MilkLogModal({
 }: MilkLogModalProps) {
   const colors = useColors();
   const { createMilk } = useMilk();
-  const { addMilkEntry } = useApp();
   const { t } = useLanguage();
   const [quantity, setQuantity] = useState("");
   const [session, setSession] = useState<"morning" | "evening">(
@@ -45,6 +43,7 @@ export default function MilkLogModal({
   const [fat, setFat] = useState("");
   const [snf, setSnf] = useState("");
   const [notes, setNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
@@ -65,12 +64,13 @@ export default function MilkLogModal({
   }, [visible]);
 
   const handleSave = () => {
-    if (!animal) return;
+    if (!animal || isSaving) return;
     const qty = parseFloat(quantity);
     if (isNaN(qty) || qty <= 0) {
       Alert.alert(t.error, t.milkLogInvalidQty);
       return;
     }
+    setIsSaving(true);
     createMilk({
       animalId: Number(animal.id),
       session,
@@ -79,24 +79,16 @@ export default function MilkLogModal({
       fat: fat ? parseFloat(fat) : undefined,
       snf: snf ? parseFloat(snf) : undefined,
       notes: notes || undefined,
-    }).then((newEntry) => {
-      addMilkEntry({
-        id: newEntry.id.toString(),
-        animalId: newEntry.animalId.toString(),
-        session: newEntry.session,
-        quantity: newEntry.quantity,
-        date: getISTDateString(newEntry.date),
-        timestamp: newEntry.date instanceof Date ? newEntry.date.getTime() : new Date(newEntry.date).getTime(),
-        fat: newEntry.fat ?? undefined,
-        snf: newEntry.snf ?? undefined,
-        notes: newEntry.notes ?? undefined,
-      });
+    }).then(() => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onSuccess?.();
+      onClose();
     }).catch(err => {
       console.error("[MilkLogModal] Failed to create milk entry:", err);
+      Alert.alert(t.error, "Failed to save milk log. Please check your network connection.");
+    }).finally(() => {
+      setIsSaving(false);
     });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onSuccess?.();
-    onClose();
   };
 
   if (!animal) return null;
@@ -263,11 +255,18 @@ export default function MilkLogModal({
               </View>
 
               <Pressable
-                style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+                style={[styles.saveBtn, { backgroundColor: colors.primary, opacity: isSaving ? 0.7 : 1 }]}
                 onPress={handleSave}
+                disabled={isSaving}
               >
-                <Feather name="check" size={20} color="#fff" />
-                <Text style={styles.saveBtnText}>{t.save}</Text>
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Feather name="check" size={20} color="#fff" />
+                    <Text style={styles.saveBtnText}>{t.save}</Text>
+                  </>
+                )}
               </Pressable>
             </ScrollView>
           </Pressable>

@@ -17,11 +17,12 @@ import {
 
 import MilkLogModal from "@/components/MilkLogModal";
 import HealthNoteModal from "@/components/HealthNoteModal";
-import { generateId, getTodayString, HealthStatus, useApp, getISTDateString } from "@/context/AppContext";
+import { generateId, getTodayString, HealthStatus, getISTDateString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
 import { useHealth } from "../../src/modules/health/hooks/useHealth";
+import { useMilk } from "../../src/modules/milk/hooks/useMilk";
 
 const LOCALE_MAP: Record<string, string> = {
   ta: "ta-IN", te: "te-IN", kn: "kn-IN", ml: "ml-IN", hi: "hi-IN", en: "en-IN",
@@ -31,9 +32,9 @@ export default function AnimalDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { milkEntries } = useApp();
   const { animals, updateAnimal, removeAnimal } = useAnimals();
   const { healthEvents, createEvent } = useHealth();
+  const { milkEntries: rawMilkEntries } = useMilk();
   const { t, language } = useLanguage();
   const [milkLogVisible, setMilkLogVisible] = useState(false);
   const [healthNoteVisible, setHealthNoteVisible] = useState(false);
@@ -42,7 +43,8 @@ export default function AnimalDetail() {
   const topPad = isWeb ? 67 : insets.top;
 
   const animal = animals.find((a) => a.id === id);
-  const animalMilk = milkEntries.filter((e) => e.animalId === id);
+  // MilkEntry domain model has Date objects — compare using IST date strings
+  const animalMilk = rawMilkEntries.filter((e) => e.animalId === id);
   const animalHealth = healthEvents.filter((e) => e.animalId === id);
 
   const HEALTH_OPTIONS: { status: HealthStatus; label: string; color: string }[] = [
@@ -60,7 +62,7 @@ export default function AnimalDetail() {
     return dates.map((date) => ({
       date,
       total: animalMilk
-        .filter((e) => e.date === date)
+        .filter((e) => getISTDateString(e.date) === date)
         .reduce((s, e) => s + e.quantity, 0),
     }));
   }, [animalMilk]);
@@ -394,7 +396,7 @@ export default function AnimalDetail() {
               />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.milkEntryDate, { color: colors.mutedForeground }]}>
-                  {e.date} — {e.session === "morning" ? t.morning : t.evening}
+                  {getISTDateString(e.date)} — {e.session === "morning" ? t.morning : t.evening}
                 </Text>
                 {e.fat && (
                   <Text style={[styles.milkEntryFat, { color: colors.mutedForeground }]}>

@@ -16,7 +16,6 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider } from "@/context/AppContext";
 import { FarmerProvider, useFarmer } from "@/context/FarmerContext";
 import { LanguageProvider } from "@/context/LanguageContext";
-import { DatabaseProvider } from "@/context/DatabaseContext";
 import { FarmProvider, useFarmContext } from "../src/modules/farms/context/FarmProvider";
 import { AnimalProvider } from "../src/modules/animals/context/AnimalProvider";
 import { MilkProvider } from "../src/modules/milk/context/MilkProvider";
@@ -121,37 +120,35 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <DatabaseProvider>
-            <LanguageProvider>
-              <FarmerProvider>
-                <FarmProvider>
-                  <AnimalProvider>
-                    <MilkProvider>
-                      <HealthProvider>
-                        <BreedingProvider>
-                          <VaccinationProvider>
-                            <InventoryProvider>
-                              <TaskProvider>
-                                <FinanceProvider>
-                                  <AppProvider>
-                                    <GestureHandlerRootView>
-                                      <AuthGuard>
-                                        <RootLayoutNav />
-                                      </AuthGuard>
-                                    </GestureHandlerRootView>
-                                  </AppProvider>
-                                </FinanceProvider>
-                              </TaskProvider>
-                            </InventoryProvider>
-                          </VaccinationProvider>
-                        </BreedingProvider>
-                      </HealthProvider>
-                    </MilkProvider>
-                  </AnimalProvider>
-                </FarmProvider>
-              </FarmerProvider>
-            </LanguageProvider>
-          </DatabaseProvider>
+          <LanguageProvider>
+            <FarmerProvider>
+              <FarmProvider>
+                <AnimalProvider>
+                  <MilkProvider>
+                    <HealthProvider>
+                      <BreedingProvider>
+                        <VaccinationProvider>
+                          <InventoryProvider>
+                            <TaskProvider>
+                              <FinanceProvider>
+                                <AppProvider>
+                                  <GestureHandlerRootView>
+                                    <AuthGuard>
+                                      <RootLayoutNav />
+                                    </AuthGuard>
+                                  </GestureHandlerRootView>
+                                </AppProvider>
+                              </FinanceProvider>
+                            </TaskProvider>
+                          </InventoryProvider>
+                        </VaccinationProvider>
+                      </BreedingProvider>
+                    </HealthProvider>
+                  </MilkProvider>
+                </AnimalProvider>
+              </FarmProvider>
+            </FarmerProvider>
+          </LanguageProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

@@ -24,7 +24,6 @@ import {
 } from "@/constants/theme";
 
 import { useFarmer } from "@/context/FarmerContext";
-import { useDatabase } from "@/context/DatabaseContext";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { farmRepository } from "../../src/modules/farms/api/FarmRepository";
@@ -32,7 +31,6 @@ import { useFarmContext } from "../../src/modules/farms/context/FarmProvider";
 
 export default function SuccessScreen() {
     const { farmer, createProfile } = useFarmer();
-    const { addAnimal } = useDatabase();
     const { data, goToStep } = useOnboarding();
     const { t } = useLanguage();
     const { switchFarm, refreshFarms } = useFarmContext();
