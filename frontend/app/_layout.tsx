@@ -44,30 +44,35 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const hasProfile = !!(farmer && farmer.village && farmer.district);
   const onOnboarding = firstSegment === "(auth)" && segments[1] === "onboarding";
 
-  if (isAuthenticated) {
-    if (!hasProfile) {
-      if (!onOnboarding) {
-        return <Redirect href="/(auth)/onboarding" />;
-      }
-      return <>{children}</>;
+  if (!isAuthenticated) {
+    if (!inAuth) {
+      return <Redirect href="/(auth)/login" />;
     }
+    return <>{children}</>;
+  }
 
-    // Guard on farms loading state
-    if (isFarmLoading || !farmsLoaded) {
-      return null;
+  if (!hasProfile) {
+    if (!onOnboarding) {
+      return <Redirect href="/(auth)/onboarding" />;
     }
+    return <>{children}</>;
+  }
 
-    const onFarmsScreen = firstSegment === "farms";
+  // Guard on farms loading state
+  if (isFarmLoading || !farmsLoaded) {
+    return null;
+  }
 
-    // Enforce active farm if not on onboarding/farms screen
-    if (farms.length === 0) {
-      if (!onFarmsScreen) {
-        return <Redirect href="/farms" />;
-      }
-    } else {
-      if (inAuth) {
-        return <Redirect href="/(tabs)" />;
-      }
+  const onFarmsScreen = firstSegment === "farms";
+
+  // Enforce active farm if not on onboarding/farms screen
+  if (farms.length === 0) {
+    if (!onFarmsScreen) {
+      return <Redirect href="/farms" />;
+    }
+  } else {
+    if (inAuth) {
+      return <Redirect href="/(tabs)" />;
     }
   }
 

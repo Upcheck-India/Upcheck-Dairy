@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "ThulirFarm",
-    "slug": "thulirafarm",
+    "slug": "dairy-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -41,7 +41,8 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -84,6 +85,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": false
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "8c3b9099-e91b-4348-875a-c9a24562d30a"
+      }
+    },
+    "owner": "upcheck"
   }
 }
