@@ -24,6 +24,8 @@ import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
 import { useHealth } from "../../src/modules/health/hooks/useHealth";
 import { useMilk } from "../../src/modules/milk/hooks/useMilk";
 import { MilkEntry } from "../../src/modules/milk/models/MilkEntry";
+import { supabase } from "../../lib/supabase";
+import { useFarmer } from "@/context/FarmerContext";
 
 const LOCALE_MAP: Record<string, string> = {
   ta: "ta-IN", te: "te-IN", kn: "kn-IN", ml: "ml-IN", hi: "hi-IN", en: "en-IN",
@@ -34,6 +36,7 @@ export default function AnimalDetail() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { animals, updateAnimal, removeAnimal } = useAnimals();
+  const { accessToken } = useFarmer();
   const { healthEvents, createEvent } = useHealth();
   const { milkEntries: rawMilkEntries, removeMilk } = useMilk();
   const { t, language } = useLanguage();
@@ -109,6 +112,68 @@ export default function AnimalDetail() {
     updateAnimal(Number(animal.id), { healthStatus: status });
   };
 
+  const uploadPhoto = async (localUri: string): Promise<string | null> => {
+    // 1. Try Supabase Storage first
+    try {
+      console.log("[uploadPhoto] Attempting Supabase Storage upload...");
+      const response = await fetch(localUri);
+      const blob = await response.blob();
+      const fileName = `animal_${id}_${Date.now()}.jpg`;
+
+      const { data, error } = await supabase.storage
+        .from("animals")
+        .upload(fileName, blob, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("animals")
+        .getPublicUrl(fileName);
+
+      console.log("[uploadPhoto] Supabase Storage upload success:", publicUrl);
+      return publicUrl;
+    } catch (supabaseError) {
+      console.warn("[uploadPhoto] Supabase upload failed, falling back to local server:", supabaseError);
+
+      // 2. Fallback to local server upload
+      const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api";
+      const formData = new FormData();
+      formData.append("file", {
+        uri: localUri,
+        name: `animal_${id}_photo.jpg`,
+        type: "image/jpeg",
+      } as any);
+
+      const headers: Record<string, string> = {};
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      try {
+        const response = await fetch(`${apiBase}/animals/upload`, {
+          method: "POST",
+          body: formData,
+          headers,
+        });
+        if (!response.ok) {
+          throw new Error(`Upload failed with status ${response.status}`);
+        }
+        const resData = await response.json();
+        console.log("[uploadPhoto] Local server upload fallback success:", resData.url);
+        return resData.url;
+      } catch (localError) {
+        console.error("[uploadPhoto] Both upload methods failed:", localError);
+        Alert.alert(t.error, "Failed to upload image to server.");
+        return null;
+      }
+    }
+  };
+
   const handleCamera = () => {
     Alert.alert(t.animalDetailPhotoTitle, t.animalDetailPhotoBody, [
       { text: t.cancel, style: "cancel" },
@@ -127,8 +192,11 @@ export default function AnimalDetail() {
             quality: 0.7,
           });
           if (!result.canceled && result.assets[0]) {
-            updateAnimal(Number(animal.id), { photoUri: result.assets[0].uri });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            const uploadedUrl = await uploadPhoto(result.assets[0].uri);
+            if (uploadedUrl) {
+              await updateAnimal(Number(animal.id), { photoUri: uploadedUrl });
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
           }
         },
       },
@@ -147,8 +215,11 @@ export default function AnimalDetail() {
             quality: 0.7,
           });
           if (!result.canceled && result.assets[0]) {
-            updateAnimal(Number(animal.id), { photoUri: result.assets[0].uri });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            const uploadedUrl = await uploadPhoto(result.assets[0].uri);
+            if (uploadedUrl) {
+              await updateAnimal(Number(animal.id), { photoUri: uploadedUrl });
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
           }
         },
       },

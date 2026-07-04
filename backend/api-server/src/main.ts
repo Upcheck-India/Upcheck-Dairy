@@ -5,6 +5,9 @@ import { AppModule } from "./app.module";
 import { ValidationPipe } from "@nestjs/common";
 import { logger } from "./lib/logger";
 import helmet from "helmet";
+import * as express from "express";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -79,6 +82,15 @@ async function bootstrap() {
   if (Number.isNaN(port) || port <= 0) {
     throw new Error(`Invalid PORT value: "${rawPort}"`);
   }
+
+  // Ensure uploads directory exists
+  const uploadsDir = path.join(process.cwd(), "uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  // Serve static files from the uploads directory
+  app.use("/uploads", express.static(uploadsDir));
 
   await app.listen(port);
   logger.info({ port }, "NestJS Server listening");
