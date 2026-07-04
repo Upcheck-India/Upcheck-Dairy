@@ -1,3 +1,5 @@
+import { getISTDateString } from "../utils/date";
+export { getISTDateString };
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useMilk } from "../src/modules/milk/hooks/useMilk";
 import React, {
@@ -244,13 +246,13 @@ export function generateId(): string {
 }
 
 export function getTodayString(): string {
-  return new Date().toISOString().split("T")[0];
+  return getISTDateString();
 }
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
+  return getISTDateString(d);
 }
 
 function daysBetween(dateA: string, dateB: string): number {
@@ -275,7 +277,7 @@ function computeAnomalies(animals: Animal[], milkEntries: MilkEntry[]): MilkAnom
     const prev3Days = Array.from({ length: 3 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (i + 1));
-      return d.toISOString().split("T")[0];
+      return getISTDateString(d);
     });
 
     const prevTotals = prev3Days
@@ -409,7 +411,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         animalId: e.animalId,
         session: e.session,
         quantity: e.quantity,
-        date: e.date instanceof Date ? e.date.toISOString().split("T")[0] : new Date(e.date).toISOString().split("T")[0],
+        date: getISTDateString(e.date),
         timestamp: e.date instanceof Date ? e.date.getTime() : new Date(e.date).getTime(),
         fat: e.fat ?? undefined,
         snf: e.snf ?? undefined,
@@ -717,7 +719,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const last7days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
-      return d.toISOString().split("T")[0];
+      return getISTDateString(d);
     });
     return last7days.map((date) =>
       milkEntries.filter((e) => e.animalId === animalId && e.date === date).reduce((sum, e) => sum + e.quantity, 0)
@@ -728,7 +730,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
-      const date = d.toISOString().split("T")[0];
+      const date = getISTDateString(d);
       const income = incomeEntries.filter((e) => e.date === date).reduce((s, e) => s + e.totalReceived, 0);
       const expense = expenseEntries.filter((e) => e.date === date).reduce((s, e) => s + e.amount, 0);
       const label = d.toLocaleDateString("en-IN", { weekday: "short" });

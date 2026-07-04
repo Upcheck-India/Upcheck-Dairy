@@ -21,7 +21,7 @@ import {
 import CelebrationOverlay from "@/components/CelebrationOverlay";
 import StatCard from "@/components/StatCard";
 import TaskItem from "@/components/TaskItem";
-import { useApp, SmartAlert } from "@/context/AppContext";
+import { useApp, SmartAlert, getTodayString } from "@/context/AppContext";
 import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
@@ -142,7 +142,7 @@ export default function TodayTab() {
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
 
-  const today = new Date().toISOString().split("T")[0]!;
+  const today = getTodayString();
   const todayTasks = tasks.filter((task) => task.formattedDateString === today);
   const completedCount = todayTasks.filter((task) => task.completed).length;
   const totalCount = todayTasks.length;

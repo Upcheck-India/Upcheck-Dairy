@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLanguage } from "@/context/LanguageContext";
+import { getTodayString } from "@/context/AppContext";
 import VaccinationModal from "./VaccinationModal";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
@@ -37,7 +38,7 @@ export default function VaccinationSection() {
         {
           text: t.yes,
           onPress: () => {
-            const today = new Date().toISOString().split("T")[0]!;
+            const today = getTodayString();
             markDone(Number(id), today).catch(err => {
               console.error("[VaccinationSection] Failed to mark vaccine done:", err);
             });

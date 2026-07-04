@@ -15,6 +15,7 @@ import {
 } from "react-native";
 
 import { generateId, getTodayString, useApp } from "@/context/AppContext";
+import { getISTDateString } from "../utils/date";
 import { Animal } from "../src/modules/animals/models/Animal";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
@@ -84,7 +85,7 @@ export default function MilkLogModal({
         animalId: newEntry.animalId.toString(),
         session: newEntry.session,
         quantity: newEntry.quantity,
-        date: newEntry.date instanceof Date ? newEntry.date.toISOString().split("T")[0] : new Date(newEntry.date).toISOString().split("T")[0],
+        date: getISTDateString(newEntry.date),
         timestamp: newEntry.date instanceof Date ? newEntry.date.getTime() : new Date(newEntry.date).getTime(),
         fat: newEntry.fat ?? undefined,
         snf: newEntry.snf ?? undefined,

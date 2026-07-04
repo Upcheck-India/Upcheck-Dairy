@@ -17,7 +17,7 @@ import {
 
 import MilkLogModal from "@/components/MilkLogModal";
 import HealthNoteModal from "@/components/HealthNoteModal";
-import { generateId, getTodayString, HealthStatus, useApp } from "@/context/AppContext";
+import { generateId, getTodayString, HealthStatus, useApp, getISTDateString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
@@ -55,7 +55,7 @@ export default function AnimalDetail() {
     const dates = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
-      return d.toISOString().split("T")[0];
+      return getISTDateString(d);
     });
     return dates.map((date) => ({
       date,

@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
-import { BreedingEventType, getTodayString } from "@/context/AppContext";
+import { BreedingEventType, getTodayString, getISTDateString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
@@ -27,7 +27,7 @@ const EVENT_TYPES: Array<{ type: BreedingEventType; iconName: keyof typeof Feath
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0]!;
+  return getISTDateString(d);
 }
 
 export default function BreedingEventModal({ visible, onClose, preselectedAnimalId }: Props) {
