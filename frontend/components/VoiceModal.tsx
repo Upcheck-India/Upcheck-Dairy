@@ -17,7 +17,8 @@ import {
 
 import { useApp, generateId, getTodayString } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
-import { parseVoiceCommand, transcribeAudio } from "@/services/api";
+import { parseVoiceCommand, transcribeAudio, VoiceCommandResponse } from "@/services/api";
+import { useLanguage, Language } from "@/context/LanguageContext";
 
 interface VoiceModalProps {
   visible: boolean;
@@ -26,23 +27,17 @@ interface VoiceModalProps {
 
 type Status = "idle" | "recording" | "processing" | "result" | "error";
 
-const SAMPLE_COMMANDS = [
-  { text: "லட்சுமி 5 லிட்டர் காலை", label: "பால் பதிவு" },
-  { text: "ராணி காய்ச்சல்", label: "உடல்நிலை" },
-  { text: "தீவனம் செலவு 500", label: "செலவு" },
-  { text: "நிதி பக்கம் செல்", label: "வழிசெலுத்தல்" },
-];
-
-const STATUS_MESSAGES: Record<Status, string> = {
-  idle: "மேலே உள்ள பொத்தானை அழுத்தவும்",
-  recording: "🎙 கேட்கிறேன்... (நிறுத்த மீண்டும் அழுத்தவும்)",
-  processing: "⚡ புரிந்துகொள்கிறேன்...",
-  result: "",
-  error: "⚠ மீண்டும் முயற்சிக்கவும்",
-};
+function getConfirmationMessage(result: VoiceCommandResponse, language: Language): string {
+  if (language === "ta") {
+    return result.confirmationTamil || result.confirmationText;
+  }
+  return result.confirmationText || result.confirmationTamil;
+}
 
 export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
   const colors = useColors();
+  const { t, language } = useLanguage();
+  //console.log("Current language:", language);
   const { animals, addMilkEntry, addExpenseEntry, addHealthEvent } = useApp();
 
   const [status, setStatus] = useState<Status>("idle");
@@ -56,6 +51,21 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
   const dotsLoop = useRef<Animated.CompositeAnimation | null>(null);
 
   const isWeb = Platform.OS === "web";
+
+  const sampleCommands = [
+    { text: t.voiceSampleMilk, label: t.milkLog },
+    { text: t.voiceSampleHealth, label: t.health },
+    { text: t.voiceSampleExpense, label: t.expense },
+    { text: t.voiceSampleNav, label: t.voiceNavLabel },
+  ];
+
+  const statusMessages: Record<Status, string> = {
+    idle: t.voiceHint,
+    recording: t.voiceStatusRecording,
+    processing: t.voiceStatusProcessing,
+    result: "",
+    error: t.voiceStatusError,
+  };
 
   useEffect(() => {
     if (visible) {
@@ -113,7 +123,7 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
       if (!isWeb) {
         const { status: perm } = await Audio.requestPermissionsAsync();
         if (perm !== "granted") {
-          Alert.alert("அனுமதி தேவை", "மைக்ரோஃபோன் அணுகல் வழங்கவும்");
+          Alert.alert(t.animalDetailPermissionNeeded, t.voiceMicPermission);
           return;
         }
         await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
@@ -175,7 +185,7 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
 
       if (!finalTranscript) {
         setStatus("error");
-        setTranscript("குரல் தெளிவாக கேட்கவில்லை. உரை உள்ளிடவும்.");
+        setTranscript(t.voiceNoMatch);
         return;
       }
 
@@ -196,13 +206,14 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
       });
 
       if (result.action === "unknown" || result.confidence < 0.5) {
-        setResultMsg(`புரியவில்லை. "${text}" — மீண்டும் முயற்சிக்கவும்`);
+        setResultMsg(t.voiceNotUnderstood.replace("{text}", text));
         setStatus("result");
         return;
       }
 
       const params = result.params;
       const today = getTodayString();
+      const confirmation = getConfirmationMessage(result, language);
 
       if (result.action === "log_milk" && params.animalId && params.quantity) {
         addMilkEntry({
@@ -213,7 +224,7 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
           date: today,
           timestamp: Date.now(),
         });
-        setResultMsg(`✅ ${result.confirmationTamil}`);
+        setResultMsg(`✅ ${confirmation}`);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else if (result.action === "report_problem" && params.animalId) {
         addHealthEvent({
@@ -223,7 +234,7 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
           type: "observation",
           description: params.symptom ?? text,
         });
-        setResultMsg(`✅ ${result.confirmationTamil}`);
+        setResultMsg(`✅ ${confirmation}`);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       } else if (result.action === "add_expense" && params.expenseAmount) {
         addExpenseEntry({
@@ -233,20 +244,20 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
           description: params.expenseDescription ?? text,
           amount: params.expenseAmount,
         });
-        setResultMsg(`✅ ${result.confirmationTamil}`);
+        setResultMsg(`✅ ${confirmation}`);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else if (result.action === "navigate" && params.tab) {
         router.push(`/(tabs)/${params.tab === "animals" ? "" : params.tab}` as any);
-        setResultMsg(`✅ ${result.confirmationTamil}`);
+        setResultMsg(`✅ ${confirmation}`);
         setTimeout(onClose, 800);
       } else {
-        setResultMsg(`✅ ${result.confirmationTamil || result.confirmationText}`);
+        setResultMsg(`✅ ${confirmation}`);
       }
 
       setStatus("result");
     } catch (err) {
       console.error("Parse command error:", err);
-      setResultMsg("AI சேவை கிடைக்கவில்லை. மீண்டும் முயற்சிக்கவும்.");
+      setResultMsg(t.errorMsg);
       setStatus("error");
     }
   };
@@ -278,9 +289,9 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
             <Feather name="x" size={22} color={colors.mutedForeground} />
           </Pressable>
 
-          <Text style={[styles.title, { color: colors.foreground }]}>குரல் கட்டளை 🎙</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t.voiceTitle}🎙</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Tamil or English • {isWeb ? "Type below" : "Speak naturally"}
+            {t.voiceSub}
           </Text>
 
           {/* Mic button */}
@@ -324,7 +335,7 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
               ) : null}
               <Text style={[styles.resultText, { color: colors.primary }]}>{resultMsg}</Text>
               <Pressable style={[styles.againBtn, { backgroundColor: colors.primary }]} onPress={reset}>
-                <Text style={styles.againBtnText}>மீண்டும் சொல்</Text>
+                <Text style={styles.againBtnText}>{t.speakAgain}</Text>
               </Pressable>
             </View>
           ) : (
@@ -335,13 +346,13 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
                     <Text style={[styles.transcriptText, { color: colors.foreground }]}>{transcript}</Text>
                   ) : null}
                   <Text style={[styles.hintText, { color: colors.mutedForeground }]}>
-                    {STATUS_MESSAGES[status]}
+                    {statusMessages[status]}
                   </Text>
                 </View>
               )}
               {status === "idle" && (
                 <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-                  {STATUS_MESSAGES.idle}
+                  {statusMessages.idle}
                 </Text>
               )}
             </>
@@ -353,7 +364,7 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
               style={[styles.textInput, { color: colors.foreground }]}
               value={textInput}
               onChangeText={setTextInput}
-              placeholder="கட்டளை தட்டச்சு செய்யவும்..."
+              placeholder={t.voicePlaceholder}
               placeholderTextColor={colors.mutedForeground}
               returnKeyType="send"
               onSubmitEditing={handleTextSubmit}
@@ -369,10 +380,10 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
 
           {/* Sample commands */}
           <Text style={[styles.examplesTitle, { color: colors.mutedForeground }]}>
-            உதாரண கட்டளைகள்
+            {t.sampleCommands}
           </Text>
           <View style={styles.commandsGrid}>
-            {SAMPLE_COMMANDS.map((cmd, i) => (
+            {sampleCommands.map((cmd, i) => (
               <Pressable
                 key={i}
                 style={[styles.commandChip, { backgroundColor: colors.secondary, borderColor: colors.border }]}
