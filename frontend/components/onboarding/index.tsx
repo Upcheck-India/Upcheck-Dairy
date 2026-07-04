@@ -151,7 +151,6 @@ export function InputField({
   returnKeyType,
 }: InputFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
 
   // Helper to determine Feather icon name based on label/placeholder
   const getIconName = (): any => {
@@ -166,85 +165,6 @@ export function InputField({
     if (lower.includes("pincode")) return "hash";
     return "edit-2";
   };
-
-  const isStateField = (label || "").toLowerCase().includes("state");
-  const isDistrictField = (label || "").toLowerCase().includes("district");
-
-  const states = [
-    "Tamil Nadu",
-    "Andhra Pradesh",
-    "Telangana",
-    "Karnataka",
-    "Kerala",
-    "Maharashtra",
-  ];
-
-  const districts = [
-    "Tuticorin",
-    "Tirunelveli",
-    "Madurai",
-    "Chennai",
-    "Coimbatore",
-    "Trichy",
-    "Salem",
-    "Kanyakumari",
-    "Thanjavur",
-    "Dindigul",
-  ];
-
-  const handleSelectOption = (option: string) => {
-    onChangeText(option);
-    setModalVisible(false);
-  };
-
-  if (isStateField || isDistrictField) {
-    const options = isStateField ? states : districts;
-    return (
-      <View style={styles.fieldWrap}>
-        <Text style={styles.fieldLabel}>
-          {label} {required && <Text style={styles.required}>*</Text>}
-        </Text>
-        <Pressable
-          style={[styles.inputRow, isFocused && styles.inputRowActive]}
-          onPress={() => setModalVisible(true)}
-        >
-          <Feather name={getIconName()} size={18} color="#16a34a" style={styles.fieldIcon} />
-          <Text style={[styles.inputText, !value && styles.placeholderText]}>
-            {value || placeholder}
-          </Text>
-          <Feather name="chevron-down" size={16} color="#94a3b8" />
-        </Pressable>
-
-        <Modal
-          visible={modalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select {label}</Text>
-              <FlatList
-                data={options}
-                keyExtractor={(item) => item}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={[styles.modalItem, value === item && styles.modalItemActive]}
-                    onPress={() => handleSelectOption(item)}
-                  >
-                    <Text style={[styles.modalItemText, value === item && styles.modalItemTextActive]}>
-                      {item}
-                    </Text>
-                    {value === item && <Feather name="check" size={18} color="#16a34a" />}
-                  </Pressable>
-                )}
-              />
-            </View>
-          </Pressable>
-        </Modal>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.fieldWrap}>
