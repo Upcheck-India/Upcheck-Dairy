@@ -12,7 +12,7 @@ export const healthEventType = pgEnum("health_event_type", [
 
 export const healthEvents = pgTable("health_events", {
   id: serial("id").primaryKey(),
-  animalId: integer("animal_id").notNull().references(() => animals.id),
+  animalId: integer("animal_id").notNull().references(() => animals.id, { onDelete: "cascade" }),
   date: timestamp("date").notNull(),
   type: healthEventType("type").notNull(),
   description: text("description").notNull(),

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useMilk } from "../src/modules/milk/hooks/useMilk";
 import React, {
   createContext,
   useCallback,
@@ -398,6 +399,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [smartAlerts, setSmartAlerts] = useState<SmartAlert[]>([]);
   const [syncStatus] = useState<"synced" | "pending" | "offline">("synced");
   const [isLoaded, setIsLoaded] = useState(false);
+
+  const { milkEntries: modularMilkEntries } = useMilk();
+
+  useEffect(() => {
+    if (modularMilkEntries && modularMilkEntries.length > 0) {
+      const mapped: MilkEntry[] = modularMilkEntries.map((e) => ({
+        id: e.id,
+        animalId: e.animalId,
+        session: e.session,
+        quantity: e.quantity,
+        date: e.date instanceof Date ? e.date.toISOString().split("T")[0] : new Date(e.date).toISOString().split("T")[0],
+        timestamp: e.date instanceof Date ? e.date.getTime() : new Date(e.date).getTime(),
+        fat: e.fat ?? undefined,
+        snf: e.snf ?? undefined,
+        notes: e.notes ?? undefined,
+      }));
+      setMilkEntries(mapped);
+    }
+  }, [modularMilkEntries]);
 
   useEffect(() => { loadData(); }, []);
 
