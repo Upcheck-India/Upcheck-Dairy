@@ -12,7 +12,6 @@ export default class Task extends Model {
 
   @field('animal_id') animalId!: string
   @field('title') title!: string
-  @field('title_tamil') titleTamil!: string
   @field('time') time!: string
   @field('session') session!: TaskSession
   @field('completed') completed!: boolean

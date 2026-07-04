@@ -28,7 +28,6 @@ export const tasks = pgTable("tasks", {
   farmId: uuid("farm_id").notNull().references(() => farms.id, { onDelete: "cascade" }),
   animalId: integer("animal_id").references(() => animals.id),
   title: text("title").notNull(),
-  titleTamil: text("title_tamil").notNull(),
   time: text("time").notNull(),
   session: text("session").notNull(),
   completed: boolean("completed").notNull().default(false),

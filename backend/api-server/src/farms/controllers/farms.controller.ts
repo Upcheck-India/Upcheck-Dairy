@@ -51,10 +51,14 @@ export class LegacyFarmController {
   }
 
   @Post("profile")
-  async createOrUpdateProfile(@GetUser() user: Farmer, @Body() body: Partial<Farmer>) {
+  async createOrUpdateProfile(
+    @GetUser() user: Farmer,
+    @Body() body: Partial<Farmer> & { notificationsEnabled?: boolean }
+  ) {
     const updates: Partial<Farmer> = {};
     if (body.name !== undefined) updates.name = body.name;
     if (body.phone !== undefined) updates.phone = body.phone;
+    if (body.email !== undefined) updates.email = body.email;
     if (body.farmName !== undefined) updates.farmName = body.farmName;
     if (body.village !== undefined) updates.village = body.village;
     if (body.district !== undefined) updates.district = body.district;

@@ -152,7 +152,6 @@ export const dairySchema = appSchema({
       columns: [
         { name: 'animal_id', type: 'string' },
         { name: 'title', type: 'string' },
-        { name: 'title_tamil', type: 'string' },
         { name: 'time', type: 'string' },
         { name: 'session', type: 'string' }, // morning, evening, anytime
         { name: 'completed', type: 'boolean' },
