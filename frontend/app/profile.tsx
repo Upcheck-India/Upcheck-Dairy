@@ -19,9 +19,9 @@ import Svg, { Path, Rect, Circle, G } from "react-native-svg";
 import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANGUAGE_NAMES, type Language } from "@/context/LanguageContext";
-import { useApp } from "@/context/AppContext";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFarmContext } from "../src/modules/farms/context/FarmProvider";
+import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
+import { LinearGradient } from "expo-linear-gradient";
 import { farmRepository } from "../src/modules/farms/api/FarmRepository";
 import { Farm } from "../src/modules/farms/models/Farm";
 import { apiClient } from "../src/core/api/ApiClient";
@@ -38,12 +38,6 @@ function FarmIllustration() {
       {/* Roof of the house */}
       <Path d="M 6 18 L 16 9 L 26 18 Z" fill="#15803d" />
       {/* House structure */}
-      <Rect x={8} y={18} width={16} height={10} fill="#16a34a" />
-      {/* Door */}
-      <Rect x={14} y={22} width={4} height={6} fill="#fff" />
-      {/* Windows */}
-      <Rect x={10} y={20} width={3} height={3} fill="#fff" />
-      <Rect x={19} y={20} width={3} height={3} fill="#fff" />
       {/* Tree trunk */}
       <Rect x={30} y={20} width={2} height={8} fill="#854d0e" />
       {/* Tree foliage */}
@@ -88,7 +82,7 @@ function ProfileCardLandscape() {
 export default function ProfileScreen() {
   const { t, language, setLanguage } = useLanguage();
   const { farmer, updateProfile, logout } = useFarmer();
-  const { animals } = useApp();
+  const { animals } = useAnimals();
   const { farms, activeFarm, refreshFarms } = useFarmContext();
 
   const [currentView, setCurrentView] = useState<ViewState>("main");

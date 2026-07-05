@@ -10,6 +10,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 async function bootstrap() {
+  const jwtSecret = process.env["JWT_SECRET"];
+  if (!jwtSecret || jwtSecret.length < 32) {
+    throw new Error("JWT_SECRET environment variable is required and must be at least 32 characters long.");
+  }
+
   const app = await NestFactory.create(AppModule);
 
   // Configure CORS with production-ready security hardening.

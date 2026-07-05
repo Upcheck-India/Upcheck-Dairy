@@ -11,3 +11,4 @@ export * from './change-password.dto';
 export * from './delete-account.dto';
 export * from './resend-verification.dto';
 export * from './send-otp.dto';
+export * from './refresh.dto';

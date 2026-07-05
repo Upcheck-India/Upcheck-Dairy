@@ -13,7 +13,6 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AppProvider } from "@/context/AppContext";
 import { FarmerProvider, useFarmer } from "@/context/FarmerContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { FarmProvider, useFarmContext } from "../src/modules/farms/context/FarmProvider";
@@ -136,13 +135,11 @@ export default function RootLayout() {
                           <InventoryProvider>
                             <TaskProvider>
                               <FinanceProvider>
-                                <AppProvider>
-                                  <GestureHandlerRootView>
-                                    <AuthGuard>
-                                      <RootLayoutNav />
-                                    </AuthGuard>
-                                  </GestureHandlerRootView>
-                                </AppProvider>
+                                <GestureHandlerRootView>
+                                  <AuthGuard>
+                                    <RootLayoutNav />
+                                  </AuthGuard>
+                                </GestureHandlerRootView>
                               </FinanceProvider>
                             </TaskProvider>
                           </InventoryProvider>

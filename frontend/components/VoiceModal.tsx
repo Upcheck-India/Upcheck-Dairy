@@ -15,7 +15,6 @@ import {
   View,
 } from "react-native";
 
-import { getTodayString, generateId } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { parseVoiceCommand, transcribeAudio, VoiceCommandResponse } from "@/services/api";
 import { useLanguage, Language } from "@/context/LanguageContext";
@@ -220,7 +219,6 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
       }
 
       const params = result.params;
-      const today = getTodayString();
       const confirmation = getConfirmationMessage(result, language);
 
       if (result.action === "log_milk" && params.animalId && params.quantity) {

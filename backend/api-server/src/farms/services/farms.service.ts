@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, InternalServerErrorException, Inject } from "@nestjs/common";
+import { Injectable, BadRequestException, InternalServerErrorException, Inject, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { FarmsRepository } from "../repositories/farms.repository";
 import { openai } from "@workspace/openai-server";
 import { type Farm, type InsertFarm } from "@workspace/db";
@@ -27,19 +27,40 @@ export class FarmsService {
     });
   }
 
-  async getFarmById(id: string): Promise<Farm | null> {
-    return this.farmsRepository.findById(id);
+  async getFarmById(id: string, ownerFarmerId: string): Promise<Farm | null> {
+    const farm = await this.farmsRepository.findById(id);
+    if (!farm) {
+      return null;
+    }
+    if (farm.ownerFarmerId !== ownerFarmerId) {
+      throw new ForbiddenException("You do not own this farm");
+    }
+    return farm;
   }
 
   async getFarmsByOwner(ownerFarmerId: string): Promise<Farm[]> {
     return this.farmsRepository.findByOwner(ownerFarmerId);
   }
 
-  async updateFarm(id: string, data: Partial<Farm>): Promise<Farm> {
+  async updateFarm(id: string, data: Partial<Farm>, ownerFarmerId: string): Promise<Farm> {
+    const farm = await this.farmsRepository.findById(id);
+    if (!farm) {
+      throw new NotFoundException("Farm not found");
+    }
+    if (farm.ownerFarmerId !== ownerFarmerId) {
+      throw new ForbiddenException("You do not own this farm");
+    }
     return this.farmsRepository.update(id, data);
   }
 
-  async deleteFarm(id: string): Promise<void> {
+  async deleteFarm(id: string, ownerFarmerId: string): Promise<void> {
+    const farm = await this.farmsRepository.findById(id);
+    if (!farm) {
+      throw new NotFoundException("Farm not found");
+    }
+    if (farm.ownerFarmerId !== ownerFarmerId) {
+      throw new ForbiddenException("You do not own this farm");
+    }
     await this.farmsRepository.delete(id);
   }
 

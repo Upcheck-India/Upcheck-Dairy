@@ -58,8 +58,6 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
-    "@nozbe/watermelondb": "^0.28.0",
-    "@nozbe/with-observables": "^1.6.0",
     "@react-native-community/netinfo": "^12.0.1",
     "@supabase/supabase-js": "^2.108.2",
     "expo-dev-client": "~6.0.21",
