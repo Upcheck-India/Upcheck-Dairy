@@ -3,6 +3,7 @@ import React from "react";
 import {
     View,
     StyleSheet,
+    Alert,
 } from "react-native";
 
 import {
@@ -46,13 +47,22 @@ export default function LocationScreen() {
     const { t } = useLanguage();
 
     function handleNext() {
-
-        if (validateCurrentStep()) {
-
-            goNext();
-
+        if (!data.village.trim()) {
+            Alert.alert("Error", "Please enter your village");
+            return;
+        }
+        if (!data.district.trim()) {
+            Alert.alert("Error", "Please enter your district");
+            return;
+        }
+        if (!data.state.trim()) {
+            Alert.alert("Error", "Please enter your state");
+            return;
         }
 
+        if (validateCurrentStep()) {
+            goNext();
+        }
     }
 
     return (
