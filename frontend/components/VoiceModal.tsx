@@ -14,6 +14,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 
 import { useColors } from "@/hooks/useColors";
 import { parseVoiceCommand, transcribeAudio, VoiceCommandResponse } from "@/services/api";
@@ -117,6 +118,14 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
   };
 
   const handleMicPress = async () => {
+    const netState = await NetInfo.fetch();
+    if (!netState.isConnected) {
+      setStatus("error");
+      setResultMsg(t.voiceNeedsInternet);
+      Alert.alert("Offline", t.voiceNeedsInternet);
+      return;
+    }
+
     if (status === "recording") {
       await stopRecording();
     } else if (status === "idle" || status === "error") {

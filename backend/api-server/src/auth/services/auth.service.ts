@@ -223,6 +223,7 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await this.userRepository.update(user.id, { passwordHash });
+    await this.tokenService.revokeAllUserTokens(user.id);
 
     return { message: "Password reset successfully" };
   }

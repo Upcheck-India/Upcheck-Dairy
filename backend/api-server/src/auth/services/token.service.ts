@@ -12,7 +12,7 @@ export class TokenService {
   ) {}
 
   generateAccessToken(payload: { sub: string; email: string | null; is2faTemp?: boolean }, options?: { expiresIn?: any }): string {
-    return this.jwtService.sign(payload, { expiresIn: (options?.expiresIn ?? "7d") as any });
+    return this.jwtService.sign(payload, { expiresIn: (options?.expiresIn ?? "15m") as any });
   }
 
   async generateRefreshToken(userId: string): Promise<string> {

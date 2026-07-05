@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, decimal, timestamp, varchar, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, decimal, timestamp, varchar, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { animals } from "./animals";
@@ -15,6 +15,11 @@ export const milkEntries = pgTable("milk_entries", {
   snf: decimal("snf", { precision: 4, scale: 2 }),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    animalIdIdx: index("milk_entries_animal_id_idx").on(table.animalId),
+    dateIdx: index("milk_entries_date_idx").on(table.date),
+  };
 });
 
 export const insertMilkEntrySchema = createInsertSchema(milkEntries).omit({

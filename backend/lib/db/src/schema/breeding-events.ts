@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { animals } from "./animals";
@@ -22,6 +22,10 @@ export const breedingEvents = pgTable("breeding_events", {
   expectedCalvingDate: timestamp("expected_calving_date"),
   calvingGender: text("calving_gender"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    animalIdIdx: index("breeding_events_animal_id_idx").on(table.animalId),
+  };
 });
 
 export const insertBreedingEventSchema = createInsertSchema(breedingEvents).omit({
