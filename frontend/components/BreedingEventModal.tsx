@@ -2,15 +2,27 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
-  Platform, ActivityIndicator
+  Platform, ActivityIndicator, UIManager
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { BreedingEventType, getTodayString, getISTDateString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 import { useBreeding } from "../src/modules/breeding/hooks/useBreeding";
 import { scheduleHeatReminder, scheduleCalvingReminder } from "../utils/notifications";
+
+let DateTimePicker: any = null;
+try {
+  DateTimePicker = require("@react-native-community/datetimepicker").default;
+} catch (e) {
+  // native module not built in custom client
+}
+
+const hasNativeDatePicker =
+  DateTimePicker !== null &&
+  Platform.OS !== "web" &&
+  (UIManager.getViewManagerConfig("RNCDateTimePicker") !== undefined ||
+    UIManager.getViewManagerConfig("RNCDatePicker") !== undefined);
 
 interface Props {
   visible: boolean;
@@ -162,24 +174,39 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
 
           {/* Date */}
           <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.breedingDateLabel}</Text>
-          <Pressable
-            style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Feather name="calendar" size={18} color={colors.mutedForeground} />
-            <Text style={{ flex: 1, fontSize: 15, color: colors.foreground }}>
-              {date}
-            </Text>
-          </Pressable>
+          {hasNativeDatePicker ? (
+            <>
+              <Pressable
+                style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Feather name="calendar" size={18} color={colors.mutedForeground} />
+                <Text style={{ flex: 1, fontSize: 15, color: colors.foreground }}>
+                  {date}
+                </Text>
+              </Pressable>
 
-          {showDatePicker && (
-            <DateTimePicker
-              value={new Date(date)}
-              mode="date"
-              display="default"
-              onChange={onDateChange}
-              maximumDate={new Date()}
-            />
+              {showDatePicker && (
+                <DateTimePicker
+                  value={new Date(date)}
+                  mode="date"
+                  display="default"
+                  onChange={onDateChange}
+                  maximumDate={new Date()}
+                />
+              )}
+            </>
+          ) : (
+            <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+              <Feather name="calendar" size={18} color={colors.mutedForeground} />
+              <TextInput
+                style={{ flex: 1, fontSize: 15, color: colors.foreground, paddingVertical: 8, paddingHorizontal: 4 }}
+                value={date}
+                onChangeText={setDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.mutedForeground}
+              />
+            </View>
           )}
 
           {/* Expected calving date (auto-computed) */}
