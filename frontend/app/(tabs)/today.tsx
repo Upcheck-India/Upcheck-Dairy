@@ -16,6 +16,7 @@ import {
   View,
   Modal,
   TextInput,
+  useColorScheme,
 } from "react-native";
 
 import CelebrationOverlay from "@/components/CelebrationOverlay";
@@ -299,7 +300,7 @@ export default function TodayTab() {
     setRefreshing(false);
   };
 
-  const isDark = colors.background === "#0f1a0a";
+  const isDark = useColorScheme() === "dark";
 
   if (!isLoaded) {
     return (

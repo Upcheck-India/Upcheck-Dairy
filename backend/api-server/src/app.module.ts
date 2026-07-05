@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, Injectable, ExecutionContext } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
@@ -16,6 +16,16 @@ import { VaccinationsModule } from "./vaccinations/vaccinations.module";
 import { InventoryItemsModule } from "./inventory-items/inventory-items.module";
 import { TasksModule } from "./tasks/tasks.module";
 import { FinancialsModule } from "./financials/financials.module";
+
+@Injectable()
+class CustomThrottlerGuard extends ThrottlerGuard {
+  protected async shouldSkip(context: ExecutionContext): Promise<boolean> {
+    if (process.env.NODE_ENV === "test" || process.env.BYPASS_THROTTLE === "true") {
+      return true;
+    }
+    return super.shouldSkip(context);
+  }
+}
 
 @Module({
   imports: [
@@ -50,10 +60,10 @@ import { FinancialsModule } from "./financials/financials.module";
     FinancialsModule,
   ],
   providers: [
-    // Register the global ThrottlerGuard so all routes are rate-limited by default
+    // Register the global CustomThrottlerGuard so all routes are rate-limited by default
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: CustomThrottlerGuard,
     },
   ],
 })

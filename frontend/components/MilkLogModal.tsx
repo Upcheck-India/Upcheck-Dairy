@@ -1,6 +1,7 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
+import NetInfo from "@react-native-community/netinfo";
 import {
   Alert,
   Animated,
@@ -128,7 +129,14 @@ export default function MilkLogModal({
           notes: notes || undefined,
         });
 
-    savePromise.then(() => {
+    savePromise.then(async () => {
+      const state = await NetInfo.fetch();
+      if (!state.isConnected) {
+        Alert.alert(
+          "Offline Mode",
+          "Your entry has been saved locally and will automatically sync when a connection is restored."
+        );
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSuccess?.();
       onClose();

@@ -3,6 +3,9 @@ import { MilkEntry } from "../models/MilkEntry";
 import { milkRepository } from "../api/MilkRepository";
 import { CreateMilkEntryRequestDto, UpdateMilkEntryRequestDto } from "../types/MilkDto";
 import { useFarm } from "../../../modules/farms/hooks/useFarm";
+import { Storage } from "../../../core/storage/Storage";
+import { apiClient } from "../../../core/api/ApiClient";
+import NetInfo from "@react-native-community/netinfo";
 
 interface MilkContextType {
   loading: boolean;
@@ -35,6 +38,51 @@ export function MilkProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const syncOfflineQueue = useCallback(async () => {
+    if (!activeFarm?.id) return;
+    const queueKey = `thulirfarm:${activeFarm.id}:pending_milk_writes`;
+    const pendingWrites = await Storage.get<any[]>(queueKey) || [];
+    if (pendingWrites.length === 0) return;
+
+    console.log(`[MilkProvider] Starting sync for ${pendingWrites.length} offline writes...`);
+    const remainingWrites: any[] = [];
+    const tempIdMap = new Map<string, number>();
+
+    for (const write of pendingWrites) {
+      try {
+        if (write.type === "create") {
+          const response = await apiClient.post<any>("/milk", write.data);
+          if (write.tempId) {
+            tempIdMap.set(write.tempId, response.id);
+          }
+        } else if (write.type === "update") {
+          let targetId = Number(write.id);
+          if (targetId < 0 && write.id && tempIdMap.has(write.id)) {
+            targetId = tempIdMap.get(write.id)!;
+          }
+          if (targetId > 0) {
+            await apiClient.put(`/milk/${targetId}`, write.data);
+          }
+        } else if (write.type === "delete") {
+          let targetId = Number(write.id);
+          if (targetId < 0 && write.id && tempIdMap.has(write.id)) {
+            targetId = tempIdMap.get(write.id)!;
+          }
+          if (targetId > 0) {
+            await apiClient.delete(`/milk/${targetId}`);
+          }
+        }
+      } catch (err) {
+        console.error("[MilkProvider] Failed to sync write, retaining in queue:", write, err);
+        remainingWrites.push(write);
+      }
+    }
+
+    await Storage.set(queueKey, remainingWrites);
+    const data = await milkRepository.getMilk(activeFarm.id);
+    setMilkEntries(data);
+  }, [activeFarm?.id]);
+
   useEffect(() => {
     if (activeFarm?.id) {
       fetchMilk(activeFarm.id);
@@ -43,12 +91,26 @@ export function MilkProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeFarm?.id, fetchMilk]);
 
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected && activeFarm?.id) {
+        syncOfflineQueue().catch(err => console.error("[MilkProvider] Offline queue sync error:", err));
+      }
+    });
+    return () => unsubscribe();
+  }, [activeFarm?.id, syncOfflineQueue]);
+
   const createMilk = async (dto: CreateMilkEntryRequestDto) => {
     setError(null);
     setLoading(true);
     try {
-      const newEntry = await milkRepository.createMilkEntry(dto);
-      setMilkEntries(prev => [newEntry, ...prev]);
+      const farmId = activeFarm?.id || "";
+      const newEntry = await milkRepository.createMilkEntry(dto, farmId);
+      setMilkEntries(prev => {
+        const exists = prev.some(e => e.id === newEntry.id);
+        if (exists) return prev;
+        return [newEntry, ...prev];
+      });
       return newEntry;
     } catch (e: any) {
       const err = e instanceof Error ? e : new Error(e.message || "Failed to create milk entry");
@@ -63,7 +125,8 @@ export function MilkProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     setLoading(true);
     try {
-      const updated = await milkRepository.updateMilkEntry(id, dto);
+      const farmId = activeFarm?.id || "";
+      const updated = await milkRepository.updateMilkEntry(id, dto, farmId);
       setMilkEntries(prev => prev.map(m => (Number(m.id) === id ? updated : m)));
       return updated;
     } catch (e: any) {
@@ -79,7 +142,8 @@ export function MilkProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     setLoading(true);
     try {
-      await milkRepository.deleteMilkEntry(id);
+      const farmId = activeFarm?.id || "";
+      await milkRepository.deleteMilkEntry(id, farmId);
       setMilkEntries(prev => prev.filter(m => Number(m.id) !== id));
     } catch (e: any) {
       const err = e instanceof Error ? e : new Error(e.message || "Failed to delete milk entry");

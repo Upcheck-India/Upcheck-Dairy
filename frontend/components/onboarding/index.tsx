@@ -65,7 +65,13 @@ export function LanguageSelector() {
 
   return (
     <View style={styles.langWrapper}>
-      <Pressable style={styles.langPill} onPress={() => setModalVisible(true)}>
+      <Pressable
+        style={styles.langPill}
+        onPress={() => setModalVisible(true)}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={`Select Language, current: ${activeLanguageName}`}
+      >
         <Feather name="globe" size={16} color="#16a34a" />
         <Text style={styles.langText}>{activeLanguageName}</Text>
         <Feather name="chevron-down" size={14} color="#64748b" />
@@ -197,7 +203,13 @@ export function InputField({
 
 export function BackButton({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable style={styles.backBtn} onPress={onPress}>
+    <Pressable
+      style={styles.backBtn}
+      onPress={onPress}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel="Go back to previous screen"
+    >
       <Feather name="arrow-left" size={20} color="#1F3B2F" />
     </Pressable>
   );
@@ -220,6 +232,9 @@ export function PrimaryButton({ title, icon, onPress, loading }: PrimaryButtonPr
       style={({ pressed }) => [styles.primaryBtn, pressed && styles.primaryBtnPressed]}
       onPress={onPress}
       disabled={loading}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: loading }}
     >
       {loading ? (
         <ActivityIndicator color="#fff" size="small" />
@@ -301,11 +316,23 @@ export function AnimalCounterCard({ image, title, count, increase, decrease }: A
         </View>
       </View>
       <View style={styles.counterRow}>
-        <Pressable style={styles.counterBtn} onPress={decrease}>
+        <Pressable
+          style={styles.counterBtn}
+          onPress={decrease}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Decrease ${title} count`}
+        >
           <Feather name="minus" size={14} color="#64748b" />
         </Pressable>
         <Text style={styles.counterText}>{formattedCount}</Text>
-        <Pressable style={[styles.counterBtn, styles.counterBtnPlus]} onPress={increase}>
+        <Pressable
+          style={[styles.counterBtn, styles.counterBtnPlus]}
+          onPress={increase}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Increase ${title} count`}
+        >
           <Feather name="plus" size={14} color="#16a34a" />
         </Pressable>
       </View>
