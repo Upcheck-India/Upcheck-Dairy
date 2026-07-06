@@ -91,11 +91,7 @@
         }
       ],
       "expo-secure-store",
-      "expo-local-authentication",
-      "expo-file-system",
-      "expo-sharing",
-      "expo-print",
-      "expo-document-picker"
+      "expo-local-authentication"
     ],
     "experiments": {
       "typedRoutes": true,
