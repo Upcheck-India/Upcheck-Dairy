@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers, ParseIntPipe } from "@nestjs/common";
 import { TasksService } from "../services/tasks.service";
 import { CreateTaskDto } from "../dto/create-task.dto";
 import { UpdateTaskDto } from "../dto/update-task.dto";
@@ -25,13 +25,13 @@ export class TasksController {
   }
 
   @Put(":id")
-  async update(@GetUser() user: Farmer, @Param("id") id: string, @Body() dto: UpdateTaskDto) {
-    return this.tasksService.update(user.id, Number(id), dto);
+  async update(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number, @Body() dto: UpdateTaskDto) {
+    return this.tasksService.update(user.id, id, dto);
   }
 
   @Delete(":id")
-  async remove(@GetUser() user: Farmer, @Param("id") id: string) {
-    await this.tasksService.delete(user.id, Number(id));
+  async remove(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+    await this.tasksService.delete(user.id, id);
     return { success: true };
   }
 }

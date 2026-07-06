@@ -128,6 +128,7 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
       avatarColor: u.avatarColor ?? pickAvatarColor(name),
       avatarInitials: u.avatarInitials ?? getInitials(name),
       createdAt: u.createdAt,
+      notificationsEnabled: u.notificationsEnabled ?? u.notificationPermission ?? false,
     };
   }
 

@@ -1,6 +1,7 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
+import NetInfo from "@react-native-community/netinfo";
 import {
   Alert,
   Animated,
@@ -12,18 +13,24 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from "react-native";
 
-import { generateId, getTodayString, useApp } from "@/context/AppContext";
-import { getISTDateString } from "../utils/date";
 import { Animal } from "../src/modules/animals/models/Animal";
+import { MilkEntry } from "../src/modules/milk/models/MilkEntry";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useMilk } from "../src/modules/milk/hooks/useMilk";
+import { useFarmer } from "@/context/FarmerContext";
+import { calculatePayout, DEFAULT_RATE_CARDS } from "../utils/pricing";
+import { useMemo } from "react";
+import { useFarm } from "../src/modules/farms/hooks/useFarm";
+import { useFinance } from "../src/modules/finance/hooks/useFinance";
 
 interface MilkLogModalProps {
   visible: boolean;
   animal: Animal | null;
+  entryToEdit?: MilkEntry | null;
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -31,12 +38,15 @@ interface MilkLogModalProps {
 export default function MilkLogModal({
   visible,
   animal,
+  entryToEdit,
   onClose,
   onSuccess,
 }: MilkLogModalProps) {
   const colors = useColors();
-  const { createMilk } = useMilk();
-  const { addMilkEntry } = useApp();
+  const { createMilk, updateMilk } = useMilk();
+  const { farmer } = useFarmer();
+  const { activeFarm } = useFarm();
+  const { addIncome } = useFinance();
   const { t } = useLanguage();
   const [quantity, setQuantity] = useState("");
   const [session, setSession] = useState<"morning" | "evening">(
@@ -45,6 +55,7 @@ export default function MilkLogModal({
   const [fat, setFat] = useState("");
   const [snf, setSnf] = useState("");
   const [notes, setNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
@@ -55,6 +66,14 @@ export default function MilkLogModal({
         tension: 100,
         friction: 8,
       }).start();
+
+      if (entryToEdit) {
+        setQuantity(entryToEdit.quantity.toString());
+        setSession(entryToEdit.session);
+        setFat(entryToEdit.fat ? entryToEdit.fat.toString() : "");
+        setSnf(entryToEdit.snf ? entryToEdit.snf.toString() : "");
+        setNotes(entryToEdit.notes || "");
+      }
     } else {
       scaleAnim.setValue(0.9);
       setQuantity("");
@@ -62,41 +81,94 @@ export default function MilkLogModal({
       setSnf("");
       setNotes("");
     }
-  }, [visible]);
+  }, [visible, entryToEdit]);
+
+  const estimatedPayout = useMemo(() => {
+    const qty = parseFloat(quantity);
+    if (isNaN(qty) || qty <= 0) return null;
+    const fatVal = fat ? parseFloat(fat) : 4.0;
+    const snfVal = snf ? parseFloat(snf) : 8.5;
+
+    let coop = "AAVIN";
+    const state = farmer?.state?.toLowerCase() || "";
+    if (state.includes("karnataka") || state.includes("ka")) coop = "KMF";
+    else if (state.includes("kerala") || state.includes("kl")) coop = "MILMA";
+    else if (state.includes("telangana") || state.includes("ts")) coop = "TS_DAIRY";
+    else if (state.includes("andhra") || state.includes("ap")) coop = "AP_DAIRY";
+
+    const rateCard = DEFAULT_RATE_CARDS[coop];
+    if (!rateCard) return null;
+
+    try {
+      const res = calculatePayout(qty, fatVal, snfVal, rateCard);
+      return res.netAmount;
+    } catch (e) {
+      return null;
+    }
+  }, [quantity, fat, snf, farmer?.state]);
 
   const handleSave = () => {
-    if (!animal) return;
+    if (!animal || isSaving) return;
     const qty = parseFloat(quantity);
     if (isNaN(qty) || qty <= 0) {
       Alert.alert(t.error, t.milkLogInvalidQty);
       return;
     }
-    createMilk({
-      animalId: Number(animal.id),
-      session,
-      quantity: qty,
-      date: new Date().toISOString(),
-      fat: fat ? parseFloat(fat) : undefined,
-      snf: snf ? parseFloat(snf) : undefined,
-      notes: notes || undefined,
-    }).then((newEntry) => {
-      addMilkEntry({
-        id: newEntry.id.toString(),
-        animalId: newEntry.animalId.toString(),
-        session: newEntry.session,
-        quantity: newEntry.quantity,
-        date: getISTDateString(newEntry.date),
-        timestamp: newEntry.date instanceof Date ? newEntry.date.getTime() : new Date(newEntry.date).getTime(),
-        fat: newEntry.fat ?? undefined,
-        snf: newEntry.snf ?? undefined,
-        notes: newEntry.notes ?? undefined,
-      });
+    setIsSaving(true);
+    const savePromise = entryToEdit
+      ? updateMilk(Number(entryToEdit.id), {
+          session,
+          quantity: qty,
+          fat: fat ? parseFloat(fat) : undefined,
+          snf: snf ? parseFloat(snf) : undefined,
+          notes: notes || undefined,
+        })
+      : createMilk({
+          animalId: Number(animal.id),
+          session,
+          quantity: qty,
+          date: new Date().toISOString(),
+          fat: fat ? parseFloat(fat) : undefined,
+          snf: snf ? parseFloat(snf) : undefined,
+          notes: notes || undefined,
+        });
+
+    savePromise.then(async () => {
+      // Auto-create/update financial income entry when saving a milk log
+      if (estimatedPayout != null && !isNaN(estimatedPayout) && estimatedPayout > 0 && activeFarm?.id) {
+        const rate = qty > 0 ? (estimatedPayout / qty) : 0;
+        await addIncome({
+          farmId: activeFarm.id,
+          date: new Date().toISOString(),
+          buyer: "Milk Cooperative",
+          quantitySold: qty,
+          ratePerLitre: rate,
+          totalExpected: estimatedPayout,
+          totalReceived: estimatedPayout,
+          fatPercentage: fat ? parseFloat(fat) : undefined,
+          snfPercentage: snf ? parseFloat(snf) : undefined,
+          notes: `Auto-generated from milk log for animal ${animal.name}`,
+        }).catch(err => {
+          console.error("[MilkLogModal] Failed to automatically create income entry:", err);
+        });
+      }
+
+      const state = await NetInfo.fetch();
+      if (!state.isConnected) {
+        Alert.alert(
+          "Offline Mode",
+          "Your entry has been saved locally and will automatically sync when a connection is restored."
+        );
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onSuccess?.();
+      onClose();
     }).catch(err => {
-      console.error("[MilkLogModal] Failed to create milk entry:", err);
+      console.error("[MilkLogModal] Failed to save milk entry:", err);
+      Alert.alert(t.error, "Failed to save milk log. Please check your network connection.");
+    }).finally(() => {
+      setIsSaving(false);
     });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onSuccess?.();
-    onClose();
   };
 
   if (!animal) return null;
@@ -262,12 +334,26 @@ export default function MilkLogModal({
                 />
               </View>
 
+              {estimatedPayout !== null && (
+                <View style={[styles.payoutCard, { backgroundColor: colors.primary + "15", borderColor: colors.primary }]}>
+                  <Text style={[styles.payoutLabel, { color: colors.mutedForeground }]}>{t.estimatedPayout || "Estimated Payout"}</Text>
+                  <Text style={[styles.payoutValue, { color: colors.primary }]}>₹{estimatedPayout.toFixed(2)}</Text>
+                </View>
+              )}
+
               <Pressable
-                style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+                style={[styles.saveBtn, { backgroundColor: colors.primary, opacity: isSaving ? 0.7 : 1 }]}
                 onPress={handleSave}
+                disabled={isSaving}
               >
-                <Feather name="check" size={20} color="#fff" />
-                <Text style={styles.saveBtnText}>{t.save}</Text>
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Feather name="check" size={20} color="#fff" />
+                    <Text style={styles.saveBtnText}>{t.save}</Text>
+                  </>
+                )}
               </Pressable>
             </ScrollView>
           </Pressable>
@@ -364,6 +450,25 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     color: "#fff",
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+  },
+  payoutCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 16,
+    marginTop: 4,
+  },
+  payoutLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+  },
+  payoutValue: {
     fontSize: 18,
     fontFamily: "Inter_700Bold",
   },

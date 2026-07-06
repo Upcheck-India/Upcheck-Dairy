@@ -18,7 +18,7 @@ import {
 } from "react-native";
 
 import GauGuruChat from "@/components/GauGuruChat";
-import { useApp } from "@/context/AppContext";
+import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { diagnoseSymptoms, type DiagnoseResponse } from "@/services/api";
@@ -72,7 +72,7 @@ const FIRST_AID_MULTI: Record<string, string[]> = {
 export default function HelpTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { animals } = useApp();
+  const { animals } = useAnimals();
   const { language, t } = useLanguage();
   const [subTab, setSubTab] = useState<HelpSubTab>("diagnose");
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);

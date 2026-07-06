@@ -1,6 +1,6 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View, Alert } from "react-native";
 import { BreedingEventType } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import BreedingEventModal from "./BreedingEventModal";
@@ -57,7 +57,7 @@ function daysUntil(dateStr: any): number {
 export default function BreedingSection() {
   const colors = useColors();
   const { animals } = useAnimals();
-  const { breedingEvents } = useBreeding();
+  const { breedingEvents, removeBreeding } = useBreeding();
   const { language, t } = useLanguage();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedAnimalId, setSelectedAnimalId] = useState<string | undefined>();
@@ -67,6 +67,25 @@ export default function BreedingSection() {
   const handleAddForAnimal = (animalId: string) => {
     setSelectedAnimalId(animalId);
     setModalVisible(true);
+  };
+
+  const handleDeleteEvent = (id: number) => {
+    Alert.alert(
+      language === "ta" ? "நிகழ்வை நீக்கு" : "Delete Event",
+      language === "ta" ? "இந்த இனப்பெருக்க நிகழ்வை நீக்க விரும்புகிறீர்களா?" : "Are you sure you want to delete this breeding event?",
+      [
+        { text: t.cancel, style: "cancel" },
+        {
+          text: language === "ta" ? "நீக்கு" : "Delete",
+          style: "destructive",
+          onPress: () => {
+            removeBreeding(id).catch(err => {
+              console.error("[BreedingSection] Failed to delete breeding event:", err);
+            });
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -143,8 +162,15 @@ export default function BreedingSection() {
                         </View>
                         {i < events.slice(0, 4).length - 1 && <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />}
                         <View style={styles.timelineContent}>
-                          <Text style={[styles.timelineEventName, { color: colors.foreground }]}>{cfg.label[language] ?? cfg.label.en}</Text>
-                          <Text style={[styles.timelineDate, { color: colors.mutedForeground }]}>{new Date(event.date).toLocaleDateString(language === "ta" ? "ta-IN" : "en-US", { month: "short", day: "numeric" })} · {daysSince(event.date)}{t.daysAgoSuffix}</Text>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.timelineEventName, { color: colors.foreground }]}>{cfg.label[language] ?? cfg.label.en}</Text>
+                              <Text style={[styles.timelineDate, { color: colors.mutedForeground }]}>{new Date(event.date).toLocaleDateString(language === "ta" ? "ta-IN" : "en-US", { month: "short", day: "numeric" })} · {daysSince(event.date)}{t.daysAgoSuffix}</Text>
+                            </View>
+                            <Pressable onPress={() => handleDeleteEvent(Number(event.id))} style={{ padding: 4 }}>
+                              <Feather name="trash-2" size={12} color="#dc2626" />
+                            </Pressable>
+                          </View>
                           {event.bullName && <Text style={[styles.timelineNote, { color: colors.secondaryForeground }]}>Bull: {event.bullName}</Text>}
                           {event.calvingGender && (
                             <Text style={[styles.timelineNote, { color: colors.secondaryForeground }]}>

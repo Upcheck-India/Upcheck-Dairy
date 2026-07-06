@@ -1,10 +1,9 @@
-import { IsNotEmpty, IsString, IsPhoneNumber, Length, IsOptional } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, Length, IsOptional } from 'class-validator';
 
 export class VerifyOtpDto {
-    @IsString()
+    @IsEmail()
     @IsNotEmpty()
-    @IsPhoneNumber()
-    phoneNumber: string;
+    email: string;
 
     @IsString()
     @IsNotEmpty()
@@ -13,5 +12,5 @@ export class VerifyOtpDto {
 
     @IsOptional()
     @IsString()
-    hash?: string; // For auto-verification if needed (SMS retriever API)
+    hash?: string;
 }

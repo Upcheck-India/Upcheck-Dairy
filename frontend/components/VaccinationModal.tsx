@@ -2,12 +2,29 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Platform, ActivityIndicator, UIManager
 } from "react-native";
-import { VaccineType, getTodayString } from "@/context/AppContext";
+import { VaccineType, getTodayString, getISTDateString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 import { useVaccination } from "../src/modules/vaccination/hooks/useVaccination";
+import { scheduleVaccinationReminder } from "../utils/notifications";
+import { useFarm } from "../src/modules/farms/hooks/useFarm";
+import { useFinance } from "../src/modules/finance/hooks/useFinance";
+
+let DateTimePicker: any = null;
+try {
+  DateTimePicker = require("@react-native-community/datetimepicker").default;
+} catch (e) {
+  // native module not built in custom client
+}
+
+const hasNativeDatePicker =
+  DateTimePicker !== null &&
+  Platform.OS !== "web" &&
+  (UIManager.getViewManagerConfig("RNCDateTimePicker") !== undefined ||
+    UIManager.getViewManagerConfig("RNCDatePicker") !== undefined);
 
 interface Props {
   visible: boolean;
@@ -15,35 +32,57 @@ interface Props {
   preselectedAnimalId?: string;
 }
 
-const VACCINE_TYPES: Array<{ type: VaccineType; label: string; labelTa: string; interval: string; iconName: keyof typeof Feather.glyphMap }> = [
-  { type: "FMD", label: "FMD (Foot & Mouth)", labelTa: "கோமாரி (FMD)", interval: "6 months", iconName: "activity" },
-  { type: "HS", label: "HS (Hemorrhagic Septicemia)", labelTa: "ரத்த நாய்ச்சல் (HS)", interval: "1 year", iconName: "droplet" },
-  { type: "BQ", label: "BQ (Black Quarter)", labelTa: "கருங்கால் வியாதி (BQ)", interval: "1 year", iconName: "square" },
-  { type: "Brucellosis", label: "Brucellosis", labelTa: "புரூசெல்லோசிஸ்", interval: "Once (heifers)", iconName: "shield" },
-  { type: "Theileriosis", label: "Theileriosis", labelTa: "தீலேரியோசிஸ்", interval: "Once", iconName: "crosshair" },
-  { type: "Anthrax", label: "Anthrax", labelTa: "ஆந்தராக்ஸ்", interval: "1 year", iconName: "alert-triangle" },
-  { type: "PPR", label: "PPR", labelTa: "PPR", interval: "3 years", iconName: "thermometer" },
-  { type: "Other", label: "Other", labelTa: "மற்றவை", interval: "-", iconName: "plus" },
+const VACCINE_TYPES: Array<{
+  type: VaccineType;
+  labelKey:
+    | "vaccineTypeFMD"
+    | "vaccineTypeHS"
+    | "vaccineTypeBQ"
+    | "vaccineTypeBrucellosis"
+    | "vaccineTypeTheileriosis"
+    | "vaccineTypeAnthrax"
+    | "vaccineTypePPR"
+    | "vaccineTypeOther";
+  interval: string;
+  iconName: keyof typeof Feather.glyphMap;
+}> = [
+  { type: "FMD", labelKey: "vaccineTypeFMD", interval: "6 months", iconName: "activity" },
+  { type: "HS", labelKey: "vaccineTypeHS", interval: "1 year", iconName: "droplet" },
+  { type: "BQ", labelKey: "vaccineTypeBQ", interval: "1 year", iconName: "square" },
+  { type: "Brucellosis", labelKey: "vaccineTypeBrucellosis", interval: "Once (heifers)", iconName: "shield" },
+  { type: "Theileriosis", labelKey: "vaccineTypeTheileriosis", interval: "Once", iconName: "crosshair" },
+  { type: "Anthrax", labelKey: "vaccineTypeAnthrax", interval: "1 year", iconName: "alert-triangle" },
+  { type: "PPR", labelKey: "vaccineTypePPR", interval: "3 years", iconName: "thermometer" },
+  { type: "Other", labelKey: "vaccineTypeOther", interval: "-", iconName: "plus" },
 ];
 
 export default function VaccinationModal({ visible, onClose, preselectedAnimalId }: Props) {
   const colors = useColors();
   const { animals } = useAnimals();
   const { createVaccination } = useVaccination();
-  const { language } = useLanguage();
+  const { activeFarm } = useFarm();
+  const { addExpense } = useFinance();
+  const { t, language } = useLanguage();
 
   const adultAnimals = animals.filter((a) => a.type !== "calf");
   const [selectedAnimalId, setSelectedAnimalId] = useState(preselectedAnimalId ?? adultAnimals[0]?.id ?? "");
   const [vaccineType, setVaccineType] = useState<VaccineType>("FMD");
   const [vaccineName, setVaccineName] = useState("");
   const [scheduledDate, setScheduledDate] = useState(getTodayString());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [batchNo, setBatchNo] = useState("");
   const [cost, setCost] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
   const selectedTypeInfo = VACCINE_TYPES.find((v) => v.type === vaccineType);
-  const isTa = language === "ta";
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === "ios");
+    if (selectedDate) {
+      setScheduledDate(getISTDateString(selectedDate));
+    }
+  };
 
   const handleSave = async () => {
     if (!selectedAnimalId) { Alert.alert("Error", "Please select an animal"); return; }
@@ -51,15 +90,50 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
 
     setSaving(true);
     try {
+      const vaxName = vaccineName.trim() || (selectedTypeInfo ? t[selectedTypeInfo.labelKey] : vaccineType);
+
+      let nextDueDate: string | undefined = undefined;
+      const intervalDays = 
+        vaccineType === "FMD" ? 180 :
+        (vaccineType === "HS" || vaccineType === "BQ" || vaccineType === "Anthrax") ? 365 :
+        vaccineType === "PPR" ? 1095 : undefined;
+
+      if (intervalDays) {
+        const nextDate = new Date(scheduledDate);
+        nextDate.setDate(nextDate.getDate() + intervalDays);
+        nextDueDate = nextDate.toISOString();
+      }
+
       await createVaccination({
         animalId: Number(selectedAnimalId),
-        vaccineName: vaccineName.trim() || (selectedTypeInfo?.label ?? vaccineType),
+        vaccineName: vaxName,
         vaccineType,
         scheduledDate: new Date(scheduledDate).toISOString(),
         batchNo: batchNo.trim() || undefined,
         cost: cost ? parseFloat(cost) : undefined,
         note: note.trim() || undefined,
+        nextDueDate,
       });
+
+      // Schedule reminders in the background
+      const animal = animals.find((a) => a.id === selectedAnimalId);
+      const name = animal?.name || "Animal";
+      scheduleVaccinationReminder(name, vaxName, new Date(scheduledDate), language).catch(e => console.warn(e));
+
+      // Auto-create financial expense entry when scheduling/logging vaccination
+      const costVal = cost ? parseFloat(cost) : 0;
+      if (costVal > 0 && activeFarm?.id) {
+        await addExpense({
+          farmId: activeFarm.id,
+          date: new Date().toISOString(),
+          category: "medicine",
+          description: `Vaccination: ${vaxName} for animal ${name}`,
+          amount: costVal,
+        }).catch(err => {
+          console.error("[VaccinationModal] Failed to automatically create expense entry:", err);
+        });
+      }
+
       resetForm();
       onClose();
     } catch (e: any) {
@@ -76,13 +150,14 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
     setBatchNo("");
     setCost("");
     setNote("");
+    setShowDatePicker(false);
   };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{isTa ? "தடுப்பூசி பதிவு" : "Schedule Vaccination"}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t.vaccinationLogTitle}</Text>
           <Pressable onPress={onClose} style={styles.closeBtn}>
             <Feather name="x" size={22} color={colors.foreground} />
           </Pressable>
@@ -90,7 +165,7 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
           {/* Animal Selector */}
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "மாடு தேர்வு" : "Select Animal"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.vaccinationSelectAnimal}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chipRow}>
               {adultAnimals.map((a) => (
@@ -109,7 +184,7 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
           </ScrollView>
 
           {/* Vaccine Type */}
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "தடுப்பூசி வகை" : "Vaccine Type"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.vaccinationSelectType}</Text>
           <View style={styles.vaccineGrid}>
             {VACCINE_TYPES.map((vt) => (
               <Pressable
@@ -119,7 +194,7 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
               >
                 <Feather name={vt.iconName} size={20} color={vaccineType === vt.type ? colors.primary : colors.mutedForeground} style={{ marginBottom: 4 }} />
                 <Text style={[styles.vaccineLabel, { color: colors.foreground }, vaccineType === vt.type && { color: colors.primary }]}>
-                  {isTa ? vt.labelTa : vt.label}
+                  {t[vt.labelKey]}
                 </Text>
                 <Text style={[styles.vaccineInterval, { color: colors.mutedForeground }]}>{vt.interval}</Text>
               </Pressable>
@@ -130,29 +205,50 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
             <View style={[styles.infoBanner, { backgroundColor: colors.primary + "15" }]}>
               <Feather name="info" size={14} color={colors.primary} />
               <Text style={[styles.infoBannerText, { color: colors.primary }]}>
-                {isTa
-                  ? `${selectedTypeInfo.labelTa}: ${selectedTypeInfo.interval} இடைவெளி`
-                  : `${selectedTypeInfo.label}: Every ${selectedTypeInfo.interval}`}
+                {`${t[selectedTypeInfo.labelKey]}: ${t.vaccinationIntervalSuffix} ${selectedTypeInfo.interval}`}
               </Text>
             </View>
           )}
 
           {/* Scheduled Date */}
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "திட்டமிட்ட தேதி" : "Scheduled Date"}</Text>
-          <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
-            <Feather name="calendar" size={18} color={colors.mutedForeground} />
-            <TextInput
-              style={[styles.input, { color: colors.foreground }]}
-              value={scheduledDate}
-              onChangeText={setScheduledDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.mutedForeground}
-              keyboardType="numeric"
-            />
-          </View>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.vaccinationScheduledDateLabel}</Text>
+          {hasNativeDatePicker ? (
+            <>
+              <Pressable
+                style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Feather name="calendar" size={18} color={colors.mutedForeground} />
+                <Text style={{ flex: 1, fontSize: 15, color: colors.foreground }}>
+                  {scheduledDate}
+                </Text>
+              </Pressable>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={new Date(scheduledDate)}
+                  mode="date"
+                  display="default"
+                  onChange={onDateChange}
+                  maximumDate={new Date()}
+                />
+              )}
+            </>
+          ) : (
+            <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+              <Feather name="calendar" size={18} color={colors.mutedForeground} />
+              <TextInput
+                style={{ flex: 1, fontSize: 15, color: colors.foreground, paddingVertical: 8, paddingHorizontal: 4 }}
+                value={scheduledDate}
+                onChangeText={setScheduledDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.mutedForeground}
+              />
+            </View>
+          )}
 
           {/* Batch No (optional) */}
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "தொகுப்பு எண் (விருப்பம்)" : "Batch No. (optional)"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.vaccinationBatchNoLabel}</Text>
           <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
             <Feather name="hash" size={18} color={colors.mutedForeground} />
             <TextInput
@@ -165,7 +261,7 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
           </View>
 
           {/* Cost */}
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "செலவு ₹ (விருப்பம்)" : "Cost ₹ (optional)"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.vaccinationCostLabel}</Text>
           <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
             <Text style={[styles.rupeeSign, { color: colors.mutedForeground }]}>₹</Text>
             <TextInput
@@ -179,12 +275,12 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
           </View>
 
           {/* Note */}
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "குறிப்பு (விருப்பம்)" : "Note (optional)"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.vaccinationNoteLabel}</Text>
           <TextInput
             style={[styles.inputRow, styles.noteInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
             value={note}
             onChangeText={setNote}
-            placeholder={isTa ? "குறிப்பு சேர்க்கவும்..." : "Add a note..."}
+            placeholder={t.vaccinationNotePlaceholder}
             placeholderTextColor={colors.mutedForeground}
             multiline
             numberOfLines={3}
@@ -195,8 +291,14 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
             onPress={handleSave}
             disabled={saving}
           >
-            <Feather name="check" size={18} color="#fff" />
-            <Text style={styles.saveBtnText}>{isTa ? "சேமி" : "Save"}</Text>
+            {saving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Feather name="check" size={18} color="#fff" />
+                <Text style={styles.saveBtnText}>{t.vaccinationSaveBtn}</Text>
+              </>
+            )}
           </Pressable>
 
           <View style={{ height: 40 }} />

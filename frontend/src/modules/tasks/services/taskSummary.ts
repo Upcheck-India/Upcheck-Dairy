@@ -1,4 +1,5 @@
 import { Task } from "../models/Task";
+import { getISTDateString } from "../../../../utils/date";
 
 export interface TaskCounts {
   total: number;
@@ -7,7 +8,7 @@ export interface TaskCounts {
 }
 
 function getTodayDateStr(): string {
-  return new Date().toISOString().split("T")[0];
+  return getISTDateString();
 }
 
 export function computeTodayTaskCounts(tasks: Task[]): TaskCounts {

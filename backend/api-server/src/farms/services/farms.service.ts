@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, InternalServerErrorException, Inject } from "@nestjs/common";
+import { Injectable, BadRequestException, InternalServerErrorException, Inject, ForbiddenException, NotFoundException, Logger } from "@nestjs/common";
 import { FarmsRepository } from "../repositories/farms.repository";
 import { openai } from "@workspace/openai-server";
 import { type Farm, type InsertFarm } from "@workspace/db";
@@ -8,6 +8,8 @@ import * as os from "node:os";
 
 @Injectable()
 export class FarmsService {
+  private readonly logger = new Logger(FarmsService.name);
+
   constructor(
     @Inject(FarmsRepository) private farmsRepository: FarmsRepository
   ) {}
@@ -27,19 +29,40 @@ export class FarmsService {
     });
   }
 
-  async getFarmById(id: string): Promise<Farm | null> {
-    return this.farmsRepository.findById(id);
+  async getFarmById(id: string, ownerFarmerId: string): Promise<Farm | null> {
+    const farm = await this.farmsRepository.findById(id);
+    if (!farm) {
+      return null;
+    }
+    if (farm.ownerFarmerId !== ownerFarmerId) {
+      throw new ForbiddenException("You do not own this farm");
+    }
+    return farm;
   }
 
   async getFarmsByOwner(ownerFarmerId: string): Promise<Farm[]> {
     return this.farmsRepository.findByOwner(ownerFarmerId);
   }
 
-  async updateFarm(id: string, data: Partial<Farm>): Promise<Farm> {
+  async updateFarm(id: string, data: Partial<Farm>, ownerFarmerId: string): Promise<Farm> {
+    const farm = await this.farmsRepository.findById(id);
+    if (!farm) {
+      throw new NotFoundException("Farm not found");
+    }
+    if (farm.ownerFarmerId !== ownerFarmerId) {
+      throw new ForbiddenException("You do not own this farm");
+    }
     return this.farmsRepository.update(id, data);
   }
 
-  async deleteFarm(id: string): Promise<void> {
+  async deleteFarm(id: string, ownerFarmerId: string): Promise<void> {
+    const farm = await this.farmsRepository.findById(id);
+    if (!farm) {
+      throw new NotFoundException("Farm not found");
+    }
+    if (farm.ownerFarmerId !== ownerFarmerId) {
+      throw new ForbiddenException("You do not own this farm");
+    }
     await this.farmsRepository.delete(id);
   }
 
@@ -85,7 +108,7 @@ Respond with ONLY the JSON object, no markdown code blocks.`;
       const rawContent = completion.choices[0]?.message?.content ?? "{}";
       return JSON.parse(rawContent);
     } catch (err) {
-      console.error("Diagnose error:", err);
+      this.logger.error("Diagnose error: " + err);
       return {
         summary: "Unable to process diagnosis",
         summaryTamil: "நோயறிதல் செயல்படவில்லை",
@@ -148,7 +171,7 @@ Respond with ONLY the JSON object.`;
       const rawContent = completion.choices[0]?.message?.content ?? "{}";
       return JSON.parse(rawContent);
     } catch (err) {
-      console.error("Voice command error:", err);
+      this.logger.error("Voice command error: " + err);
       return {
         action: "unknown",
         confidence: 0,
@@ -184,7 +207,7 @@ Respond with ONLY the JSON object.`;
 
       return { transcript: transcription.text };
     } catch (err) {
-      console.error("Transcription error:", err);
+      this.logger.error("Transcription error: " + err);
       throw new InternalServerErrorException("Transcription failed");
     } finally {
       try {
@@ -251,7 +274,7 @@ Never give medicine dosages.`;
       const response = completion.choices[0]?.message?.content ?? "Sorry, I couldn't answer that.";
       return { response };
     } catch (err) {
-      console.error("Chat error:", err);
+      this.logger.error("Chat error: " + err);
       return { response: "Sorry, there was an error. Please try again." };
     }
   }
@@ -296,7 +319,7 @@ Respond ONLY with valid JSON.`;
       const content = completion.choices[0]?.message?.content ?? "{}";
       return JSON.parse(content);
     } catch (err) {
-      console.error("Ration error:", err);
+      this.logger.error("Ration error: " + err);
       throw new InternalServerErrorException("Ration calculation failed");
     }
   }

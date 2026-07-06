@@ -16,7 +16,7 @@ export default function VaccinationSection() {
   const colors = useColors();
   const { animals } = useAnimals();
   const { vaccinations, markDone, removeVaccination } = useVaccination();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [modalVisible, setModalVisible] = useState(false);
   const [preselectedId, setPreselectedId] = useState<string | undefined>();
 
@@ -41,6 +41,25 @@ export default function VaccinationSection() {
             const today = getTodayString();
             markDone(Number(id), today).catch(err => {
               console.error("[VaccinationSection] Failed to mark vaccine done:", err);
+            });
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteVax = (id: string) => {
+    Alert.alert(
+      language === "ta" ? "தடுப்பூசி பதிவை நீக்கு" : "Delete Vaccination",
+      language === "ta" ? "இந்த தடுப்பூசி பதிவை நீக்க விரும்புகிறீர்களா?" : "Are you sure you want to delete this vaccination record?",
+      [
+        { text: t.cancel, style: "cancel" },
+        {
+          text: language === "ta" ? "நீக்கு" : "Delete",
+          style: "destructive",
+          onPress: () => {
+            removeVaccination(Number(id)).catch(err => {
+              console.error("[VaccinationSection] Failed to delete vaccination:", err);
             });
           },
         },
@@ -104,11 +123,7 @@ export default function VaccinationSection() {
                       <Feather name="check" size={14} color="#16a34a" />
                       <Text style={styles.doneBtnText}>{t.markDoneBtn}</Text>
                     </Pressable>
-                    <Pressable onPress={() => {
-                      removeVaccination(Number(vax.id)).catch(err => {
-                        console.error("[VaccinationSection] Failed to delete vaccination:", err);
-                      });
-                    }} style={styles.deleteBtn}>
+                    <Pressable onPress={() => handleDeleteVax(vax.id)} style={styles.deleteBtn}>
                       <Feather name="trash-2" size={14} color="#dc2626" />
                     </Pressable>
                   </View>

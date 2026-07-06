@@ -1,6 +1,7 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState, useEffect } from "react";
+import * as Haptics from "expo-haptics";
 import {
   Alert,
   Pressable,
@@ -18,9 +19,9 @@ import Svg, { Path, Rect, Circle, G } from "react-native-svg";
 import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANGUAGE_NAMES, type Language } from "@/context/LanguageContext";
-import { useApp } from "@/context/AppContext";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFarmContext } from "../src/modules/farms/context/FarmProvider";
+import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
+import { LinearGradient } from "expo-linear-gradient";
 import { farmRepository } from "../src/modules/farms/api/FarmRepository";
 import { Farm } from "../src/modules/farms/models/Farm";
 import { apiClient } from "../src/core/api/ApiClient";
@@ -37,12 +38,6 @@ function FarmIllustration() {
       {/* Roof of the house */}
       <Path d="M 6 18 L 16 9 L 26 18 Z" fill="#15803d" />
       {/* House structure */}
-      <Rect x={8} y={18} width={16} height={10} fill="#16a34a" />
-      {/* Door */}
-      <Rect x={14} y={22} width={4} height={6} fill="#fff" />
-      {/* Windows */}
-      <Rect x={10} y={20} width={3} height={3} fill="#fff" />
-      <Rect x={19} y={20} width={3} height={3} fill="#fff" />
       {/* Tree trunk */}
       <Rect x={30} y={20} width={2} height={8} fill="#854d0e" />
       {/* Tree foliage */}
@@ -87,7 +82,7 @@ function ProfileCardLandscape() {
 export default function ProfileScreen() {
   const { t, language, setLanguage } = useLanguage();
   const { farmer, updateProfile, logout } = useFarmer();
-  const { animals } = useApp();
+  const { animals } = useAnimals();
   const { farms, activeFarm, refreshFarms } = useFarmContext();
 
   const [currentView, setCurrentView] = useState<ViewState>("main");
@@ -344,6 +339,19 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleToggleNotifications = async () => {
+    const newValue = !farmer?.notificationsEnabled;
+    try {
+      await updateProfile({ notificationsEnabled: newValue });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      Alert.alert(
+        language === "ta" ? "தவறு" : "Error",
+        e.message || "Failed to update notification settings"
+      );
+    }
+  };
+
   const initials = farmer?.name
     ? farmer.name.trim().split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
     : "??";
@@ -524,6 +532,13 @@ export default function ProfileScreen() {
               />
 
               <ProfileOption
+                icon="bell"
+                title={language === "ta" ? "அறிவிப்புகள்" : "Notifications"}
+                subtitle={farmer?.notificationsEnabled ? (language === "ta" ? "செயல்படுத்தப்பட்டது" : "Enabled") : (language === "ta" ? "முடக்கப்பட்டது" : "Disabled")}
+                onPress={handleToggleNotifications}
+              />
+
+              <ProfileOption
                 icon="info"
                 title={getLabel("appInfo")}
                 subtitle={getLabel("appInfoDesc")}
@@ -552,6 +567,7 @@ export default function ProfileScreen() {
               value={farmer?.phone || "—"}
               onPress={() => handleOpenEdit("phone", t.phone, farmer?.phone || "")}
             />
+
             <DetailRow
               icon="mail"
               label={getLabel("email")}

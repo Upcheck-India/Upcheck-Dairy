@@ -14,6 +14,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFarmer } from "@/context/FarmerContext";
+import { verify2fa } from "@/services/api";
 
 
 const CODE_LENGTH = 6;
@@ -22,6 +24,7 @@ export default function TwoFactorScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tempToken: string }>();
   const tempToken = params.tempToken ?? "";
+  const { loginWithJwt } = useFarmer();
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [loading, setLoading] = useState(false);
@@ -61,9 +64,8 @@ export default function TwoFactorScreen() {
     }
     setLoading(true);
     try {
-      // 2FA not yet implemented in custom auth
-      Alert.alert("2FA", "Two-factor authentication is not yet configured. Please sign in again.");
-      router.replace("/(auth)/login");
+      const result = await verify2fa(tempToken, enteredCode);
+      await loginWithJwt(result);
     } catch (err: any) {
       Alert.alert("Verification Failed", err.message ?? "Invalid or expired code. Please try again.");
       setCode(Array(CODE_LENGTH).fill(""));
@@ -71,7 +73,7 @@ export default function TwoFactorScreen() {
     } finally {
       setLoading(false);
     }
-  }, [code, tempToken]);
+  }, [code, tempToken, loginWithJwt]);
 
   const filled = code.filter((d) => d !== "").length;
 
@@ -79,7 +81,13 @@ export default function TwoFactorScreen() {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
         {/* Back */}
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+        <Pressable 
+          style={styles.backBtn} 
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back to previous screen"
+        >
           <Feather name="arrow-left" size={22} color="#16a34a" />
         </Pressable>
 
@@ -113,6 +121,7 @@ export default function TwoFactorScreen() {
               maxLength={1}
               textAlign="center"
               selectTextOnFocus
+              accessibilityLabel={`Digit ${i + 1}`}
             />
           ))}
         </View>
@@ -124,6 +133,9 @@ export default function TwoFactorScreen() {
           style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
           onPress={() => handleVerify()}
           disabled={loading || filled < CODE_LENGTH}
+          accessibilityRole="button"
+          accessibilityLabel="Verify and sign in"
+          accessibilityState={{ disabled: loading || filled < CODE_LENGTH }}
         >
           <LinearGradient
             colors={loading || filled < CODE_LENGTH ? ["#86efac", "#6ee7b7"] : ["#16a34a", "#0f766e"]}
@@ -151,7 +163,13 @@ export default function TwoFactorScreen() {
         </View>
 
         {/* Back to sign in */}
-        <Pressable style={styles.backLink} onPress={() => router.replace("/(auth)/login")}>
+        <Pressable 
+          style={styles.backLink} 
+          onPress={() => router.replace("/(auth)/login")}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Back to sign in"
+        >
           <Feather name="log-in" size={14} color="#64748b" />
           <Text style={styles.backLinkText}>Back to Sign In</Text>
         </Pressable>

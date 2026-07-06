@@ -13,7 +13,6 @@ import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useDashboard } from "../../dashboard/hooks/useDashboard";
-import { useApp } from "@/context/AppContext";
 
 // Import workspace sub-components
 import { HerdHeader } from "../components/HerdHeader";
@@ -34,7 +33,6 @@ export function HerdScreen() {
   const { activeFarm } = useFarm();
   const { farmer } = useFarmer();
   const { t, language } = useLanguage();
-  const { reloadData } = useApp();
 
   const { animals, loading: animalsLoading, refresh: refreshAnimals } = useAnimals();
   const { refresh: refreshBreeding } = useBreeding();
@@ -70,7 +68,6 @@ export function HerdScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
-      reloadData(),
       refreshAnimals(),
       refreshBreeding(),
       refreshVaccinations(),

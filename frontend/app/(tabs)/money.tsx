@@ -18,10 +18,7 @@ import {
 } from "react-native";
 import Svg, { Rect, Text as SvgText, Line } from "react-native-svg";
 
-import {
-  InventoryItem,
-  useApp,
-} from "@/context/AppContext";
+import { InventoryItem } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import InventoryModal from "@/components/InventoryModal";
@@ -29,6 +26,7 @@ import { useInventory } from "../../src/modules/inventory/hooks/useInventory";
 import { useFinance } from "../../src/modules/finance/hooks/useFinance";
 import { useFarm } from "../../src/modules/farms/hooks/useFarm";
 import type { ExpenseCategory } from "../../src/modules/finance/types/FinanceDto";
+import { compute7DayFinancials } from "../../src/modules/finance/services/financeSummary";
 
 function formatRupee(amount: number) {
   if (amount >= 100000) return "₹" + (amount / 100000).toFixed(1) + "L";
@@ -101,15 +99,13 @@ export default function MoneyTab() {
     loading: financeLoading,
   } = useFinance();
   const {
-    isLoaded, reloadData,
-    get7DayFinancials,
-  } = useApp();
-  const {
     inventoryItems,
     removeItem: deleteInventoryItem,
     adjustQuantity: adjustInventoryQuantity,
     refresh: refreshInventory,
+    loading: inventoryLoading,
   } = useInventory();
+  const isLoaded = !financeLoading && !inventoryLoading;
   const [activeTab, setActiveTab] = useState<MoneyTab>("income");
   const [incomeModal, setIncomeModal] = useState(false);
   const [expenseModal, setExpenseModal] = useState(false);
@@ -136,7 +132,7 @@ export default function MoneyTab() {
   const totalIncome = useMemo(() => incomeEntries.reduce((s, e) => s + e.totalReceived, 0), [incomeEntries]);
   const totalExpenses = useMemo(() => expenseEntries.reduce((s, e) => s + e.amount, 0), [expenseEntries]);
   const profit = totalIncome - totalExpenses;
-  const chartData = get7DayFinancials();
+  const chartData = compute7DayFinancials(incomeEntries, expenseEntries);
 
   const expenseSummary = useMemo(() => {
     const byCategory: Record<string, number> = {};
@@ -265,7 +261,7 @@ export default function MoneyTab() {
       ) : (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.list, { paddingBottom: isWeb ? 120 : 100 }]} showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await Promise.all([reloadData(), refreshInventory(), refreshFinance()]); setRefreshing(false); }} tintColor={colors.primary} colors={[colors.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await Promise.all([refreshInventory(), refreshFinance()]); setRefreshing(false); }} tintColor={colors.primary} colors={[colors.primary]} />
         }
       >
         {/* 7-day chart */}

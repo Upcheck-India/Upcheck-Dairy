@@ -327,7 +327,7 @@ Domain Services encapsulate business logic that does not naturally belong to a s
 
 ---
 
-## 17. Feature Modules Status
+## 19. Feature Modules Status
 
 ### Current Modules
 - [x] **Auth**: authentication and settings

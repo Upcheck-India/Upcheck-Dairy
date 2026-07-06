@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, decimal, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, decimal, timestamp, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { animals } from "./animals";
@@ -27,6 +27,10 @@ export const vaccinations = pgTable("vaccinations", {
   nextDueDate: timestamp("next_due_date"),
   note: text("note"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    animalIdIdx: index("vaccinations_animal_id_idx").on(table.animalId),
+  };
 });
 
 export const insertVaccinationSchema = createInsertSchema(vaccinations).omit({

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers, ParseIntPipe } from "@nestjs/common";
 import { MilkService } from "../services/milk.service";
 import { CreateMilkEntryDto } from "../dto/create-milk-entry.dto";
 import { UpdateMilkEntryDto } from "../dto/update-milk-entry.dto";
@@ -20,8 +20,8 @@ export class MilkController {
   }
 
   @Get("animal/:animalId")
-  async getByAnimal(@GetUser() user: Farmer, @Param("animalId") animalId: string) {
-    return this.milkService.getAnimalHistory(user.id, Number(animalId));
+  async getByAnimal(@GetUser() user: Farmer, @Param("animalId", ParseIntPipe) animalId: number) {
+    return this.milkService.getAnimalHistory(user.id, animalId);
   }
 
   @Get("farm/:farmId")
@@ -30,13 +30,13 @@ export class MilkController {
   }
 
   @Put(":id")
-  async update(@GetUser() user: Farmer, @Param("id") id: string, @Body() dto: UpdateMilkEntryDto) {
-    return this.milkService.update(user.id, Number(id), dto);
+  async update(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number, @Body() dto: UpdateMilkEntryDto) {
+    return this.milkService.update(user.id, id, dto);
   }
 
   @Delete(":id")
-  async remove(@GetUser() user: Farmer, @Param("id") id: string) {
-    await this.milkService.delete(user.id, Number(id));
+  async remove(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+    await this.milkService.delete(user.id, id);
     return { success: true };
   }
 }

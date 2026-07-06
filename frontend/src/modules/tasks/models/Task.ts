@@ -1,3 +1,5 @@
+import { getISTDateString } from "../../../../utils/date";
+
 export class Task {
   readonly id: string;
   readonly farmId: string;
@@ -42,6 +44,6 @@ export class Task {
   }
 
   get formattedDateString(): string {
-    return this.date.toISOString().split("T")[0]!;
+    return getISTDateString(this.date);
   }
 }

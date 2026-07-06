@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers, ParseIntPipe } from "@nestjs/common";
 import { VaccinationsService } from "../services/vaccinations.service";
 import { CreateVaccinationDto } from "../dto/create-vaccination.dto";
 import { UpdateVaccinationDto } from "../dto/update-vaccination.dto";
@@ -20,18 +20,18 @@ export class VaccinationsController {
   }
 
   @Get("animal/:animalId")
-  async getByAnimal(@GetUser() user: Farmer, @Param("animalId") animalId: string) {
-    return this.vaccinationsService.getAnimalHistory(user.id, Number(animalId));
+  async getByAnimal(@GetUser() user: Farmer, @Param("animalId", ParseIntPipe) animalId: number) {
+    return this.vaccinationsService.getAnimalHistory(user.id, animalId);
   }
 
   @Put(":id")
-  async update(@GetUser() user: Farmer, @Param("id") id: string, @Body() dto: UpdateVaccinationDto) {
-    return this.vaccinationsService.update(user.id, Number(id), dto);
+  async update(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number, @Body() dto: UpdateVaccinationDto) {
+    return this.vaccinationsService.update(user.id, id, dto);
   }
 
   @Delete(":id")
-  async remove(@GetUser() user: Farmer, @Param("id") id: string) {
-    await this.vaccinationsService.delete(user.id, Number(id));
+  async remove(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+    await this.vaccinationsService.delete(user.id, id);
     return { success: true };
   }
 }

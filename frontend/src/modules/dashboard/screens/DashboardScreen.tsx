@@ -9,7 +9,6 @@ import { useFarmer } from "@/context/FarmerContext";
 import { useFarm } from "../../farms/hooks/useFarm";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
-import { useApp } from "@/context/AppContext";
 
 // Import presentation components
 import { DashboardHeader } from "../components/DashboardHeader";
@@ -31,7 +30,7 @@ export function DashboardScreen() {
   const { farmer } = useFarmer();
   const { activeFarm } = useFarm();
   const { t, language } = useLanguage();
-  const { syncStatus, reloadData } = useApp();
+  const syncStatus = "synced";
 
   const {
     animals,
@@ -59,7 +58,7 @@ export function DashboardScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([reloadData(), refreshAll()]);
+    await refreshAll();
     setRefreshing(false);
   };
 

@@ -14,11 +14,16 @@ import {
   TextInput,
   View,
 } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 
-import { useApp, generateId, getTodayString } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { parseVoiceCommand, transcribeAudio, VoiceCommandResponse } from "@/services/api";
 import { useLanguage, Language } from "@/context/LanguageContext";
+import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
+import { useMilk } from "../src/modules/milk/hooks/useMilk";
+import { useFinance } from "../src/modules/finance/hooks/useFinance";
+import { useHealth } from "../src/modules/health/hooks/useHealth";
+import { useFarm } from "../src/modules/farms/hooks/useFarm";
 
 interface VoiceModalProps {
   visible: boolean;
@@ -37,8 +42,11 @@ function getConfirmationMessage(result: VoiceCommandResponse, language: Language
 export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
   const colors = useColors();
   const { t, language } = useLanguage();
-  //console.log("Current language:", language);
-  const { animals, addMilkEntry, addExpenseEntry, addHealthEvent } = useApp();
+  const { animals } = useAnimals();
+  const { createMilk } = useMilk();
+  const { addExpense } = useFinance();
+  const { createEvent } = useHealth();
+  const { activeFarm } = useFarm();
 
   const [status, setStatus] = useState<Status>("idle");
   const [transcript, setTranscript] = useState("");
@@ -110,6 +118,14 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
   };
 
   const handleMicPress = async () => {
+    const netState = await NetInfo.fetch();
+    if (!netState.isConnected) {
+      setStatus("error");
+      setResultMsg(t.voiceNeedsInternet);
+      Alert.alert("Offline", t.voiceNeedsInternet);
+      return;
+    }
+
     if (status === "recording") {
       await stopRecording();
     } else if (status === "idle" || status === "error") {
@@ -212,40 +228,49 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
       }
 
       const params = result.params;
-      const today = getTodayString();
       const confirmation = getConfirmationMessage(result, language);
 
       if (result.action === "log_milk" && params.animalId && params.quantity) {
-        addMilkEntry({
-          id: generateId(),
-          animalId: params.animalId,
+        createMilk({
+          animalId: Number(params.animalId),
           session: params.session ?? "morning",
           quantity: params.quantity,
-          date: today,
-          timestamp: Date.now(),
+          date: new Date().toISOString(),
+        }).then(() => {
+          setResultMsg(`✅ ${confirmation}`);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }).catch(() => {
+          setResultMsg(t.errorMsg);
         });
-        setResultMsg(`✅ ${confirmation}`);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else if (result.action === "report_problem" && params.animalId) {
-        addHealthEvent({
-          id: generateId(),
-          animalId: params.animalId,
-          date: today,
+        createEvent({
+          animalId: Number(params.animalId),
+          date: new Date().toISOString(),
           type: "observation",
           description: params.symptom ?? text,
+        }).then(() => {
+          setResultMsg(`✅ ${confirmation}`);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        }).catch(() => {
+          setResultMsg(t.errorMsg);
         });
-        setResultMsg(`✅ ${confirmation}`);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       } else if (result.action === "add_expense" && params.expenseAmount) {
-        addExpenseEntry({
-          id: generateId(),
-          date: today,
-          category: (params.expenseCategory as any) ?? "other",
-          description: params.expenseDescription ?? text,
-          amount: params.expenseAmount,
-        });
-        setResultMsg(`✅ ${confirmation}`);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (!activeFarm?.id) {
+          setResultMsg(t.errorMsg);
+        } else {
+          addExpense({
+            farmId: activeFarm.id,
+            date: new Date().toISOString(),
+            category: (params.expenseCategory as any) ?? "other",
+            description: params.expenseDescription ?? text,
+            amount: params.expenseAmount,
+          }).then(() => {
+            setResultMsg(`✅ ${confirmation}`);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }).catch(() => {
+            setResultMsg(t.errorMsg);
+          });
+        }
       } else if (result.action === "navigate" && params.tab) {
         router.push(`/(tabs)/${params.tab === "animals" ? "" : params.tab}` as any);
         setResultMsg(`✅ ${confirmation}`);

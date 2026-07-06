@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, ScrollView, RefreshControl, ActivityIndicator, Text, StyleSheet } from "react-native";
+import { View, FlatList, RefreshControl, ActivityIndicator, Text, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
@@ -67,47 +67,46 @@ export function AnimalsWorkspace({
         onSelect={setFilter}
       />
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-      >
-        {loading ? (
-          <View style={styles.loadingWrapper}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
-              {t.loadingTasks}
-            </Text>
-          </View>
-        ) : filtered.length === 0 ? (
-          <View style={styles.empty}>
-            <Feather name="grid" size={48} color={colors.border} />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              {t.noAnimals}
-            </Text>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              {t.noAnimalsHint}
-            </Text>
-          </View>
-        ) : (
-          filtered.map((animal) => (
-            <View key={animal.id}>
-              <AnimalCard
-                animal={animal}
-                onMilkLog={() => onMilkLogPress(animal)}
-              />
+      {loading ? (
+        <View style={styles.loadingWrapper}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
+            {t.loadingTasks}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item: animal }) => (
+            <AnimalCard
+              animal={animal}
+              onMilkLog={() => onMilkLogPress(animal)}
+            />
+          )}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Feather name="grid" size={48} color={colors.border} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                {t.noAnimals}
+              </Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                {t.noAnimalsHint}
+              </Text>
             </View>
-          ))
-        )}
-      </ScrollView>
+          }
+        />
+      )}
     </View>
   );
 }

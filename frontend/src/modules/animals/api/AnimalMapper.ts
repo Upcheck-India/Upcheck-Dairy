@@ -10,7 +10,9 @@ export class AnimalMapper {
       type: dto.type,
       breed: dto.breed,
       tagNumber: dto.tagNumber,
-      photoUri: dto.photoUri,
+      photoUri: dto.photoUri && dto.photoUri.startsWith("/uploads")
+        ? (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api").replace(/\/api$/, "") + dto.photoUri
+        : dto.photoUri,
       healthStatus: dto.healthStatus,
       notes: dto.notes,
       birthDate: dto.birthDate ? new Date(dto.birthDate) : null,

@@ -16,12 +16,13 @@ import {
   View,
   Modal,
   TextInput,
+  useColorScheme,
 } from "react-native";
 
 import CelebrationOverlay from "@/components/CelebrationOverlay";
 import StatCard from "@/components/StatCard";
 import TaskItem from "@/components/TaskItem";
-import { useApp, SmartAlert, getTodayString } from "@/context/AppContext";
+import { getTodayString, SmartAlert } from "@/context/AppContext";
 import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
@@ -110,15 +111,25 @@ async function setupDailyNotification() {
 
 import { useTasks } from "../../src/modules/tasks/hooks/useTasks";
 import { useFarm } from "../../src/modules/farms/hooks/useFarm";
+import { useMilk } from "../../src/modules/milk/hooks/useMilk";
+import { useFinance } from "../../src/modules/finance/hooks/useFinance";
+import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
+import { useBreeding } from "../../src/modules/breeding/hooks/useBreeding";
+import { useVaccination } from "../../src/modules/vaccination/hooks/useVaccination";
+import { computeSmartAlerts } from "../../src/modules/dashboard/services/smartAlerts";
+import { detectMilkAnomalies } from "../../src/modules/milk/services/anomalyDetector";
+import { computeTodayIncome, computeTodayExpenses } from "../../src/modules/finance/services/financeSummary";
+import { getISTDateString } from "../../utils/date";
 
 export default function TodayTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { language, t } = useLanguage();
-  const {
-    getTodayMilkTotal, getTodayIncome, getTodayExpenses,
-    animals, syncStatus, milkAnomalies, smartAlerts, isLoaded, reloadData,
-  } = useApp();
+  const { animals, loading: animalsLoading } = useAnimals();
+  const { milkEntries, loading: milkLoading } = useMilk();
+  const { incomeEntries, expenseEntries } = useFinance();
+  const { breedingEvents } = useBreeding();
+  const { vaccinations } = useVaccination();
   const { tasks, generateDailyTasks, refresh: refreshTasks, toggleTaskComplete, createTask } = useTasks();
   const { activeFarm } = useFarm();
   const { farmer } = useFarmer();
@@ -143,10 +154,32 @@ export default function TodayTab() {
   const topPad = isWeb ? 67 : insets.top;
 
   const today = getTodayString();
+  const todayStr = getISTDateString();
   const todayTasks = tasks.filter((task) => task.formattedDateString === today);
   const completedCount = todayTasks.filter((task) => task.completed).length;
   const totalCount = todayTasks.length;
   const progress = totalCount > 0 ? completedCount / totalCount : 0;
+
+  // Compute all stats from modular sources
+  const milkTotal = useMemo(
+    () => milkEntries.filter((e) => getISTDateString(e.date) === todayStr).reduce((s, e) => s + e.quantity, 0),
+    [milkEntries, todayStr]
+  );
+  const income = useMemo(() => computeTodayIncome(incomeEntries), [incomeEntries]);
+  const expenses = useMemo(() => computeTodayExpenses(expenseEntries), [expenseEntries]);
+  const smartAlerts = useMemo(
+    () => computeSmartAlerts(animals, breedingEvents, vaccinations),
+    [animals, breedingEvents, vaccinations]
+  );
+  const milkAnomalies = useMemo(
+    () => detectMilkAnomalies(animals, milkEntries),
+    [animals, milkEntries]
+  );
+
+  // Sync indicator derived from real loading state
+  const isLoading = animalsLoading || milkLoading;
+  const syncStatus = isLoading ? "pending" : "synced";
+  const isLoaded = !isLoading;
 
   useEffect(() => {
     generateDailyTasks(today).catch(err => console.error(err));
@@ -165,9 +198,6 @@ export default function TodayTab() {
     */
   }, [progress]);
 
-  const milkTotal = getTodayMilkTotal();
-  const income = getTodayIncome();
-  const expenses = getTodayExpenses();
   const hint = getContextHint(language);
   const weather = getWeatherMock();
 
@@ -262,7 +292,7 @@ export default function TodayTab() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([reloadData(), refreshTasks()]);
+      await Promise.all([refreshTasks()]);
       await generateDailyTasks(today);
     } catch (e) {
       console.error('Refresh failed', e);
@@ -270,7 +300,7 @@ export default function TodayTab() {
     setRefreshing(false);
   };
 
-  const isDark = colors.background === "#0f1a0a";
+  const isDark = useColorScheme() === "dark";
 
   if (!isLoaded) {
     return (
@@ -506,7 +536,7 @@ export default function TodayTab() {
                     {a.isPregnant && a.expectedCalvingDate && (
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
                         <Feather name="heart" size={10} color={colors.mutedForeground} />
-                        <Text style={[styles.animalSubInfo, { color: colors.mutedForeground, marginTop: 0 }]}>{t.pregnantLabel} · {t.calvingExpected} {a.expectedCalvingDate}</Text>
+                        <Text style={[styles.animalSubInfo, { color: colors.mutedForeground, marginTop: 0 }]}>{t.pregnantLabel} · {t.calvingExpected} {getISTDateString(a.expectedCalvingDate)}</Text>
                       </View>
                     )}
                     {a.lactationNumber != null && (
