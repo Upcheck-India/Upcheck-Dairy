@@ -17,11 +17,12 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.upcheckdairy.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Upcheck Dairy needs camera access to take photos of your animals",
+        "NSCameraUsageDescription": "Upcheck Dairy needs camera access to take photos of your animals and scan ear tags",
         "NSMicrophoneUsageDescription": "Upcheck Dairy needs microphone access for voice commands",
         "NSPhotoLibraryUsageDescription": "Upcheck Dairy needs photo library access to select animal photos",
         "NSLocationWhenInUseUsageDescription": "Upcheck Dairy uses your location for local weather information",
-        "NSSpeechRecognitionUsageDescription": "Upcheck Dairy uses speech recognition for voice commands"
+        "NSSpeechRecognitionUsageDescription": "Upcheck Dairy uses speech recognition for voice commands",
+        "NSFaceIDUsageDescription": "Upcheck Dairy uses Face ID to securely authenticate you"
       }
     },
     "android": {
@@ -42,7 +43,9 @@
         "android.permission.VIBRATE",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "web": {
@@ -67,6 +70,13 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Upcheck Dairy needs camera access to scan animal ear tags and take photos",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
@@ -80,7 +90,12 @@
           "microphonePermission": "Upcheck Dairy needs microphone access for voice commands"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-file-system",
+      "expo-sharing",
+      "expo-print",
+      "expo-document-picker"
     ],
     "experiments": {
       "typedRoutes": true,
