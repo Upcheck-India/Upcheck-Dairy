@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Upcheck Dairy API
   version: 0.1.0
-  description: API for ThulirFarm dairy management application
+  description: API for Upcheck Dairy dairy management application
 servers:
   - url: /api
     description: Base API path

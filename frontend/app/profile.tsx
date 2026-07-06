@@ -100,7 +100,7 @@ export default function ProfileScreen() {
 
   // Helper to fetch animals for a specific farm with caching fallbacks
   const fetchAnimalsForFarm = async (farmId: string): Promise<any[]> => {
-    const cacheKey = `thulirfarm:${farmId}:animals`;
+    const cacheKey = `upcheckdairy:${farmId}:animals`;
     try {
       const dtos = await apiClient.get<any[]>(`/animals/farm/${farmId}`);
       await Storage.set(cacheKey, dtos);

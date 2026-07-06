@@ -6,7 +6,7 @@ import { AnimalResponseDto, CreateAnimalRequestDto, UpdateAnimalRequestDto } fro
 
 export class AnimalRepository {
   private getCacheKey(farmId: string): string {
-    return `thulirfarm:${farmId}:animals`;
+    return `upcheckdairy:${farmId}:animals`;
   }
 
   async getAnimals(farmId: string): Promise<Animal[]> {

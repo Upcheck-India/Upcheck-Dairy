@@ -40,7 +40,7 @@ export function MilkProvider({ children }: { children: React.ReactNode }) {
 
   const syncOfflineQueue = useCallback(async () => {
     if (!activeFarm?.id) return;
-    const queueKey = `thulirfarm:${activeFarm.id}:pending_milk_writes`;
+    const queueKey = `upcheckdairy:${activeFarm.id}:pending_milk_writes`;
     const pendingWrites = await Storage.get<PendingMilkWrite[]>(queueKey) || [];
     if (pendingWrites.length === 0) return;
 

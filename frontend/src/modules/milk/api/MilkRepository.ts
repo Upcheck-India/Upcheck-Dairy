@@ -7,11 +7,11 @@ import NetInfo from "@react-native-community/netinfo";
 
 export class MilkRepository {
   private getCacheKey(farmId: string): string {
-    return `thulirfarm:${farmId}:milk`;
+    return `upcheckdairy:${farmId}:milk`;
   }
 
   private async queuePendingWrite(farmId: string, write: PendingMilkWrite) {
-    const queueKey = `thulirfarm:${farmId}:pending_milk_writes`;
+    const queueKey = `upcheckdairy:${farmId}:pending_milk_writes`;
     const currentQueue = await Storage.get<PendingMilkWrite[]>(queueKey) || [];
     currentQueue.push(write);
     await Storage.set(queueKey, currentQueue);

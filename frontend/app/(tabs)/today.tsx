@@ -98,11 +98,11 @@ async function setupDailyNotification() {
     await Notifications.cancelAllScheduledNotificationsAsync();
     if (Platform.OS !== "web") {
       await Notifications.scheduleNotificationAsync({
-        content: { title: "காலை கறவை நேரம்!", body: "ThulirFarm: காலை 5:30 AM — பால் பதிவு செய்யவும்.", sound: true },
+        content: { title: "காலை கறவை நேரம்!", body: "Upcheck Dairy: காலை 5:30 AM — பால் பதிவு செய்யவும்.", sound: true },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: 5, minute: 30 },
       });
       await Notifications.scheduleNotificationAsync({
-        content: { title: "மாலை கறவை நேரம்!", body: "ThulirFarm: மாலை 4:00 PM — கணக்கு தயார் செய்யவும்.", sound: true },
+        content: { title: "மாலை கறவை நேரம்!", body: "Upcheck Dairy: மாலை 4:00 PM — கணக்கு தயார் செய்யவும்.", sound: true },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: 16, minute: 0 },
       });
     }

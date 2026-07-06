@@ -1895,7 +1895,7 @@ interface LanguageContextType {
 }
 
 const LanguageContext = createContext<LanguageContextType | null>(null);
-const LANGUAGE_KEY = "thulirafarm_language";
+const LANGUAGE_KEY = "upcheckdairy_language";
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>("ta");

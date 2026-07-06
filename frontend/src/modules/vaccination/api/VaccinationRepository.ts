@@ -6,7 +6,7 @@ import { VaccinationResponseDto, CreateVaccinationRequestDto, UpdateVaccinationR
 
 export class VaccinationRepository {
   private getCacheKey(farmId: string): string {
-    return `thulirfarm:${farmId}:vaccinations`;
+    return `upcheckdairy:${farmId}:vaccinations`;
   }
 
   async getVaccinations(farmId: string): Promise<Vaccination[]> {

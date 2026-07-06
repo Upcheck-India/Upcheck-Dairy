@@ -11,11 +11,11 @@ import type {
 
 export class FinanceRepository {
   private getIncomeCacheKey(farmId: string): string {
-    return `thulirfarm:${farmId}:income`;
+    return `upcheckdairy:${farmId}:income`;
   }
 
   private getExpenseCacheKey(farmId: string): string {
-    return `thulirfarm:${farmId}:expenses`;
+    return `upcheckdairy:${farmId}:expenses`;
   }
 
   // ── Income ────────────────────────────────────────────────────────────────
