@@ -289,6 +289,15 @@ export default function ProfileScreen() {
           await farmRepository.update(selectedFarm.id, { location: cleanValue });
           setSelectedFarm((prev: any) => prev ? new Farm({ ...prev, location: cleanValue }) : null);
           await refreshFarms();
+        } else if (["village", "district", "state"].includes(editingField)) {
+          const parts = selectedFarm.location ? selectedFarm.location.split(",") : ["", "", ""];
+          if (editingField === "village") parts[0] = cleanValue;
+          if (editingField === "district") parts[1] = cleanValue;
+          if (editingField === "state") parts[2] = cleanValue;
+          const newLoc = parts.map(p => p.trim()).join(", ");
+          await farmRepository.update(selectedFarm.id, { location: newLoc });
+          setSelectedFarm((prev: any) => prev ? new Farm({ ...prev, location: newLoc }) : null);
+          await refreshFarms();
         } else {
           await updateProfile({ [editingField]: cleanValue });
         }
@@ -373,6 +382,11 @@ export default function ProfileScreen() {
 
   const locationString = [farmer?.village, farmer?.state].filter(Boolean).join(", ") || farmer?.district || "—";
   const farmsCount = farms.length;
+
+  const locationParts = selectedFarm?.location ? selectedFarm.location.split(",") : [];
+  const farmVillage = locationParts[0]?.trim() || "";
+  const farmDistrict = locationParts[1]?.trim() || "";
+  const farmState = locationParts[2]?.trim() || "";
 
   const selectedFarmAnimalsCount = selectedFarm
     ? (allAnimals.length > 0 
@@ -542,7 +556,7 @@ export default function ProfileScreen() {
                 icon="info"
                 title={getLabel("appInfo")}
                 subtitle={getLabel("appInfoDesc")}
-                onPress={() => Alert.alert("ThulirFarm", "Version 1.0.0")}
+                onPress={() => Alert.alert("Upcheck Dairy", "Version 1.0.0")}
               />
 
               {farmer && (
@@ -646,20 +660,20 @@ export default function ProfileScreen() {
             <DetailRow
               icon="map-pin"
               label={t.village}
-              value={farmer?.village || "—"}
-              onPress={() => handleOpenEdit("village", t.village, farmer?.village || "")}
+              value={farmVillage || "—"}
+              onPress={() => handleOpenEdit("village", t.village, farmVillage || "")}
             />
             <DetailRow
               icon="navigation"
               label={t.district}
-              value={farmer?.district || "—"}
-              onPress={() => handleOpenEdit("district", t.district, farmer?.district || "")}
+              value={farmDistrict || "—"}
+              onPress={() => handleOpenEdit("district", t.district, farmDistrict || "")}
             />
             <DetailRow
               icon="map"
               label={getLabel("state")}
-              value={farmer?.state || "—"}
-              onPress={() => handleOpenEdit("state", getLabel("state"), farmer?.state || "")}
+              value={farmState || "—"}
+              onPress={() => handleOpenEdit("state", getLabel("state"), farmState || "")}
             />
             <DetailRow
               icon="cow"
@@ -675,10 +689,10 @@ export default function ProfileScreen() {
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             {language === "ta"
-              ? "துளிர்பண்ணை — விவசாயிகளுக்காக, விவசாயிகளால்"
+              ? "அப்செக் டெய்ரி — விவசாயிகளுக்காக, விவசாயிகளால்"
               : language === "hi"
-                ? "थुलिर फार्म — किसानों के लिए, किसानों द्वारा"
-                : "ThulirFarm — For Farmers, By Farmers"}
+                ? "अपचेक डेयरी — किसानों के लिए, किसानों द्वारा"
+                : "Upcheck Dairy — For Farmers, By Farmers"}
           </Text>
         </View>
       </ScrollView>
