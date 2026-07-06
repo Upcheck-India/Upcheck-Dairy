@@ -88,8 +88,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "8c3b9099-e91b-4348-875a-c9a24562d30a"
-      }
+        "projectId": "ed0a2399-efb6-4502-81a2-663295c53151"
+      },
+      "router": {}
     },
     "owner": "upcheck"
   }
