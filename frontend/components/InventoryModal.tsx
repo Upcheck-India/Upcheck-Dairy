@@ -8,6 +8,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useInventory } from "../src/modules/inventory/hooks/useInventory";
 import { useFarm } from "../src/modules/farms/hooks/useFarm";
+import { useFinance } from "../src/modules/finance/hooks/useFinance";
 import { InventoryItem } from "../src/modules/inventory/models/InventoryItem";
 
 interface Props {
@@ -46,6 +47,7 @@ const COMMON_ITEMS: Record<string, string[]> = {
 export default function InventoryModal({ visible, onClose, editItem }: Props) {
   const { createItem, updateItem } = useInventory();
   const { activeFarm } = useFarm();
+  const { addExpense } = useFinance();
   const { t, language } = useLanguage();
   const colors = useColors();
 
@@ -84,6 +86,27 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
           pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : undefined,
         });
       }
+      // Auto-create financial expense entry when purchasing/adding inventory
+      const priceVal = pricePerUnit ? parseFloat(pricePerUnit) : 0;
+      const qtyVal = quantity ? parseFloat(quantity) : 0;
+      const totalCost = priceVal * qtyVal;
+      if (totalCost > 0 && activeFarm?.id) {
+        let expenseCat: "feed" | "medicine" | "labor" | "equipment" | "other" = "other";
+        if (category === "feed") expenseCat = "feed";
+        else if (category === "medicine" || category === "supplement") expenseCat = "medicine";
+        else if (category === "equipment") expenseCat = "equipment";
+
+        await addExpense({
+          farmId: activeFarm.id,
+          date: new Date().toISOString(),
+          category: expenseCat,
+          description: `Inventory purchase: ${name.trim()} (${qtyVal} ${unit})`,
+          amount: totalCost,
+        }).catch(err => {
+          console.error("[InventoryModal] Failed to automatically create expense entry:", err);
+        });
+      }
+
       resetForm();
       onClose();
     } catch (e: any) {

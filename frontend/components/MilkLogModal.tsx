@@ -24,6 +24,8 @@ import { useMilk } from "../src/modules/milk/hooks/useMilk";
 import { useFarmer } from "@/context/FarmerContext";
 import { calculatePayout, DEFAULT_RATE_CARDS } from "../utils/pricing";
 import { useMemo } from "react";
+import { useFarm } from "../src/modules/farms/hooks/useFarm";
+import { useFinance } from "../src/modules/finance/hooks/useFinance";
 
 interface MilkLogModalProps {
   visible: boolean;
@@ -43,6 +45,8 @@ export default function MilkLogModal({
   const colors = useColors();
   const { createMilk, updateMilk } = useMilk();
   const { farmer } = useFarmer();
+  const { activeFarm } = useFarm();
+  const { addIncome } = useFinance();
   const { t } = useLanguage();
   const [quantity, setQuantity] = useState("");
   const [session, setSession] = useState<"morning" | "evening">(
@@ -130,6 +134,25 @@ export default function MilkLogModal({
         });
 
     savePromise.then(async () => {
+      // Auto-create/update financial income entry when saving a milk log
+      if (estimatedPayout != null && !isNaN(estimatedPayout) && estimatedPayout > 0 && activeFarm?.id) {
+        const rate = qty > 0 ? (estimatedPayout / qty) : 0;
+        await addIncome({
+          farmId: activeFarm.id,
+          date: new Date().toISOString(),
+          buyer: "Milk Cooperative",
+          quantitySold: qty,
+          ratePerLitre: rate,
+          totalExpected: estimatedPayout,
+          totalReceived: estimatedPayout,
+          fatPercentage: fat ? parseFloat(fat) : undefined,
+          snfPercentage: snf ? parseFloat(snf) : undefined,
+          notes: `Auto-generated from milk log for animal ${animal.name}`,
+        }).catch(err => {
+          console.error("[MilkLogModal] Failed to automatically create income entry:", err);
+        });
+      }
+
       const state = await NetInfo.fetch();
       if (!state.isConnected) {
         Alert.alert(

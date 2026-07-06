@@ -10,6 +10,8 @@ import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 import { useVaccination } from "../src/modules/vaccination/hooks/useVaccination";
 import { scheduleVaccinationReminder } from "../utils/notifications";
+import { useFarm } from "../src/modules/farms/hooks/useFarm";
+import { useFinance } from "../src/modules/finance/hooks/useFinance";
 
 let DateTimePicker: any = null;
 try {
@@ -58,6 +60,8 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
   const colors = useColors();
   const { animals } = useAnimals();
   const { createVaccination } = useVaccination();
+  const { activeFarm } = useFarm();
+  const { addExpense } = useFinance();
   const { t, language } = useLanguage();
 
   const adultAnimals = animals.filter((a) => a.type !== "calf");
@@ -115,6 +119,20 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
       const animal = animals.find((a) => a.id === selectedAnimalId);
       const name = animal?.name || "Animal";
       scheduleVaccinationReminder(name, vaxName, new Date(scheduledDate), language).catch(e => console.warn(e));
+
+      // Auto-create financial expense entry when scheduling/logging vaccination
+      const costVal = cost ? parseFloat(cost) : 0;
+      if (costVal > 0 && activeFarm?.id) {
+        await addExpense({
+          farmId: activeFarm.id,
+          date: new Date().toISOString(),
+          category: "medicine",
+          description: `Vaccination: ${vaxName} for animal ${name}`,
+          amount: costVal,
+        }).catch(err => {
+          console.error("[VaccinationModal] Failed to automatically create expense entry:", err);
+        });
+      }
 
       resetForm();
       onClose();
