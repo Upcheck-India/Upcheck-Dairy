@@ -25,6 +25,8 @@ export interface AuthUser {
   avatarColor?: string | null;
   avatarInitials?: string | null;
   createdAt?: string;
+  notificationPermission?: boolean;
+  notificationsEnabled?: boolean;
 }
 
 export interface AuthResult {
@@ -256,7 +258,10 @@ export async function createOrUpdateProfile(
     },
     body: JSON.stringify(profile),
   });
-  if (!response.ok) throw new Error("Failed to save profile");
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(body || `Failed to save profile (${response.status})`);
+  }
   return response.json() as Promise<FarmerProfile>;
 }
 
@@ -369,11 +374,18 @@ export async function resetPassword(
   return { message: data.message ?? "Password reset successfully" };
 }
 
-/**
- * Stub — 2FA is not yet implemented in the custom auth system.
- */
-export async function verify2fa(_tempToken: string, _token: string): Promise<{ session: null }> {
-  return { session: null };
+export async function verify2fa(tempToken: string, token: string): Promise<{ user: any; accessToken: string; refreshToken: string }> {
+  const base = getApiBase();
+  const response = await fetch(`${base}/auth/verify-2fa`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tempToken, token }),
+  });
+  const data = await response.json() as any;
+  if (!response.ok) {
+    throw new Error(data.message ?? "2FA verification failed");
+  }
+  return data;
 }
 
 // ==================== Legacy aliases ====================

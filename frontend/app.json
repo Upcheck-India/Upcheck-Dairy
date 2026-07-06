@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "ThulirFarm",
-    "slug": "thulirafarm",
+    "name": "Upcheck Dairy",
+    "slug": "upcheck-dairy",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "thulirafarm",
+    "scheme": "upcheckdairy",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -15,17 +15,17 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.thulirafarm.app",
+      "bundleIdentifier": "com.upcheckdairy.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "ThulirFarm needs camera access to take photos of your animals",
-        "NSMicrophoneUsageDescription": "ThulirFarm needs microphone access for voice commands in Tamil",
-        "NSPhotoLibraryUsageDescription": "ThulirFarm needs photo library access to select animal photos",
-        "NSLocationWhenInUseUsageDescription": "ThulirFarm uses your location for local weather information",
-        "NSSpeechRecognitionUsageDescription": "ThulirFarm uses speech recognition for voice commands"
+        "NSCameraUsageDescription": "Upcheck Dairy needs camera access to take photos of your animals",
+        "NSMicrophoneUsageDescription": "Upcheck Dairy needs microphone access for voice commands",
+        "NSPhotoLibraryUsageDescription": "Upcheck Dairy needs photo library access to select animal photos",
+        "NSLocationWhenInUseUsageDescription": "Upcheck Dairy uses your location for local weather information",
+        "NSSpeechRecognitionUsageDescription": "Upcheck Dairy uses speech recognition for voice commands"
       }
     },
     "android": {
-      "package": "com.thulirafarm.app",
+      "package": "com.upcheckdairy.app",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
@@ -41,7 +41,8 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -61,8 +62,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "ThulirFarm needs access to your photos to add animal pictures",
-          "cameraPermission": "ThulirFarm needs camera access to take photos of your animals"
+          "photosPermission": "Upcheck Dairy needs access to your photos to add animal pictures",
+          "cameraPermission": "Upcheck Dairy needs camera access to take photos of your animals"
         }
       ],
       [
@@ -76,7 +77,7 @@
       [
         "expo-av",
         {
-          "microphonePermission": "ThulirFarm needs microphone access for voice commands"
+          "microphonePermission": "Upcheck Dairy needs microphone access for voice commands"
         }
       ],
       "expo-secure-store"
@@ -84,6 +85,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": false
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ed0a2399-efb6-4502-81a2-663295c53151"
+      },
+      "router": {}
+    },
+    "owner": "upcheck"
   }
 }

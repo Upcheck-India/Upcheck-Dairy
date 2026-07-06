@@ -1,9 +1,10 @@
+import { getISTDateString } from "../../../../utils/date";
+
 export class Task {
   readonly id: string;
   readonly farmId: string;
   readonly animalId: string | null;
   readonly title: string;
-  readonly titleTamil: string;
   readonly time: string;
   readonly session: string;
   readonly completed: boolean;
@@ -17,7 +18,6 @@ export class Task {
     farmId: string;
     animalId?: string | null;
     title: string;
-    titleTamil: string;
     time: string;
     session: string;
     completed: boolean;
@@ -30,7 +30,6 @@ export class Task {
     this.farmId = data.farmId;
     this.animalId = data.animalId ?? null;
     this.title = data.title;
-    this.titleTamil = data.titleTamil;
     this.time = data.time;
     this.session = data.session;
     this.completed = data.completed;
@@ -45,6 +44,6 @@ export class Task {
   }
 
   get formattedDateString(): string {
-    return this.date.toISOString().split("T")[0]!;
+    return getISTDateString(this.date);
   }
 }

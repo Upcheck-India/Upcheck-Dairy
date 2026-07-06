@@ -2,11 +2,13 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator
 } from "react-native";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useInventory } from "../src/modules/inventory/hooks/useInventory";
 import { useFarm } from "../src/modules/farms/hooks/useFarm";
+import { useFinance } from "../src/modules/finance/hooks/useFinance";
 import { InventoryItem } from "../src/modules/inventory/models/InventoryItem";
 
 interface Props {
@@ -16,13 +18,21 @@ interface Props {
 }
 
 const CATEGORIES: Array<{
-  key: any; label: string; labelTa: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; color: string;
+  key: any;
+  labelKey:
+    | "inventoryCategoryFeed"
+    | "inventoryCategoryMedicine"
+    | "inventoryCategorySupplement"
+    | "inventoryCategoryEquipment"
+    | "inventoryCategoryOther";
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  color: string;
 }> = [
-  { key: "feed", label: "Feed", labelTa: "தீவனம்", icon: "sprout", color: "#16a34a" },
-  { key: "medicine", label: "Medicine", labelTa: "மருந்து", icon: "pill", color: "#0284c7" },
-  { key: "supplement", label: "Supplement", labelTa: "சத்துணவு", icon: "flask-outline", color: "#7c3aed" },
-  { key: "equipment", label: "Equipment", labelTa: "உபகரணம்", icon: "tools", color: "#d97706" },
-  { key: "other", label: "Other", labelTa: "மற்றவை", icon: "package-variant-closed", color: "#6b7280" },
+  { key: "feed", labelKey: "inventoryCategoryFeed", icon: "sprout", color: "#16a34a" },
+  { key: "medicine", labelKey: "inventoryCategoryMedicine", icon: "pill", color: "#0284c7" },
+  { key: "supplement", labelKey: "inventoryCategorySupplement", icon: "flask-outline", color: "#7c3aed" },
+  { key: "equipment", labelKey: "inventoryCategoryEquipment", icon: "tools", color: "#d97706" },
+  { key: "other", labelKey: "inventoryCategoryOther", icon: "package-variant-closed", color: "#6b7280" },
 ];
 
 const COMMON_UNITS = ["kg", "litre", "bag", "bottle", "box", "piece", "dose"];
@@ -37,9 +47,9 @@ const COMMON_ITEMS: Record<string, string[]> = {
 export default function InventoryModal({ visible, onClose, editItem }: Props) {
   const { createItem, updateItem } = useInventory();
   const { activeFarm } = useFarm();
-  const { language } = useLanguage();
+  const { addExpense } = useFinance();
+  const { t, language } = useLanguage();
   const colors = useColors();
-  const isTa = language === "ta";
 
   const [category, setCategory] = useState<any>(editItem?.category ?? "feed");
   const [name, setName] = useState(editItem?.name ?? "");
@@ -50,8 +60,8 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!name.trim()) { Alert.alert("Error", isTa ? "பொருளின் பெயர் சேர்க்கவும்" : "Please enter item name"); return; }
-    if (!quantity || isNaN(parseFloat(quantity))) { Alert.alert("Error", isTa ? "அளவு சேர்க்கவும்" : "Please enter quantity"); return; }
+    if (!name.trim()) { Alert.alert("Error", t.inventoryErrorItemName); return; }
+    if (!quantity || isNaN(parseFloat(quantity))) { Alert.alert("Error", t.inventoryErrorQty); return; }
     if (!activeFarm?.id) { Alert.alert("Error", "No active farm selected"); return; }
 
     setSaving(true);
@@ -76,6 +86,27 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
           pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : undefined,
         });
       }
+      // Auto-create financial expense entry when purchasing/adding inventory
+      const priceVal = pricePerUnit ? parseFloat(pricePerUnit) : 0;
+      const qtyVal = quantity ? parseFloat(quantity) : 0;
+      const totalCost = priceVal * qtyVal;
+      if (totalCost > 0 && activeFarm?.id) {
+        let expenseCat: "feed" | "medicine" | "labor" | "equipment" | "other" = "other";
+        if (category === "feed") expenseCat = "feed";
+        else if (category === "medicine" || category === "supplement") expenseCat = "medicine";
+        else if (category === "equipment") expenseCat = "equipment";
+
+        await addExpense({
+          farmId: activeFarm.id,
+          date: new Date().toISOString(),
+          category: expenseCat,
+          description: `Inventory purchase: ${name.trim()} (${qtyVal} ${unit})`,
+          amount: totalCost,
+        }).catch(err => {
+          console.error("[InventoryModal] Failed to automatically create expense entry:", err);
+        });
+      }
+
       resetForm();
       onClose();
     } catch (e: any) {
@@ -100,7 +131,7 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{editItem ? (isTa ? "பொருள் திருத்து" : "Edit Item") : (isTa ? "பொருள் சேர்" : "Add Inventory Item")}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{editItem ? t.inventoryEditTitle : t.inventoryAddTitle}</Text>
           <Pressable onPress={onClose} style={styles.closeBtn}>
             <Feather name="x" size={22} color={colors.mutedForeground} />
           </Pressable>
@@ -108,7 +139,7 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
           {/* Category */}
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{isTa ? "வகை" : "Category"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.inventoryCategory}</Text>
           <View style={styles.categoryRow}>
             {CATEGORIES.map((cat) => (
               <Pressable
@@ -126,7 +157,7 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
                   color={category === cat.key ? "#fff" : colors.mutedForeground} 
                 />
                 <Text style={[styles.categoryLabel, { color: colors.mutedForeground }, category === cat.key && { color: "#fff" }]}>
-                  {isTa ? cat.labelTa : cat.label}
+                  {t[cat.labelKey]}
                 </Text>
               </Pressable>
             ))}
@@ -135,7 +166,7 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
           {/* Suggestions */}
           {suggestions.length > 0 && (
             <>
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{isTa ? "பொதுவான பொருட்கள்" : "Common Items"}</Text>
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.inventoryCommonItems}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={{ flexDirection: "row", gap: 8, paddingBottom: 4 }}>
                   {suggestions.map((s: string) => (
@@ -153,20 +184,20 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
           )}
 
           {/* Name */}
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{isTa ? "பொருளின் பெயர்" : "Item Name"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.inventoryItemName}</Text>
           <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
             <Feather name="package" size={18} color={colors.primary} />
             <TextInput
               style={[styles.input, { color: colors.foreground }]}
               value={name}
               onChangeText={setName}
-              placeholder={isTa ? "பெயர் சேர்க்கவும்" : "Enter item name"}
+              placeholder={t.inventoryItemNamePlaceholder}
               placeholderTextColor={colors.mutedForeground}
             />
           </View>
 
           {/* Quantity and Unit */}
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{isTa ? "அளவு" : "Quantity"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.inventoryQuantity}</Text>
           <View style={styles.qtyUnitRow}>
             <View style={[styles.inputRow, { flex: 1, borderColor: colors.border, backgroundColor: colors.muted }]}>
               <Feather name="layers" size={18} color={colors.primary} />
@@ -199,21 +230,21 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
           </View>
 
           {/* Min Quantity Alert */}
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{isTa ? "குறைந்தபட்ச அளவு (அலர்ட்)" : "Minimum Quantity (Alert Level)"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.inventoryMinQtyLabel}</Text>
           <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
             <Feather name="alert-triangle" size={18} color={colors.warning} />
             <TextInput
               style={[styles.input, { color: colors.foreground }]}
               value={minQty}
               onChangeText={setMinQty}
-              placeholder={isTa ? "குறைந்தபட்ச அளவு" : "Alert when below this"}
+              placeholder={t.inventoryMinQtyPlaceholder}
               placeholderTextColor={colors.mutedForeground}
               keyboardType="numeric"
             />
           </View>
 
           {/* Price per unit */}
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{isTa ? "ஒரு அலகு விலை ₹ (விருப்பம்)" : "Price per Unit ₹ (optional)"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.inventoryPriceLabel}</Text>
           <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
             <Text style={[styles.rupeeSign, { color: colors.primary }]}>₹</Text>
             <TextInput
@@ -231,10 +262,15 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
             onPress={handleSave}
             disabled={saving}
           >
-            <Feather name="check" size={18} color="#fff" />
-            <Text style={styles.saveBtnText}>{editItem ? (isTa ? "புதுப்பி" : "Update") : (isTa ? "சேமி" : "Save")}</Text>
+            {saving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Feather name="check" size={18} color="#fff" />
+                <Text style={styles.saveBtnText}>{editItem ? t.inventoryUpdateBtn : t.save}</Text>
+              </>
+            )}
           </Pressable>
-
           <View style={{ height: 40 }} />
         </ScrollView>
       </View>

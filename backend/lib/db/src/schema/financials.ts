@@ -1,4 +1,4 @@
-import { pgTable, text, serial, uuid, decimal, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, uuid, decimal, timestamp, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { farmers } from "./farmers";
@@ -25,6 +25,10 @@ export const incomeEntries = pgTable("income_entries", {
   snfPercentage: decimal("snf_percentage", { precision: 4, scale: 2 }),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    farmIdIdx: index("income_entries_farm_id_idx").on(table.farmId),
+  };
 });
 
 export const insertIncomeEntrySchema = createInsertSchema(incomeEntries).omit({
@@ -43,6 +47,10 @@ export const expenseEntries = pgTable("expense_entries", {
   description: text("description").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    farmIdIdx: index("expense_entries_farm_id_idx").on(table.farmId),
+  };
 });
 
 export const insertExpenseEntrySchema = createInsertSchema(expenseEntries).omit({

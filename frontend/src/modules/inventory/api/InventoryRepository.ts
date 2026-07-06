@@ -6,7 +6,7 @@ import { InventoryItemResponseDto, CreateInventoryItemRequestDto, UpdateInventor
 
 export class InventoryRepository {
   private getCacheKey(farmId: string): string {
-    return `thulirfarm:${farmId}:inventory`;
+    return `upcheckdairy:${farmId}:inventory`;
   }
 
   async getInventoryItems(farmId: string): Promise<InventoryItem[]> {

@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from "react-native";
 import { chatWithGauGuru, type ChatMessage } from "@/services/api";
 import { useLanguage } from "@/context/LanguageContext";
@@ -108,7 +109,26 @@ export default function GauGuruChat() {
     }
   }, [messages, loading, language, t]);
 
-  const clearChat = () => setMessages([]);
+  const clearChat = () => {
+    Alert.alert(
+      t.clearChat,
+      language === "ta"
+        ? "அனைத்து செய்திகளையும் அழிக்க விரும்புகிறீர்களா?"
+        : language === "te"
+        ? "అన్ని సందేశాలను తొలగించాలనుకుంటున్నారా?"
+        : language === "kn"
+        ? "ಎಲ್ಲಾ ಸಂದೇಶಗಳನ್ನು ಅಳಿಸಲು ನೀವು ಖಚಿತವಾಗಿ ಬಯಸುವಿರಾ?"
+        : language === "ml"
+        ? "എല്ലാ സന്ദേശങ്ങളും മായ്ക്കാൻ നിങ്ങൾ ഉറപ്പാണോ?"
+        : language === "hi"
+        ? "क्या आप सभी संदेशों को साफ करना चाहते हैं?"
+        : "Are you sure you want to clear all messages?",
+      [
+        { text: t.cancel, style: "cancel" },
+        { text: t.yes || "Yes", style: "destructive", onPress: () => setMessages([]) }
+      ]
+    );
+  };
 
   return (
     <KeyboardAvoidingView

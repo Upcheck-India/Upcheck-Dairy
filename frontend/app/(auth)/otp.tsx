@@ -82,13 +82,6 @@ export default function OtpScreen() {
 
       // Store JWT and update context
       await loginWithJwt(result);
-
-      // After register flow → go to onboarding to collect farm details
-      // After login flow → go to dashboard (unless no farm profile yet)
-      const isProfileIncomplete = !result.user.village || !result.user.district;
-      if (flow === "register" || isProfileIncomplete) {
-        router.replace({ pathname: "/(auth)/onboarding", params: { email } });
-      }
     } catch (err: any) {
       Alert.alert("Wrong Code", err.message ?? "Invalid or expired code. Please try again.");
       setOtp(Array(OTP_LENGTH).fill(""));

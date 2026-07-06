@@ -1,5 +1,6 @@
 import { Animal } from "../../animals/models/Animal";
 import { MilkEntry } from "../models/MilkEntry";
+import { getISTDateString } from "../../../../utils/date";
 
 export interface MilkAnomaly {
   animalId: string;
@@ -11,13 +12,13 @@ export interface MilkAnomaly {
 }
 
 function getTodayDateStr(): string {
-  return new Date().toISOString().split("T")[0];
+  return getISTDateString();
 }
 
 function getPastDateStr(daysAgo: number): string {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().split("T")[0];
+  return getISTDateString(d);
 }
 
 export function detectMilkAnomalies(animals: Animal[], milkEntries: MilkEntry[]): MilkAnomaly[] {
@@ -32,7 +33,7 @@ export function detectMilkAnomalies(animals: Animal[], milkEntries: MilkEntry[])
     );
 
     const todayMilk = animalMilk
-      .filter((e: MilkEntry) => e.date.toISOString().split("T")[0] === today)
+      .filter((e: MilkEntry) => getISTDateString(e.date) === today)
       .reduce((s: number, e: MilkEntry) => s + e.quantity, 0);
 
     if (todayMilk === 0) continue;
@@ -41,7 +42,7 @@ export function detectMilkAnomalies(animals: Animal[], milkEntries: MilkEntry[])
       .map((i: number) => {
         const d = getPastDateStr(i);
         return animalMilk
-          .filter((e: MilkEntry) => e.date.toISOString().split("T")[0] === d)
+          .filter((e: MilkEntry) => getISTDateString(e.date) === d)
           .reduce((s: number, e: MilkEntry) => s + e.quantity, 0);
       })
       .filter((v: number) => v > 0);

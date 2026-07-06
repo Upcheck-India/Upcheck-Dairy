@@ -1,4 +1,4 @@
-import { pgTable, text, serial, uuid, integer, boolean, decimal, timestamp, varchar, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, uuid, integer, boolean, decimal, timestamp, varchar, jsonb, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { farmers } from "./farmers";
@@ -36,6 +36,11 @@ export const animals = pgTable("animals", {
   weightKg: decimal("weight_kg", { precision: 5, scale: 1 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    farmIdIdx: index("animals_farm_id_idx").on(table.farmId),
+    farmIdTagNumberIdx: uniqueIndex("animals_farm_id_tag_number_idx").on(table.farmId, table.tagNumber),
+  };
 });
 
 export const insertAnimalSchema = createInsertSchema(animals).omit({

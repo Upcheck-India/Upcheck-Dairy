@@ -30,13 +30,13 @@ export const Storage = {
 
   activeFarm: {
     async save(farmId: string): Promise<void> {
-      await Storage.set("thulirfarm:active_farm_id", farmId);
+      await Storage.set("upcheckdairy:active_farm_id", farmId);
     },
     async load(): Promise<string | null> {
-      return Storage.get<string>("thulirfarm:active_farm_id");
+      return Storage.get<string>("upcheckdairy:active_farm_id");
     },
     async clear(): Promise<void> {
-      await Storage.remove("thulirfarm:active_farm_id");
+      await Storage.remove("upcheckdairy:active_farm_id");
     }
   }
 };

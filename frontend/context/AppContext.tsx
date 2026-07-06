@@ -1,4 +1,7 @@
+import { getISTDateString } from "../utils/date";
+export { getISTDateString };
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useMilk } from "../src/modules/milk/hooks/useMilk";
 import React, {
   createContext,
   useCallback,
@@ -88,7 +91,6 @@ export interface ExpenseEntry {
 export interface Task {
   id: string;
   title: string;
-  titleTamil: string;
   time: string;
   session: "morning" | "evening" | "anytime";
   completed: boolean;
@@ -244,13 +246,13 @@ export function generateId(): string {
 }
 
 export function getTodayString(): string {
-  return new Date().toISOString().split("T")[0];
+  return getISTDateString();
 }
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
+  return getISTDateString(d);
 }
 
 function daysBetween(dateA: string, dateB: string): number {
@@ -275,7 +277,7 @@ function computeAnomalies(animals: Animal[], milkEntries: MilkEntry[]): MilkAnom
     const prev3Days = Array.from({ length: 3 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (i + 1));
-      return d.toISOString().split("T")[0];
+      return getISTDateString(d);
     });
 
     const prevTotals = prev3Days
@@ -400,6 +402,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [syncStatus] = useState<"synced" | "pending" | "offline">("synced");
   const [isLoaded, setIsLoaded] = useState(false);
 
+  const { milkEntries: modularMilkEntries } = useMilk();
+
+  useEffect(() => {
+    if (modularMilkEntries && modularMilkEntries.length > 0) {
+      const mapped: MilkEntry[] = modularMilkEntries.map((e) => ({
+        id: e.id,
+        animalId: e.animalId,
+        session: e.session,
+        quantity: e.quantity,
+        date: getISTDateString(e.date),
+        timestamp: e.date instanceof Date ? e.date.getTime() : new Date(e.date).getTime(),
+        fat: e.fat ?? undefined,
+        snf: e.snf ?? undefined,
+        notes: e.notes ?? undefined,
+      }));
+      setMilkEntries(mapped);
+    }
+  }, [modularMilkEntries]);
+
   useEffect(() => { loadData(); }, []);
 
   useEffect(() => {
@@ -411,6 +432,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const reloadData = useCallback(async () => {
     await loadData();
   }, []);
+
+  const safeParse = <T,>(data: string | null, fallback: T): T => {
+    if (!data) return fallback;
+    try {
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? (parsed as T) : fallback;
+    } catch (e) {
+      console.error("[AppContext] JSON parse failed, using fallback:", e);
+      return fallback;
+    }
+  };
 
   const loadData = async () => {
     console.log('[AppContext] Starting loadData...');
@@ -430,21 +462,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       console.log('[AppContext] Storage data retrieved');
 
-      const loadedAnimals: Animal[] = animalsData ? JSON.parse(animalsData) : [];
-      const loadedMilk: MilkEntry[] = milkData ? JSON.parse(milkData) : [];
-      const loadedBreeding: BreedingEvent[] = breedingData ? JSON.parse(breedingData) : [];
-      const loadedVax: Vaccination[] = vaccinationData ? JSON.parse(vaccinationData) : [];
-      const loadedInventory: InventoryItem[] = inventoryData ? JSON.parse(inventoryData) : [];
+      const loadedAnimals = safeParse<Animal[]>(animalsData, []);
+      const loadedMilk = safeParse<MilkEntry[]>(milkData, []);
+      const loadedHealth = safeParse<any[]>(healthData, []);
+      const loadedIncome = safeParse<any[]>(incomeData, []);
+      const loadedExpense = safeParse<any[]>(expenseData, []);
+      const loadedTasks = safeParse<any[]>(tasksData, []);
+      const loadedBreeding = safeParse<BreedingEvent[]>(breedingData, []);
+      const loadedVax = safeParse<Vaccination[]>(vaccinationData, []);
+      const loadedInventory = safeParse<InventoryItem[]>(inventoryData, []);
 
-      if (animalsData) setAnimals(loadedAnimals);
-      if (milkData) setMilkEntries(loadedMilk);
-      if (healthData) setHealthEvents(JSON.parse(healthData));
-      if (incomeData) setIncomeEntries(JSON.parse(incomeData));
-      if (expenseData) setExpenseEntries(JSON.parse(expenseData));
-      if (tasksData) setTasks(JSON.parse(tasksData));
-      if (breedingData) setBreedingEvents(loadedBreeding);
-      if (vaccinationData) setVaccinations(loadedVax);
-      if (inventoryData) setInventoryItems(loadedInventory);
+      setAnimals(loadedAnimals);
+      setMilkEntries(loadedMilk);
+      setHealthEvents(loadedHealth);
+      setIncomeEntries(loadedIncome);
+      setExpenseEntries(loadedExpense);
+      setTasks(loadedTasks);
+      setBreedingEvents(loadedBreeding);
+      setVaccinations(loadedVax);
+      setInventoryItems(loadedInventory);
 
       setMilkAnomalies(computeAnomalies(loadedAnimals, loadedMilk));
       setSmartAlerts(computeSmartAlerts(loadedAnimals, loadedBreeding, loadedVax));
@@ -546,13 +582,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (existingToday.length > 0) return prevTasks;
 
       const defaultTasks: Task[] = [
-        { id: generateId(), title: "Morning Milking", titleTamil: "காலை கறவை", time: "5:00 AM", session: "morning", completed: false, date: today, type: "milk", priority: "high" },
-        { id: generateId(), title: "Morning Feed", titleTamil: "காலை தீவனம்", time: "6:00 AM", session: "morning", completed: false, date: today, type: "feed", priority: "normal" },
-        { id: generateId(), title: "Clean Shed", titleTamil: "தொழுவம் சுத்தம்", time: "6:30 AM", session: "morning", completed: false, date: today, type: "clean", priority: "normal" },
-        { id: generateId(), title: "Evening Milking", titleTamil: "மாலை கறவை", time: "4:00 PM", session: "evening", completed: false, date: today, type: "milk", priority: "high" },
-        { id: generateId(), title: "Evening Feed", titleTamil: "மாலை தீவனம்", time: "4:30 PM", session: "evening", completed: false, date: today, type: "feed", priority: "normal" },
-        { id: generateId(), title: "Record Income", titleTamil: "வருமானம் பதிவு", time: "7:00 PM", session: "evening", completed: false, date: today, type: "other", priority: "normal" },
-        { id: generateId(), title: "Mineral Mix — Water Trough", titleTamil: "தண்ணீர் தொட்டி சுத்தம்", time: "8:00 AM", session: "morning", completed: false, date: today, type: "feed", priority: "low" },
+        { id: generateId(), title: "Morning Milking", time: "5:00 AM", session: "morning", completed: false, date: today, type: "milk", priority: "high" },
+        { id: generateId(), title: "Morning Feed", time: "6:00 AM", session: "morning", completed: false, date: today, type: "feed", priority: "normal" },
+        { id: generateId(), title: "Clean Shed", time: "6:30 AM", session: "morning", completed: false, date: today, type: "clean", priority: "normal" },
+        { id: generateId(), title: "Evening Milking", time: "4:00 PM", session: "evening", completed: false, date: today, type: "milk", priority: "high" },
+        { id: generateId(), title: "Evening Feed", time: "4:30 PM", session: "evening", completed: false, date: today, type: "feed", priority: "normal" },
+        { id: generateId(), title: "Record Income", time: "7:00 PM", session: "evening", completed: false, date: today, type: "other", priority: "normal" },
+        { id: generateId(), title: "Mineral Mix — Water Trough", time: "8:00 AM", session: "morning", completed: false, date: today, type: "feed", priority: "low" },
       ];
 
       const next = [...prevTasks, ...defaultTasks];
@@ -570,7 +606,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (event.eventType === "insemination" || event.eventType === "pregnancy_confirmed") {
-      const expectedDate = event.expectedCalvingDate ?? addDays(event.date, 280);
+      const expectedDate = event.expectedCalvingDate ?? addDays(event.date, 283);
       setAnimals((prevA) => {
         const nextA = prevA.map((a) =>
           a.id === event.animalId
@@ -698,7 +734,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const last7days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
-      return d.toISOString().split("T")[0];
+      return getISTDateString(d);
     });
     return last7days.map((date) =>
       milkEntries.filter((e) => e.animalId === animalId && e.date === date).reduce((sum, e) => sum + e.quantity, 0)
@@ -709,7 +745,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
-      const date = d.toISOString().split("T")[0];
+      const date = getISTDateString(d);
       const income = incomeEntries.filter((e) => e.date === date).reduce((s, e) => s + e.totalReceived, 0);
       const expense = expenseEntries.filter((e) => e.date === date).reduce((s, e) => s + e.amount, 0);
       const label = d.toLocaleDateString("en-IN", { weekday: "short" });

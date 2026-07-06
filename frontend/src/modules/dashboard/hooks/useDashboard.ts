@@ -19,8 +19,10 @@ import {
 import { computeTodayTaskCounts, TaskCounts } from "../../tasks/services/taskSummary";
 import { MilkEntry } from "../../milk/models/MilkEntry";
 
+import { getISTDateString } from "../../../../utils/date";
+
 function getTodayDateStr(): string {
-  return new Date().toISOString().split("T")[0];
+  return getISTDateString();
 }
 
 /**
@@ -45,7 +47,7 @@ export function useDashboard() {
   const todayMilkTotal = useMemo(() => {
     const today = getTodayDateStr();
     return milkEntries
-      .filter((e: MilkEntry) => e.date.toISOString().split("T")[0] === today)
+      .filter((e: MilkEntry) => getISTDateString(e.date) === today)
       .reduce((s: number, e: MilkEntry) => s + e.quantity, 0);
   }, [milkEntries]);
 

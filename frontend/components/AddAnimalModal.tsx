@@ -40,7 +40,11 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
   const [customBreed, setCustomBreed] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [tagNumber, setTagNumber] = useState("");
+  const tagInputRef = useRef<TextInput>(null);
+  const [tagError, setTagError] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
+  const alertScaleAnim = useRef(new Animated.Value(0.9)).current;
 
   const ANIMAL_TYPES: { type: AnimalType; iconName: keyof typeof MaterialCommunityIcons.glyphMap; label: string }[] = [
     { type: "cow", iconName: "cow", label: t.typeCow },
@@ -66,8 +70,23 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
       setShowCustomInput(false);
       setTagNumber("");
       setType("cow");
+      setTagError(false);
+      setShowDuplicateAlert(false);
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (showDuplicateAlert) {
+      Animated.spring(alertScaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 120,
+        friction: 8,
+      }).start();
+    } else {
+      alertScaleAnim.setValue(0.9);
+    }
+  }, [showDuplicateAlert]);
 
   useEffect(() => {
     setBreed("");
@@ -75,7 +94,7 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
     setShowCustomInput(false);
   }, [type]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert(t.error, t.addAnimalNameRequired);
       return;
@@ -85,17 +104,24 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
       Alert.alert(t.error, t.addAnimalBreedRequired);
       return;
     }
-    createAnimal({
-      name: name.trim(),
-      type,
-      breed: finalBreed,
-      tagNumber: tagNumber.trim() || undefined,
-      healthStatus: "healthy",
-    }).catch(err => {
-      console.error("[AddAnimalModal] Failed to create animal:", err);
-    });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onClose();
+    try {
+      await createAnimal({
+        name: name.trim(),
+        type,
+        breed: finalBreed,
+        tagNumber: tagNumber.trim() || undefined,
+        healthStatus: "healthy",
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
+    } catch (err: any) {
+      if (err.message && err.message.includes("already exists on this farm")) {
+        setTagError(true);
+        setShowDuplicateAlert(true);
+      } else {
+        console.error("[AddAnimalModal] Failed to create animal:", err);
+      }
+    }
   };
 
   const selectBreed = (b: string) => {
@@ -112,143 +138,72 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Animated.View
-          style={[
-            styles.modal,
-            {
-              backgroundColor: colors.card,
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
-        >
-          <Pressable>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.header}>
-                <Text style={[styles.title, { color: colors.foreground }]}>
-                  {t.addAnimalTitle}
-                </Text>
-                <Pressable
-                  onPress={onClose}
-                  style={[styles.closeBtn, { backgroundColor: colors.muted }]}
-                >
-                  <Feather name="x" size={18} color={colors.mutedForeground} />
-                </Pressable>
-              </View>
-
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                {t.addAnimalSelectType}
-              </Text>
-              <View style={styles.typeRow}>
-                {ANIMAL_TYPES.map(({ type: at, iconName, label }) => (
-                  <Pressable
-                    key={at}
-                    style={[
-                      styles.typeBtn,
-                      {
-                        backgroundColor: type === at ? colors.primary : colors.muted,
-                        borderColor: type === at ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => {
-                      setType(at);
-                      Haptics.selectionAsync();
-                    }}
-                  >
-                    <MaterialCommunityIcons name={iconName} size={32} color={type === at ? colors.primaryForeground : colors.mutedForeground} />
-                    <Text
-                      style={[
-                        styles.typeLabel,
-                        { color: type === at ? colors.primaryForeground : colors.mutedForeground },
-                      ]}
-                    >
-                      {label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                {t.addAnimalName}
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.muted,
-                    color: colors.foreground,
-                  },
-                ]}
-                value={name}
-                onChangeText={setName}
-                placeholder={t.addAnimalNamePlaceholder}
-                placeholderTextColor={colors.mutedForeground}
-              />
-
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                {t.addAnimalBreed}
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.breedChipRow}
-              >
-                {breeds.map((b) => (
-                  <Pressable
-                    key={b}
-                    style={[
-                      styles.breedChip,
-                      {
-                        backgroundColor: breed === b && !showCustomInput ? colors.primary : colors.muted,
-                        borderColor: breed === b && !showCustomInput ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => selectBreed(b)}
-                  >
-                    <Text
-                      style={[
-                        styles.breedChipText,
-                        { color: breed === b && !showCustomInput ? colors.primaryForeground : colors.foreground },
-                      ]}
-                    >
-                      {b}
-                    </Text>
-                  </Pressable>
-                ))}
-                <Pressable
-                  style={[
-                    styles.breedChip,
-                    {
-                      backgroundColor: showCustomInput ? colors.primary : colors.muted,
-                      borderColor: showCustomInput ? colors.primary : colors.border,
-                    },
-                  ]}
-                  onPress={selectCustom}
-                >
-                  <Feather
-                    name="edit-2"
-                    size={12}
-                    color={showCustomInput ? colors.primaryForeground : colors.foreground}
-                  />
-                  <Text
-                    style={[
-                      styles.breedChipText,
-                      { color: showCustomInput ? colors.primaryForeground : colors.foreground },
-                    ]}
-                  >
-                    {t.addAnimalCustomBreed}
+    <>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={onClose}
+      >
+        <Pressable style={styles.overlay} onPress={onClose}>
+          <Animated.View
+            style={[
+              styles.modal,
+              {
+                backgroundColor: colors.card,
+                transform: [{ scale: scaleAnim }],
+              },
+            ]}
+          >
+            <Pressable>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.header}>
+                  <Text style={[styles.title, { color: colors.foreground }]}>
+                    {t.addAnimalTitle}
                   </Text>
-                </Pressable>
-              </ScrollView>
+                  <Pressable
+                    onPress={onClose}
+                    style={[styles.closeBtn, { backgroundColor: colors.muted }]}
+                  >
+                    <Feather name="x" size={18} color={colors.mutedForeground} />
+                  </Pressable>
+                </View>
 
-              {showCustomInput && (
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+                  {t.addAnimalSelectType}
+                </Text>
+                <View style={styles.typeRow}>
+                  {ANIMAL_TYPES.map(({ type: at, iconName, label }) => (
+                    <Pressable
+                      key={at}
+                      style={[
+                        styles.typeBtn,
+                        {
+                          backgroundColor: type === at ? colors.primary : colors.muted,
+                          borderColor: type === at ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => {
+                        setType(at);
+                        Haptics.selectionAsync();
+                      }}
+                    >
+                      <MaterialCommunityIcons name={iconName} size={32} color={type === at ? colors.primaryForeground : colors.mutedForeground} />
+                      <Text
+                        style={[
+                          styles.typeLabel,
+                          { color: type === at ? colors.primaryForeground : colors.mutedForeground },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+                  {t.addAnimalName}
+                </Text>
                 <TextInput
                   style={[
                     styles.input,
@@ -256,48 +211,180 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
                       borderColor: colors.border,
                       backgroundColor: colors.muted,
                       color: colors.foreground,
-                      marginTop: 8,
                     },
                   ]}
-                  value={customBreed}
-                  onChangeText={setCustomBreed}
-                  placeholder={t.addAnimalBreedPlaceholder}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder={t.addAnimalNamePlaceholder}
                   placeholderTextColor={colors.mutedForeground}
-                  autoFocus
                 />
-              )}
 
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}>
-                {t.addAnimalTag}
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+                  {t.addAnimalBreed}
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.breedChipRow}
+                >
+                  {breeds.map((b) => (
+                    <Pressable
+                      key={b}
+                      style={[
+                        styles.breedChip,
+                        {
+                          backgroundColor: breed === b && !showCustomInput ? colors.primary : colors.muted,
+                          borderColor: breed === b && !showCustomInput ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => selectBreed(b)}
+                    >
+                      <Text
+                        style={[
+                          styles.breedChipText,
+                          { color: breed === b && !showCustomInput ? colors.primaryForeground : colors.foreground },
+                        ]}
+                      >
+                        {b}
+                      </Text>
+                    </Pressable>
+                  ))}
+                  <Pressable
+                    style={[
+                      styles.breedChip,
+                      {
+                        backgroundColor: showCustomInput ? colors.primary : colors.muted,
+                        borderColor: showCustomInput ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={selectCustom}
+                  >
+                    <Feather
+                      name="edit-2"
+                      size={12}
+                      color={showCustomInput ? colors.primaryForeground : colors.foreground}
+                    />
+                    <Text
+                      style={[
+                        styles.breedChipText,
+                        { color: showCustomInput ? colors.primaryForeground : colors.foreground },
+                      ]}
+                    >
+                      {t.addAnimalCustomBreed}
+                    </Text>
+                  </Pressable>
+                </ScrollView>
+
+                {showCustomInput && (
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: colors.border,
+                        backgroundColor: colors.muted,
+                        color: colors.foreground,
+                        marginTop: 8,
+                      },
+                    ]}
+                    value={customBreed}
+                    onChangeText={setCustomBreed}
+                    placeholder={t.addAnimalBreedPlaceholder}
+                    placeholderTextColor={colors.mutedForeground}
+                    autoFocus
+                />
+                )}
+
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}>
+                  {t.addAnimalTag}
+                </Text>
+                <TextInput
+                  ref={tagInputRef}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: tagError ? colors.destructive : colors.border,
+                      backgroundColor: colors.muted,
+                      color: colors.foreground,
+                    },
+                  ]}
+                  value={tagNumber}
+                  onChangeText={(val) => {
+                    setTagNumber(val);
+                    if (tagError) setTagError(false);
+                  }}
+                  placeholder={t.addAnimalTagPlaceholder}
+                  placeholderTextColor={colors.mutedForeground}
+                  autoCapitalize="characters"
+                />
+
+                <Pressable
+                  style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+                  onPress={handleSave}
+                >
+                  <Feather name="plus" size={20} color={colors.primaryForeground} />
+                  <Text style={[styles.saveBtnText, { color: colors.primaryForeground }]}>{t.addAnimalSave}</Text>
+                </Pressable>
+              </ScrollView>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={showDuplicateAlert}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setShowDuplicateAlert(false);
+          setTimeout(() => {
+            tagInputRef.current?.focus();
+          }, 100);
+        }}
+      >
+        <View style={styles.alertOverlay}>
+          <Animated.View
+            style={[
+              styles.alertCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                transform: [{ scale: alertScaleAnim }],
+              },
+            ]}
+          >
+            <View style={[styles.alertIconContainer, { backgroundColor: colors.destructive + "15" }]}>
+              <Feather name="alert-circle" size={32} color={colors.destructive} />
+            </View>
+            <Text style={[styles.alertTitle, { color: colors.destructive }]}>
+              {t.duplicateTagTitle}
+            </Text>
+            <Text style={[styles.alertMessage, { color: colors.foreground }]}>
+              {t.duplicateTagMessage}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.alertBtn,
+                {
+                  backgroundColor: colors.destructive,
+                  opacity: pressed ? 0.9 : 1,
+                  transform: [{ scale: pressed ? 0.98 : 1 }],
+                },
+              ]}
+              onPress={() => {
+                setShowDuplicateAlert(false);
+                setTimeout(() => {
+                  tagInputRef.current?.focus();
+                }, 100);
+              }}
+            >
+              <Text style={[styles.alertBtnText, { color: colors.destructiveForeground }]}>
+                {t.ok}
               </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.muted,
-                    color: colors.foreground,
-                  },
-                ]}
-                value={tagNumber}
-                onChangeText={setTagNumber}
-                placeholder={t.addAnimalTagPlaceholder}
-                placeholderTextColor={colors.mutedForeground}
-                autoCapitalize="characters"
-              />
-
-              <Pressable
-                style={[styles.saveBtn, { backgroundColor: colors.primary }]}
-                onPress={handleSave}
-              >
-                <Feather name="plus" size={20} color={colors.primaryForeground} />
-                <Text style={[styles.saveBtnText, { color: colors.primaryForeground }]}>{t.addAnimalSave}</Text>
-              </Pressable>
-            </ScrollView>
-          </Pressable>
-        </Animated.View>
-      </Pressable>
-    </Modal>
+            </Pressable>
+          </Animated.View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -395,6 +482,61 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     fontSize: 18,
+    fontFamily: "Inter_700Bold",
+  },
+  alertOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  alertCard: {
+    width: "100%",
+    maxWidth: 340,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  alertIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  alertTitle: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  alertMessage: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  alertBtn: {
+    width: "100%",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  alertBtnText: {
+    fontSize: 16,
     fontFamily: "Inter_700Bold",
   },
 });

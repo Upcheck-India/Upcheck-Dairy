@@ -15,10 +15,6 @@ export class CreateTaskDto {
 
   @IsString()
   @IsNotEmpty()
-  titleTamil: string;
-
-  @IsString()
-  @IsNotEmpty()
   time: string;
 
   @IsString()

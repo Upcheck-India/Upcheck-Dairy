@@ -14,6 +14,7 @@ import { RefreshTokenRepository } from "./repositories/refresh-token.repository"
 import { JwtStrategy } from "./strategies/jwt.strategy";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { RedisModule } from "../redis/redis.module";
 
 @Module({
   imports: [
@@ -22,11 +23,12 @@ import { NotificationsModule } from "../notifications/notifications.module";
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>("JWT_SECRET") || "super-secret-key-dairy-farm-upcheck",
+        secret: configService.get<string>("JWT_SECRET")!,
         signOptions: { expiresIn: "7d" },
       }),
     }),
     NotificationsModule,
+    RedisModule,
   ],
   controllers: [AuthController],
   providers: [

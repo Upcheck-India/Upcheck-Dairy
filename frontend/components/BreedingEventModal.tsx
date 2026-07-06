@@ -2,12 +2,27 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Platform, ActivityIndicator, UIManager
 } from "react-native";
-import { BreedingEventType, getTodayString } from "@/context/AppContext";
+import { BreedingEventType, getTodayString, getISTDateString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 import { useBreeding } from "../src/modules/breeding/hooks/useBreeding";
+import { scheduleHeatReminder, scheduleCalvingReminder } from "../utils/notifications";
+
+let DateTimePicker: any = null;
+try {
+  DateTimePicker = require("@react-native-community/datetimepicker").default;
+} catch (e) {
+  // native module not built in custom client
+}
+
+const hasNativeDatePicker =
+  DateTimePicker !== null &&
+  Platform.OS !== "web" &&
+  (UIManager.getViewManagerConfig("RNCDateTimePicker") !== undefined ||
+    UIManager.getViewManagerConfig("RNCDatePicker") !== undefined);
 
 interface Props {
   visible: boolean;
@@ -15,31 +30,42 @@ interface Props {
   preselectedAnimalId?: string;
 }
 
-const EVENT_TYPES: Array<{ type: BreedingEventType; iconName: keyof typeof Feather.glyphMap; label: string; labelTa: string }> = [
-  { type: "heat", iconName: "thermometer", label: "In Heat", labelTa: "ஈட்டு" },
-  { type: "insemination", iconName: "activity", label: "Inseminated (AI)", labelTa: "AI கலப்பு" },
-  { type: "pregnancy_confirmed", iconName: "heart", label: "Pregnancy Confirmed", labelTa: "கர்ப்பம் உறுதி" },
-  { type: "dry_off", iconName: "slash", label: "Dry Off", labelTa: "கறவை நிறுத்து" },
-  { type: "calving", iconName: "git-commit", label: "Calved (Gave Birth)", labelTa: "குட்டி போட்டது" },
-  { type: "abort", iconName: "alert-triangle", label: "Abortion / Miscarriage", labelTa: "கருச்சிதைவு" },
+const EVENT_TYPES: Array<{
+  type: BreedingEventType;
+  iconName: keyof typeof Feather.glyphMap;
+  labelKey:
+    | "breedingEventHeat"
+    | "breedingEventInsemination"
+    | "breedingEventPregnancyConfirmed"
+    | "breedingEventDryOff"
+    | "breedingEventCalving"
+    | "breedingEventAbort";
+}> = [
+  { type: "heat", iconName: "thermometer", labelKey: "breedingEventHeat" },
+  { type: "insemination", iconName: "activity", labelKey: "breedingEventInsemination" },
+  { type: "pregnancy_confirmed", iconName: "heart", labelKey: "breedingEventPregnancyConfirmed" },
+  { type: "dry_off", iconName: "slash", labelKey: "breedingEventDryOff" },
+  { type: "calving", iconName: "git-commit", labelKey: "breedingEventCalving" },
+  { type: "abort", iconName: "alert-triangle", labelKey: "breedingEventAbort" },
 ];
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0]!;
+  return getISTDateString(d);
 }
 
 export default function BreedingEventModal({ visible, onClose, preselectedAnimalId }: Props) {
   const colors = useColors();
   const { animals } = useAnimals();
   const { createBreeding } = useBreeding();
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
 
   const adultAnimals = animals.filter((a) => a.type !== "calf");
   const [selectedAnimalId, setSelectedAnimalId] = useState(preselectedAnimalId ?? adultAnimals[0]?.id ?? "");
   const [eventType, setEventType] = useState<BreedingEventType>("heat");
   const [date, setDate] = useState(getTodayString());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [bullName, setBullName] = useState("");
   const [calvingGender, setCalvingGender] = useState<"male" | "female" | "">("");
   const [note, setNote] = useState("");
@@ -48,8 +74,15 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
   const animal = animals.find((a) => a.id === selectedAnimalId);
 
   const expectedCalvingDate = (eventType === "insemination" || eventType === "pregnancy_confirmed")
-    ? addDays(date, animal?.type === "buffalo" ? 310 : 280)
+    ? addDays(date, animal?.type === "buffalo" ? 310 : 283)
     : undefined;
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === "ios");
+    if (selectedDate) {
+      setDate(getISTDateString(selectedDate));
+    }
+  };
 
   const handleSave = async () => {
     if (!selectedAnimalId) { Alert.alert("Error", "Please select an animal"); return; }
@@ -66,6 +99,16 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
         expectedCalvingDate: expectedCalvingDate ? new Date(expectedCalvingDate).toISOString() : undefined,
         calvingGender: calvingGender || undefined,
       });
+
+      // Schedule reminders in the background
+      const name = animal?.name || "Animal";
+      if (eventType === "heat") {
+        scheduleHeatReminder(name, new Date(date), language).catch(e => console.warn(e));
+      }
+      if (expectedCalvingDate) {
+        scheduleCalvingReminder(name, new Date(expectedCalvingDate), language).catch(e => console.warn(e));
+      }
+
       resetForm();
       onClose();
     } catch (e: any) {
@@ -81,15 +124,14 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
     setBullName("");
     setCalvingGender("");
     setNote("");
+    setShowDatePicker(false);
   };
-
-  const isTa = language === "ta";
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{isTa ? "இனப்பெருக்க பதிவு" : "Log Breeding Event"}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t.breedingLogTitle}</Text>
           <Pressable onPress={onClose} style={styles.closeBtn}>
             <Feather name="x" size={22} color={colors.foreground} />
           </Pressable>
@@ -97,7 +139,7 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
           {/* Animal Selector */}
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "மாடு தேர்வு" : "Select Animal"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.breedingSelectAnimal}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
             {adultAnimals.map((a) => (
               <Pressable
@@ -114,7 +156,7 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
           </ScrollView>
 
           {/* Event Type */}
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "நிகழ்வு வகை" : "Event Type"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.breedingSelectEvent}</Text>
           <View style={styles.eventGrid}>
             {EVENT_TYPES.map((et) => (
               <Pressable
@@ -122,34 +164,57 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
                 style={[styles.eventCard, { backgroundColor: colors.muted, borderColor: colors.border }, eventType === et.type && { backgroundColor: colors.primary + "15", borderColor: colors.primary }]}
                 onPress={() => setEventType(et.type)}
               >
-                <Feather name={et.iconName} size={22} color={eventType === et.type ? colors.primary : colors.mutedForeground} style={{ marginBottom: 4 }} />
+                <Feather name={et.iconName} size={20} color={eventType === et.type ? colors.primary : colors.mutedForeground} style={{ marginBottom: 4 }} />
                 <Text style={[styles.eventLabel, { color: colors.foreground }, eventType === et.type && { color: colors.primary }]}>
-                  {isTa ? et.labelTa : et.label}
+                  {t[et.labelKey]}
                 </Text>
               </Pressable>
             ))}
           </View>
 
           {/* Date */}
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "தேதி" : "Date"}</Text>
-          <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
-            <Feather name="calendar" size={18} color={colors.mutedForeground} />
-            <TextInput
-              style={[styles.input, { color: colors.foreground }]}
-              value={date}
-              onChangeText={setDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.mutedForeground}
-              keyboardType="numeric"
-            />
-          </View>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.breedingDateLabel}</Text>
+          {hasNativeDatePicker ? (
+            <>
+              <Pressable
+                style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Feather name="calendar" size={18} color={colors.mutedForeground} />
+                <Text style={{ flex: 1, fontSize: 15, color: colors.foreground }}>
+                  {date}
+                </Text>
+              </Pressable>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={new Date(date)}
+                  mode="date"
+                  display="default"
+                  onChange={onDateChange}
+                  maximumDate={new Date()}
+                />
+              )}
+            </>
+          ) : (
+            <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+              <Feather name="calendar" size={18} color={colors.mutedForeground} />
+              <TextInput
+                style={{ flex: 1, fontSize: 15, color: colors.foreground, paddingVertical: 8, paddingHorizontal: 4 }}
+                value={date}
+                onChangeText={setDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.mutedForeground}
+              />
+            </View>
+          )}
 
           {/* Expected calving date (auto-computed) */}
           {expectedCalvingDate && (
             <View style={[styles.infoBanner, { backgroundColor: colors.primary + "15" }]}>
               <Feather name="calendar" size={14} color={colors.primary} />
               <Text style={[styles.infoBannerText, { color: colors.primary }]}>
-                {isTa ? `எதிர்பார்க்கப்படும் குட்டி தேதி: ${expectedCalvingDate}` : `Expected calving: ${expectedCalvingDate}`}
+                {`${t.breedingExpectedCalvingPrefix} ${expectedCalvingDate}`}
               </Text>
             </View>
           )}
@@ -157,14 +222,14 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
           {/* Bull name for insemination */}
           {eventType === "insemination" && (
             <>
-              <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "காளை / விந்து பெயர் (விருப்பம்)" : "Bull / Semen Name (optional)"}</Text>
+              <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.breedingBullSemenLabel}</Text>
               <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
                 <Feather name="user" size={18} color={colors.mutedForeground} />
                 <TextInput
                   style={[styles.input, { color: colors.foreground }]}
                   value={bullName}
                   onChangeText={setBullName}
-                  placeholder={isTa ? "எ.கா: Gir A2 High" : "e.g. HF-Elite Semen, Gir A2"}
+                  placeholder={t.breedingBullSemenPlaceholder}
                   placeholderTextColor={colors.mutedForeground}
                 />
               </View>
@@ -174,7 +239,7 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
           {/* Calving gender */}
           {eventType === "calving" && (
             <>
-              <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "குட்டி பாலினம்" : "Calf Gender"}</Text>
+              <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.breedingCalfGender}</Text>
               <View style={styles.genderRow}>
                 {(["male", "female", ""] as const).map((g) => (
                   <Pressable
@@ -183,7 +248,7 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
                     onPress={() => setCalvingGender(g)}
                   >
                     <Text style={[styles.genderChipText, { color: colors.foreground }, calvingGender === g && { color: colors.primary }]}>
-                      {g === "" ? (isTa ? "தெரியவில்லை" : "Unknown") : g === "male" ? (isTa ? "ஆண் கன்று" : "Male Calf") : (isTa ? "பெண் கன்று" : "Female Calf")}
+                      {g === "" ? t.breedingGenderUnknown : g === "male" ? t.breedingGenderMale : t.breedingGenderFemale}
                     </Text>
                   </Pressable>
                 ))}
@@ -192,12 +257,12 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
           )}
 
           {/* Note */}
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{isTa ? "குறிப்பு (விருப்பம்)" : "Note (optional)"}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.breedingNoteLabel}</Text>
           <TextInput
             style={[styles.inputRow, styles.noteInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
             value={note}
             onChangeText={setNote}
-            placeholder={isTa ? "குறிப்பு சேர்க்கவும்..." : "Add a note..."}
+            placeholder={t.breedingNotePlaceholder}
             placeholderTextColor={colors.mutedForeground}
             multiline
             numberOfLines={3}
@@ -208,8 +273,14 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
             onPress={handleSave}
             disabled={saving}
           >
-            <Feather name="check" size={18} color="#fff" />
-            <Text style={styles.saveBtnText}>{isTa ? "சேமி" : "Save Event"}</Text>
+            {saving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Feather name="check" size={18} color="#fff" />
+                <Text style={styles.saveBtnText}>{t.breedingSaveBtn}</Text>
+              </>
+            )}
           </Pressable>
 
           <View style={{ height: 40 }} />

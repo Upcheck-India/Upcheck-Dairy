@@ -13,10 +13,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AppProvider } from "@/context/AppContext";
 import { FarmerProvider, useFarmer } from "@/context/FarmerContext";
 import { LanguageProvider } from "@/context/LanguageContext";
-import { DatabaseProvider } from "@/context/DatabaseContext";
 import { FarmProvider, useFarmContext } from "../src/modules/farms/context/FarmProvider";
 import { AnimalProvider } from "../src/modules/animals/context/AnimalProvider";
 import { MilkProvider } from "../src/modules/milk/context/MilkProvider";
@@ -45,30 +43,35 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const hasProfile = !!(farmer && farmer.village && farmer.district);
   const onOnboarding = firstSegment === "(auth)" && segments[1] === "onboarding";
 
-  if (isAuthenticated) {
-    if (!hasProfile) {
-      if (!onOnboarding) {
-        return <Redirect href="/(auth)/onboarding" />;
-      }
-      return <>{children}</>;
+  if (!isAuthenticated) {
+    if (!inAuth) {
+      return <Redirect href="/(auth)/login" />;
     }
+    return <>{children}</>;
+  }
 
-    // Guard on farms loading state
-    if (isFarmLoading || !farmsLoaded) {
-      return null;
+  if (!hasProfile) {
+    if (!onOnboarding) {
+      return <Redirect href="/(auth)/onboarding" />;
     }
+    return <>{children}</>;
+  }
 
-    const onFarmsScreen = firstSegment === "farms";
+  // Guard on farms loading state
+  if (isFarmLoading || !farmsLoaded) {
+    return null;
+  }
 
-    // Enforce active farm if not on onboarding/farms screen
-    if (farms.length === 0) {
-      if (!onFarmsScreen) {
-        return <Redirect href="/farms" />;
-      }
-    } else {
-      if (inAuth) {
-        return <Redirect href="/(tabs)" />;
-      }
+  const onFarmsScreen = firstSegment === "farms";
+
+  // Enforce active farm if not on onboarding/farms screen
+  if (farms.length === 0) {
+    if (!onFarmsScreen) {
+      return <Redirect href="/farms" />;
+    }
+  } else {
+    if (inAuth) {
+      return <Redirect href="/(tabs)" />;
     }
   }
 
@@ -121,37 +124,33 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <DatabaseProvider>
-            <LanguageProvider>
-              <FarmerProvider>
-                <FarmProvider>
-                  <AnimalProvider>
-                    <MilkProvider>
-                      <HealthProvider>
-                        <BreedingProvider>
-                          <VaccinationProvider>
-                            <InventoryProvider>
-                              <TaskProvider>
-                                <FinanceProvider>
-                                  <AppProvider>
-                                    <GestureHandlerRootView>
-                                      <AuthGuard>
-                                        <RootLayoutNav />
-                                      </AuthGuard>
-                                    </GestureHandlerRootView>
-                                  </AppProvider>
-                                </FinanceProvider>
-                              </TaskProvider>
-                            </InventoryProvider>
-                          </VaccinationProvider>
-                        </BreedingProvider>
-                      </HealthProvider>
-                    </MilkProvider>
-                  </AnimalProvider>
-                </FarmProvider>
-              </FarmerProvider>
-            </LanguageProvider>
-          </DatabaseProvider>
+          <LanguageProvider>
+            <FarmerProvider>
+              <FarmProvider>
+                <AnimalProvider>
+                  <MilkProvider>
+                    <HealthProvider>
+                      <BreedingProvider>
+                        <VaccinationProvider>
+                          <InventoryProvider>
+                            <TaskProvider>
+                              <FinanceProvider>
+                                <GestureHandlerRootView>
+                                  <AuthGuard>
+                                    <RootLayoutNav />
+                                  </AuthGuard>
+                                </GestureHandlerRootView>
+                              </FinanceProvider>
+                            </TaskProvider>
+                          </InventoryProvider>
+                        </VaccinationProvider>
+                      </BreedingProvider>
+                    </HealthProvider>
+                  </MilkProvider>
+                </AnimalProvider>
+              </FarmProvider>
+            </FarmerProvider>
+          </LanguageProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

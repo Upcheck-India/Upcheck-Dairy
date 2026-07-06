@@ -65,7 +65,13 @@ export function LanguageSelector() {
 
   return (
     <View style={styles.langWrapper}>
-      <Pressable style={styles.langPill} onPress={() => setModalVisible(true)}>
+      <Pressable
+        style={styles.langPill}
+        onPress={() => setModalVisible(true)}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={`Select Language, current: ${activeLanguageName}`}
+      >
         <Feather name="globe" size={16} color="#16a34a" />
         <Text style={styles.langText}>{activeLanguageName}</Text>
         <Feather name="chevron-down" size={14} color="#64748b" />
@@ -151,7 +157,6 @@ export function InputField({
   returnKeyType,
 }: InputFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
 
   // Helper to determine Feather icon name based on label/placeholder
   const getIconName = (): any => {
@@ -166,85 +171,6 @@ export function InputField({
     if (lower.includes("pincode")) return "hash";
     return "edit-2";
   };
-
-  const isStateField = (label || "").toLowerCase().includes("state");
-  const isDistrictField = (label || "").toLowerCase().includes("district");
-
-  const states = [
-    "Tamil Nadu",
-    "Andhra Pradesh",
-    "Telangana",
-    "Karnataka",
-    "Kerala",
-    "Maharashtra",
-  ];
-
-  const districts = [
-    "Tuticorin",
-    "Tirunelveli",
-    "Madurai",
-    "Chennai",
-    "Coimbatore",
-    "Trichy",
-    "Salem",
-    "Kanyakumari",
-    "Thanjavur",
-    "Dindigul",
-  ];
-
-  const handleSelectOption = (option: string) => {
-    onChangeText(option);
-    setModalVisible(false);
-  };
-
-  if (isStateField || isDistrictField) {
-    const options = isStateField ? states : districts;
-    return (
-      <View style={styles.fieldWrap}>
-        <Text style={styles.fieldLabel}>
-          {label} {required && <Text style={styles.required}>*</Text>}
-        </Text>
-        <Pressable
-          style={[styles.inputRow, isFocused && styles.inputRowActive]}
-          onPress={() => setModalVisible(true)}
-        >
-          <Feather name={getIconName()} size={18} color="#16a34a" style={styles.fieldIcon} />
-          <Text style={[styles.inputText, !value && styles.placeholderText]}>
-            {value || placeholder}
-          </Text>
-          <Feather name="chevron-down" size={16} color="#94a3b8" />
-        </Pressable>
-
-        <Modal
-          visible={modalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select {label}</Text>
-              <FlatList
-                data={options}
-                keyExtractor={(item) => item}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={[styles.modalItem, value === item && styles.modalItemActive]}
-                    onPress={() => handleSelectOption(item)}
-                  >
-                    <Text style={[styles.modalItemText, value === item && styles.modalItemTextActive]}>
-                      {item}
-                    </Text>
-                    {value === item && <Feather name="check" size={18} color="#16a34a" />}
-                  </Pressable>
-                )}
-              />
-            </View>
-          </Pressable>
-        </Modal>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.fieldWrap}>
@@ -277,7 +203,13 @@ export function InputField({
 
 export function BackButton({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable style={styles.backBtn} onPress={onPress}>
+    <Pressable
+      style={styles.backBtn}
+      onPress={onPress}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel="Go back to previous screen"
+    >
       <Feather name="arrow-left" size={20} color="#1F3B2F" />
     </Pressable>
   );
@@ -300,6 +232,9 @@ export function PrimaryButton({ title, icon, onPress, loading }: PrimaryButtonPr
       style={({ pressed }) => [styles.primaryBtn, pressed && styles.primaryBtnPressed]}
       onPress={onPress}
       disabled={loading}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: loading }}
     >
       {loading ? (
         <ActivityIndicator color="#fff" size="small" />
@@ -381,11 +316,23 @@ export function AnimalCounterCard({ image, title, count, increase, decrease }: A
         </View>
       </View>
       <View style={styles.counterRow}>
-        <Pressable style={styles.counterBtn} onPress={decrease}>
+        <Pressable
+          style={styles.counterBtn}
+          onPress={decrease}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Decrease ${title} count`}
+        >
           <Feather name="minus" size={14} color="#64748b" />
         </Pressable>
         <Text style={styles.counterText}>{formattedCount}</Text>
-        <Pressable style={[styles.counterBtn, styles.counterBtnPlus]} onPress={increase}>
+        <Pressable
+          style={[styles.counterBtn, styles.counterBtnPlus]}
+          onPress={increase}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Increase ${title} count`}
+        >
           <Feather name="plus" size={14} color="#16a34a" />
         </Pressable>
       </View>

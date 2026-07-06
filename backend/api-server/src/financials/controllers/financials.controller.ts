@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, Inject, Headers } from "@nestjs/common";
+import { Controller, Get, Post, Delete, Body, Param, Inject, Headers, ParseIntPipe } from "@nestjs/common";
 import { FinancialsService } from "../services/financials.service";
 import { CreateIncomeEntryDto } from "../dto/create-income-entry.dto";
 import { CreateExpenseEntryDto } from "../dto/create-expense-entry.dto";
@@ -22,8 +22,8 @@ export class FinancialsController {
   }
 
   @Delete("income/:id")
-  async deleteIncome(@GetUser() user: Farmer, @Param("id") id: string) {
-    await this.financialsService.deleteIncomeEntry(user.id, Number(id));
+  async deleteIncome(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+    await this.financialsService.deleteIncomeEntry(user.id, id);
     return { success: true };
   }
 
@@ -40,8 +40,8 @@ export class FinancialsController {
   }
 
   @Delete("expenses/:id")
-  async deleteExpense(@GetUser() user: Farmer, @Param("id") id: string) {
-    await this.financialsService.deleteExpenseEntry(user.id, Number(id));
+  async deleteExpense(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+    await this.financialsService.deleteExpenseEntry(user.id, id);
     return { success: true };
   }
 }

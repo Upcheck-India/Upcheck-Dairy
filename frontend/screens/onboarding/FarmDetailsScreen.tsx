@@ -3,6 +3,7 @@ import React from "react";
 import {
     View,
     StyleSheet,
+    Alert,
 } from "react-native";
 
 import {
@@ -46,13 +47,22 @@ export default function FarmDetailsScreen() {
     const { t } = useLanguage();
 
     function handleNext() {
-
-        if (validateCurrentStep()) {
-
-            goNext();
-
+        if (!data.farmName.trim()) {
+            Alert.alert("Error", "Please enter your farm name");
+            return;
+        }
+        if (!data.ownerName.trim()) {
+            Alert.alert("Error", "Please enter the owner's name");
+            return;
+        }
+        if (data.phone.trim().length !== 10) {
+            Alert.alert("Error", "Please enter a valid 10-digit phone number");
+            return;
         }
 
+        if (validateCurrentStep()) {
+            goNext();
+        }
     }
 
     return (
@@ -118,18 +128,6 @@ export default function FarmDetailsScreen() {
                             )
                         }
                         returnKeyType="next"
-                    />
-
-                    <InputField
-                        label={t.onboardingFarmDetailsEmailLabel}
-                        placeholder={t.onboardingFarmDetailsEmailPlaceholder}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={data.email}
-                        onChangeText={(text) =>
-                            setField("email", text)
-                        }
-                        returnKeyType="done"
                     />
 
                 </View>

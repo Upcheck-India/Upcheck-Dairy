@@ -17,11 +17,14 @@ import {
 
 import MilkLogModal from "@/components/MilkLogModal";
 import HealthNoteModal from "@/components/HealthNoteModal";
-import { generateId, getTodayString, HealthStatus, useApp } from "@/context/AppContext";
+import { generateId, getTodayString, HealthStatus, getISTDateString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
 import { useHealth } from "../../src/modules/health/hooks/useHealth";
+import { useMilk } from "../../src/modules/milk/hooks/useMilk";
+import { MilkEntry } from "../../src/modules/milk/models/MilkEntry";
+import { useFarmer } from "@/context/FarmerContext";
 
 const LOCALE_MAP: Record<string, string> = {
   ta: "ta-IN", te: "te-IN", kn: "kn-IN", ml: "ml-IN", hi: "hi-IN", en: "en-IN",
@@ -31,18 +34,21 @@ export default function AnimalDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { milkEntries } = useApp();
   const { animals, updateAnimal, removeAnimal } = useAnimals();
+  const { accessToken } = useFarmer();
   const { healthEvents, createEvent } = useHealth();
+  const { milkEntries: rawMilkEntries, removeMilk } = useMilk();
   const { t, language } = useLanguage();
   const [milkLogVisible, setMilkLogVisible] = useState(false);
   const [healthNoteVisible, setHealthNoteVisible] = useState(false);
+  const [entryToEdit, setEntryToEdit] = useState<MilkEntry | null>(null);
 
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
 
   const animal = animals.find((a) => a.id === id);
-  const animalMilk = milkEntries.filter((e) => e.animalId === id);
+  // MilkEntry domain model has Date objects — compare using IST date strings
+  const animalMilk = rawMilkEntries.filter((e) => e.animalId === id);
   const animalHealth = healthEvents.filter((e) => e.animalId === id);
 
   const HEALTH_OPTIONS: { status: HealthStatus; label: string; color: string }[] = [
@@ -55,12 +61,12 @@ export default function AnimalDetail() {
     const dates = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
-      return d.toISOString().split("T")[0];
+      return getISTDateString(d);
     });
     return dates.map((date) => ({
       date,
       total: animalMilk
-        .filter((e) => e.date === date)
+        .filter((e) => getISTDateString(e.date) === date)
         .reduce((s, e) => s + e.quantity, 0),
     }));
   }, [animalMilk]);
@@ -104,6 +110,39 @@ export default function AnimalDetail() {
     Haptics.selectionAsync();
     updateAnimal(Number(animal.id), { healthStatus: status });
   };
+  const uploadPhoto = async (localUri: string): Promise<string | null> => {
+    console.log("[uploadPhoto] Uploading photo to NestJS api server...");
+    const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api";
+    const formData = new FormData();
+    formData.append("file", {
+      uri: localUri,
+      name: `animal_${id}_photo.jpg`,
+      type: "image/jpeg",
+    } as any);
+
+    const headers: Record<string, string> = {};
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+    }
+
+    try {
+      const response = await fetch(`${apiBase}/animals/upload`, {
+        method: "POST",
+        body: formData,
+        headers,
+      });
+      if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}`);
+      }
+      const resData = await response.json();
+      console.log("[uploadPhoto] NestJS server upload success:", resData.url);
+      return resData.url;
+    } catch (localError) {
+      console.error("[uploadPhoto] Upload failed:", localError);
+      Alert.alert(t.error, "Failed to upload image to server.");
+      return null;
+    }
+  };
 
   const handleCamera = () => {
     Alert.alert(t.animalDetailPhotoTitle, t.animalDetailPhotoBody, [
@@ -123,8 +162,11 @@ export default function AnimalDetail() {
             quality: 0.7,
           });
           if (!result.canceled && result.assets[0]) {
-            updateAnimal(Number(animal.id), { photoUri: result.assets[0].uri });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            const uploadedUrl = await uploadPhoto(result.assets[0].uri);
+            if (uploadedUrl) {
+              await updateAnimal(Number(animal.id), { photoUri: uploadedUrl });
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
           }
         },
       },
@@ -143,8 +185,11 @@ export default function AnimalDetail() {
             quality: 0.7,
           });
           if (!result.canceled && result.assets[0]) {
-            updateAnimal(Number(animal.id), { photoUri: result.assets[0].uri });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            const uploadedUrl = await uploadPhoto(result.assets[0].uri);
+            if (uploadedUrl) {
+              await updateAnimal(Number(animal.id), { photoUri: uploadedUrl });
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
           }
         },
       },
@@ -166,6 +211,31 @@ export default function AnimalDetail() {
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setHealthNoteVisible(false);
+  };
+
+  const isTa = language === "ta";
+
+  const handleDeleteMilkEntry = (entry: MilkEntry) => {
+    Alert.alert(
+      isTa ? "பதிவை நீக்கவா?" : "Delete Entry",
+      isTa ? "இந்த பால் பதிவை நீக்க விரும்புகிறீர்களா?" : "Are you sure you want to delete this milk log?",
+      [
+        { text: t.cancel || "Cancel", style: "cancel" },
+        {
+          text: isTa ? "நீக்கு" : "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await removeMilk(Number(entry.id));
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (err) {
+              console.error("[AnimalDetail] Failed to delete milk entry:", err);
+              Alert.alert("Error", "Failed to delete milk entry");
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -268,6 +338,7 @@ export default function AnimalDetail() {
             style={[styles.actionBtn, { backgroundColor: colors.primary }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setEntryToEdit(null);
               setMilkLogVisible(true);
             }}
           >
@@ -394,7 +465,7 @@ export default function AnimalDetail() {
               />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.milkEntryDate, { color: colors.mutedForeground }]}>
-                  {e.date} — {e.session === "morning" ? t.morning : t.evening}
+                  {getISTDateString(e.date)} — {e.session === "morning" ? t.morning : t.evening}
                 </Text>
                 {e.fat && (
                   <Text style={[styles.milkEntryFat, { color: colors.mutedForeground }]}>
@@ -402,9 +473,29 @@ export default function AnimalDetail() {
                   </Text>
                 )}
               </View>
-              <Text style={[styles.milkEntryQty, { color: colors.foreground }]}>
-                {e.quantity.toFixed(1)}L
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <Text style={[styles.milkEntryQty, { color: colors.foreground }]}>
+                  {e.quantity.toFixed(1)}L
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setEntryToEdit(e);
+                    setMilkLogVisible(true);
+                  }}
+                  style={styles.entryActionBtn}
+                  hitSlop={8}
+                >
+                  <Feather name="edit-2" size={14} color={colors.primary} />
+                </Pressable>
+                <Pressable
+                  onPress={() => handleDeleteMilkEntry(e)}
+                  style={styles.entryActionBtn}
+                  hitSlop={8}
+                >
+                  <Feather name="trash-2" size={14} color={colors.destructive} />
+                </Pressable>
+              </View>
             </View>
           ))
         )}
@@ -413,7 +504,11 @@ export default function AnimalDetail() {
       <MilkLogModal
         visible={milkLogVisible}
         animal={animal}
-        onClose={() => setMilkLogVisible(false)}
+        entryToEdit={entryToEdit}
+        onClose={() => {
+          setMilkLogVisible(false);
+          setEntryToEdit(null);
+        }}
       />
       <HealthNoteModal
         visible={healthNoteVisible}
@@ -541,6 +636,12 @@ const styles = StyleSheet.create({
   },
   milkEntryDate: { fontSize: 13 },
   milkEntryFat: { fontSize: 11, marginTop: 2 },
+  entryActionBtn: {
+    padding: 4,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   milkEntryQty: { fontSize: 16, fontWeight: "700" },
   noData: { fontSize: 14, textAlign: "center", paddingVertical: 16 },
   notFound: { fontSize: 18, marginBottom: 12 },

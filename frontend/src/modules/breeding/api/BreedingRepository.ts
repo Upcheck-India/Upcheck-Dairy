@@ -6,7 +6,7 @@ import { BreedingEventResponseDto, CreateBreedingEventRequestDto, UpdateBreeding
 
 export class BreedingRepository {
   private getCacheKey(farmId: string): string {
-    return `thulirfarm:${farmId}:breeding`;
+    return `upcheckdairy:${farmId}:breeding`;
   }
 
   async getBreedingEvents(farmId: string): Promise<BreedingEvent[]> {

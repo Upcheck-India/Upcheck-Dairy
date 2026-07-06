@@ -3,10 +3,12 @@ import React, {
     useContext,
     useMemo,
     useState,
+    useEffect,
     ReactNode,
 } from "react";
 
 import type { Language } from "./LanguageContext";
+import { useFarmer } from "./FarmerContext";
 
 /* -------------------------------------------------------------------------- */
 /*                                  TYPES                                     */
@@ -159,23 +161,35 @@ export function OnboardingProvider({
 }: {
     children: ReactNode;
 }) {
+    const { farmer, user } = useFarmer();
     const [data, setData] =
         useState<OnboardingData>(defaultData);
 
-    /**
-     * Screen Order
-     *
-     * 0 → Welcome
-     * 1 → Farm Details
-     * 2 → Location
-     * 3 → Animals
-     * 4 → Permissions
-     * 5 → Success
-     */
+    useEffect(() => {
+        if (farmer) {
+            setData((prev) => ({
+                ...prev,
+                ownerName: prev.ownerName || farmer.name || "",
+                phone: prev.phone || farmer.phone || "",
+                email: prev.email || farmer.email || user?.email || "",
+                farmName: prev.farmName || farmer.farmName || "",
+            }));
+        }
+    }, [farmer, user]);
+
+     /**
+      * Screen Order
+      *
+      * 0 → Welcome
+      * 1 → Farm Details
+      * 2 → Location
+      * 3 → Permissions
+      * 4 → Success
+      */
 
     const [currentStep, setCurrentStep] = useState(0);
 
-    const totalSteps = 6;
+    const totalSteps = 5;
 
     /* ---------------------------------------------------------------------- */
     /*                            FIELD UPDATES                               */
@@ -308,21 +322,15 @@ export function OnboardingProvider({
                 );
 
             /**
-             * Animals
-             */
-            case 3:
-                return totalAnimals > 0;
-
-            /**
              * Permissions
              */
-            case 4:
+            case 3:
                 return true;
 
             /**
              * Success
              */
-            case 5:
+            case 4:
                 return true;
 
             default:

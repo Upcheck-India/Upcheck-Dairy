@@ -6,7 +6,7 @@ import { HealthEventResponseDto, CreateHealthEventRequestDto, UpdateHealthEventR
 
 export class HealthRepository {
   private getCacheKey(farmId: string): string {
-    return `thulirfarm:${farmId}:health`;
+    return `upcheckdairy:${farmId}:health`;
   }
 
   async getHealthEvents(farmId: string): Promise<HealthEvent[]> {

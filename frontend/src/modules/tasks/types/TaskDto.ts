@@ -3,7 +3,6 @@ export interface TaskResponseDto {
   farmId: string;
   animalId: number | null;
   title: string;
-  titleTamil: string;
   time: string;
   session: string;
   completed: boolean;
@@ -17,7 +16,6 @@ export interface CreateTaskRequestDto {
   farmId: string;
   animalId?: number;
   title: string;
-  titleTamil: string;
   time: string;
   session: string;
   completed?: boolean;

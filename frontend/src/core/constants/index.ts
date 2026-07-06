@@ -4,6 +4,6 @@ export const EVENTS = {
 };
 
 export const STORAGE_KEYS = {
-  ACTIVE_FARM_ID: "thulirfarm:active_farm_id",
+  ACTIVE_FARM_ID: "upcheckdairy:active_farm_id",
   AUTH_TOKEN: "upcheck_auth",
 };

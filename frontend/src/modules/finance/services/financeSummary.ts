@@ -1,4 +1,5 @@
 import { IncomeEntry, ExpenseEntry } from "../models/FinanceEntries";
+import { getISTDateString } from "../../../../utils/date";
 
 export interface DayFinancial {
   date: string;
@@ -7,13 +8,13 @@ export interface DayFinancial {
 }
 
 function getTodayDateStr(): string {
-  return new Date().toISOString().split("T")[0];
+  return getISTDateString();
 }
 
 function getPastDateStr(daysAgo: number): string {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().split("T")[0];
+  return getISTDateString(d);
 }
 
 export function compute7DayFinancials(incomeEntries: IncomeEntry[], expenseEntries: ExpenseEntry[]): DayFinancial[] {
@@ -22,11 +23,11 @@ export function compute7DayFinancials(incomeEntries: IncomeEntry[], expenseEntri
     const dayLabel = new Date(dateStr).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 
     const income = incomeEntries
-      .filter((e: IncomeEntry) => e.date.toISOString().split("T")[0] === dateStr)
+      .filter((e: IncomeEntry) => getISTDateString(e.date) === dateStr)
       .reduce((s: number, e: IncomeEntry) => s + e.totalReceived, 0);
 
     const expense = expenseEntries
-      .filter((e: ExpenseEntry) => e.date.toISOString().split("T")[0] === dateStr)
+      .filter((e: ExpenseEntry) => getISTDateString(e.date) === dateStr)
       .reduce((s: number, e: ExpenseEntry) => s + e.amount, 0);
 
     return { date: dayLabel, income, expense };
@@ -36,13 +37,13 @@ export function compute7DayFinancials(incomeEntries: IncomeEntry[], expenseEntri
 export function computeTodayIncome(incomeEntries: IncomeEntry[]): number {
   const today = getTodayDateStr();
   return incomeEntries
-    .filter((e: IncomeEntry) => e.date.toISOString().split("T")[0] === today)
+    .filter((e: IncomeEntry) => getISTDateString(e.date) === today)
     .reduce((s: number, e: IncomeEntry) => s + e.totalReceived, 0);
 }
 
 export function computeTodayExpenses(expenseEntries: ExpenseEntry[]): number {
   const today = getTodayDateStr();
   return expenseEntries
-    .filter((e: ExpenseEntry) => e.date.toISOString().split("T")[0] === today)
+    .filter((e: ExpenseEntry) => getISTDateString(e.date) === today)
     .reduce((s: number, e: ExpenseEntry) => s + e.amount, 0);
 }

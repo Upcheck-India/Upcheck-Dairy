@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { Animal } from "../models/Animal";
 import { animalRepository } from "../api/AnimalRepository";
 import { CreateAnimalRequestDto, UpdateAnimalRequestDto } from "../types/AnimalDto";
@@ -43,7 +43,7 @@ export function AnimalProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeFarm?.id, fetchAnimals]);
 
-  const createAnimal = async (dto: Omit<CreateAnimalRequestDto, "farmId">) => {
+  const createAnimal = useCallback(async (dto: Omit<CreateAnimalRequestDto, "farmId">) => {
     if (!activeFarm?.id) {
       throw new Error("No active farm selected");
     }
@@ -63,9 +63,9 @@ export function AnimalProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeFarm?.id]);
 
-  const updateAnimal = async (id: number, dto: UpdateAnimalRequestDto) => {
+  const updateAnimal = useCallback(async (id: number, dto: UpdateAnimalRequestDto) => {
     setError(null);
     setLoading(true);
     try {
@@ -79,9 +79,9 @@ export function AnimalProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const removeAnimal = async (id: number) => {
+  const removeAnimal = useCallback(async (id: number) => {
     setError(null);
     setLoading(true);
     try {
@@ -94,24 +94,26 @@ export function AnimalProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (activeFarm?.id) {
       await fetchAnimals(activeFarm.id);
     }
-  };
+  }, [activeFarm?.id, fetchAnimals]);
+
+  const value = useMemo(() => ({
+    loading,
+    error,
+    animals,
+    createAnimal,
+    updateAnimal,
+    removeAnimal,
+    refresh,
+  }), [loading, error, animals, createAnimal, updateAnimal, removeAnimal, refresh]);
 
   return (
-    <AnimalContext.Provider value={{
-      loading,
-      error,
-      animals,
-      createAnimal,
-      updateAnimal,
-      removeAnimal,
-      refresh,
-    }}>
+    <AnimalContext.Provider value={value}>
       {children}
     </AnimalContext.Provider>
   );

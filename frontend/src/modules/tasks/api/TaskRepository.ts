@@ -6,7 +6,7 @@ import { TaskResponseDto, CreateTaskRequestDto, UpdateTaskRequestDto } from "../
 
 export class TaskRepository {
   private getCacheKey(farmId: string): string {
-    return `thulirfarm:${farmId}:tasks`;
+    return `upcheckdairy:${farmId}:tasks`;
   }
 
   async getTasks(farmId: string): Promise<Task[]> {

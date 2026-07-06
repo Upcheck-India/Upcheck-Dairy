@@ -87,7 +87,7 @@ export default function TaskItem({ task }: TaskItemProps) {
               },
             ]}
           >
-            {task.titleTamil}
+            {task.title}
           </Text>
           <Text style={[styles.time, { color: colors.mutedForeground }]}>
             {task.time}
