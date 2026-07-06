@@ -22,7 +22,7 @@ export const LANGUAGE_NATIVE: Record<Language, { name: string; flag: string; eng
 };
 
 const base = {
-  appName: "ThulirFarm",
+  appName: "Upcheck Dairy",
   tagline: "Your Farm, In Your Hands",
   tabAnimals: "My Animals", tabDashboard: "Dashboard", tabHelp: "Help", tabMoney: "Money", tabToday: "Today",
   animals: "Animals", addAnimal: "Add Animal", noAnimals: "No Animals",
@@ -47,7 +47,7 @@ const base = {
   phone: "Phone Number", totalAnimals: "Total Animals", language: "Language",
   logout: "Log Out", editProfile: "Edit", saveProfile: "Save Profile",
   login: "Login", signup: "Sign Up",
-  loginTitle: "Welcome to ThulirFarm", loginSub: "Enter your mobile number",
+  loginTitle: "Welcome to Upcheck Dairy", loginSub: "Enter your mobile number",
   signupTitle: "Complete Your Profile", signupSub: "Tell us about yourself",
   sendOtp: "Send OTP",
   verifyOtp: "Verify OTP",
@@ -64,7 +64,7 @@ const base = {
   districtPlaceholder: "District",
   phonePlaceholder: "10-digit mobile number",
   farmNamePlaceholder: "Your farm's name (optional)",
-  noAccount: "New to ThulirFarm?",
+  noAccount: "New to Upcheck Dairy?",
   haveAccount: "Already registered?",
   createAccount: "Create account",
   skip: "Skip for now",
@@ -398,7 +398,7 @@ const translations: Record<Language, T> = {
 
   ta: {
     ...base,
-    appName: "துளிர்பண்ணை",
+    appName: "அப்செக் டெய்ரி",
     tagline: "உங்கள் பண்ணை, உங்கள் கையில்",
     tabAnimals: "என் மாடுகள்", tabHelp: "உதவி", tabMoney: "பணம்", tabToday: "இன்று",
     animals: "மாடுகள்", addAnimal: "மாடு சேர்", noAnimals: "மாடுகள் இல்லை",
@@ -422,7 +422,7 @@ const translations: Record<Language, T> = {
     phone: "தொலைபேசி", totalAnimals: "மொத்த மாடுகள்", language: "மொழி",
     logout: "வெளியேறு", editProfile: "திருத்து", saveProfile: "சுயவிவரம் சேமி",
     login: "உள்நுழை", signup: "பதிவு செய்",
-    loginTitle: "துளிர்பண்ணைக்கு வரவேற்கிறோம்!", loginSub: "உங்கள் கைபேசி எண் உள்ளிடவும்",
+    loginTitle: "அப்செக் டெய்ரிக்கு வரவேற்கிறோம்!", loginSub: "உங்கள் கைபேசி எண் உள்ளிடவும்",
     signupTitle: "உங்கள் சுயவிவரம் நிரப்பவும்", signupSub: "உங்களைப் பற்றி சொல்லுங்கள்",
     sendOtp: "OTP அனுப்பவும்",
     verifyOtp: "OTP சரிபார்க்கவும்",
@@ -1589,7 +1589,7 @@ const translations: Record<Language, T> = {
 
   hi: {
     ...base,
-    appName: "थुलिर फार्म",
+    appName: "अपचेक डेयरी",
     tagline: "आपका फार्म, आपके हाथ में",
     tabAnimals: "मेरे पशु", tabHelp: "मदद", tabMoney: "पैसा", tabToday: "आज",
     animals: "पशु", addAnimal: "पशु जोड़ें", noAnimals: "कोई पशु नहीं",
@@ -1613,7 +1613,7 @@ const translations: Record<Language, T> = {
     phone: "फ़ोन नंबर", totalAnimals: "कुल पशु", language: "भाषा",
     logout: "लॉगआउट", editProfile: "बदलें", saveProfile: "प्रोफ़ाइल सेव करें",
     login: "लॉगिन", signup: "साइन अप",
-    loginTitle: "थुलिर फार्म में स्वागत!", loginSub: "अपना मोबाइल नंबर दर्ज करें",
+    loginTitle: "अपचेक डेयरी में आपका स्वागत है!", loginSub: "अपना मोबाइल नंबर दर्ज करें",
     signupTitle: "अपनी प्रोफ़ाइल बनाएं", signupSub: "अपने बारे में बताएं",
     sendOtp: "OTP भेजें",
     verifyOtp: "OTP जाँचें",

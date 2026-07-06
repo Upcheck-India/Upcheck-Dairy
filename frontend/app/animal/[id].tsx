@@ -24,7 +24,6 @@ import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
 import { useHealth } from "../../src/modules/health/hooks/useHealth";
 import { useMilk } from "../../src/modules/milk/hooks/useMilk";
 import { MilkEntry } from "../../src/modules/milk/models/MilkEntry";
-import { supabase } from "../../lib/supabase";
 import { useFarmer } from "@/context/FarmerContext";
 
 const LOCALE_MAP: Record<string, string> = {
@@ -111,66 +110,37 @@ export default function AnimalDetail() {
     Haptics.selectionAsync();
     updateAnimal(Number(animal.id), { healthStatus: status });
   };
-
   const uploadPhoto = async (localUri: string): Promise<string | null> => {
-    // 1. Try Supabase Storage first
+    console.log("[uploadPhoto] Uploading photo to NestJS api server...");
+    const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api";
+    const formData = new FormData();
+    formData.append("file", {
+      uri: localUri,
+      name: `animal_${id}_photo.jpg`,
+      type: "image/jpeg",
+    } as any);
+
+    const headers: Record<string, string> = {};
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+    }
+
     try {
-      console.log("[uploadPhoto] Attempting Supabase Storage upload...");
-      const response = await fetch(localUri);
-      const blob = await response.blob();
-      const fileName = `animal_${id}_${Date.now()}.jpg`;
-
-      const { data, error } = await supabase.storage
-        .from("animals")
-        .upload(fileName, blob, {
-          contentType: "image/jpeg",
-          upsert: true,
-        });
-
-      if (error) {
-        throw error;
+      const response = await fetch(`${apiBase}/animals/upload`, {
+        method: "POST",
+        body: formData,
+        headers,
+      });
+      if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}`);
       }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("animals")
-        .getPublicUrl(fileName);
-
-      console.log("[uploadPhoto] Supabase Storage upload success:", publicUrl);
-      return publicUrl;
-    } catch (supabaseError) {
-      console.warn("[uploadPhoto] Supabase upload failed, falling back to local server:", supabaseError);
-
-      // 2. Fallback to local server upload
-      const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api";
-      const formData = new FormData();
-      formData.append("file", {
-        uri: localUri,
-        name: `animal_${id}_photo.jpg`,
-        type: "image/jpeg",
-      } as any);
-
-      const headers: Record<string, string> = {};
-      if (accessToken) {
-        headers["Authorization"] = `Bearer ${accessToken}`;
-      }
-
-      try {
-        const response = await fetch(`${apiBase}/animals/upload`, {
-          method: "POST",
-          body: formData,
-          headers,
-        });
-        if (!response.ok) {
-          throw new Error(`Upload failed with status ${response.status}`);
-        }
-        const resData = await response.json();
-        console.log("[uploadPhoto] Local server upload fallback success:", resData.url);
-        return resData.url;
-      } catch (localError) {
-        console.error("[uploadPhoto] Both upload methods failed:", localError);
-        Alert.alert(t.error, "Failed to upload image to server.");
-        return null;
-      }
+      const resData = await response.json();
+      console.log("[uploadPhoto] NestJS server upload success:", resData.url);
+      return resData.url;
+    } catch (localError) {
+      console.error("[uploadPhoto] Upload failed:", localError);
+      Alert.alert(t.error, "Failed to upload image to server.");
+      return null;
     }
   };
 

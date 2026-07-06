@@ -21,3 +21,10 @@ export interface CreateMilkEntryRequestDto {
 }
 
 export interface UpdateMilkEntryRequestDto extends Partial<CreateMilkEntryRequestDto> {}
+
+export interface PendingMilkWrite {
+  type: "create" | "update" | "delete";
+  data?: CreateMilkEntryRequestDto | UpdateMilkEntryRequestDto;
+  id?: string;
+  tempId?: string;
+}

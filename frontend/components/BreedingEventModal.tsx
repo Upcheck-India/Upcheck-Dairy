@@ -74,7 +74,7 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
   const animal = animals.find((a) => a.id === selectedAnimalId);
 
   const expectedCalvingDate = (eventType === "insemination" || eventType === "pregnancy_confirmed")
-    ? addDays(date, animal?.type === "buffalo" ? 310 : 280)
+    ? addDays(date, animal?.type === "buffalo" ? 310 : 283)
     : undefined;
 
   const onDateChange = (event: any, selectedDate?: Date) => {

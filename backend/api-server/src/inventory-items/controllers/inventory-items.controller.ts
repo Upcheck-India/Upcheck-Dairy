@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers, ParseIntPipe } from "@nestjs/common";
 import { InventoryItemsService } from "../services/inventory-items.service";
 import { CreateInventoryItemDto } from "../dto/create-inventory-item.dto";
 import { UpdateInventoryItemDto } from "../dto/update-inventory-item.dto";
@@ -20,13 +20,13 @@ export class InventoryItemsController {
   }
 
   @Put(":id")
-  async update(@GetUser() user: Farmer, @Param("id") id: string, @Body() dto: UpdateInventoryItemDto) {
-    return this.inventoryItemsService.update(user.id, Number(id), dto);
+  async update(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number, @Body() dto: UpdateInventoryItemDto) {
+    return this.inventoryItemsService.update(user.id, id, dto);
   }
 
   @Delete(":id")
-  async remove(@GetUser() user: Farmer, @Param("id") id: string) {
-    await this.inventoryItemsService.delete(user.id, Number(id));
+  async remove(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+    await this.inventoryItemsService.delete(user.id, id);
     return { success: true };
   }
 }

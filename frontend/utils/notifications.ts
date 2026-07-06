@@ -73,8 +73,8 @@ export async function scheduleHeatReminder(
 
   const title = language === "ta" ? "இனப்பெருக்க நினைவூட்டல்! 🔔" : "Breeding Reminder! 🔔";
   const body = language === "ta"
-    ? `ThulirFarm: ${animalName} இன்று ஈட்டில் இருக்கலாம் (கடந்த ஈட்டிலிருந்து 18 நாட்கள்).`
-    : `ThulirFarm: ${animalName} may be in heat today (18 days since last heat).`;
+    ? `அப்செக் டெய்ரி: ${animalName} இன்று ஈட்டில் இருக்கலாம் (கடந்த ஈட்டிலிருந்து 18 நாட்கள்).`
+    : `Upcheck Dairy: ${animalName} may be in heat today (18 days since last heat).`;
 
   return scheduleNotification(title, body, triggerDate);
 }
@@ -93,8 +93,8 @@ export async function scheduleCalvingReminder(
 
   const title = language === "ta" ? "இனப்பெருக்க நினைவூட்டல்! 🔔" : "Calving Reminder! 🔔";
   const body = language === "ta"
-    ? `ThulirFarm: ${animalName} இன்று கன்று ஈன வாய்ப்புள்ளது (எதிர்பார்க்கும் தேதி).`
-    : `ThulirFarm: ${animalName} is expected to calve today (expected date).`;
+    ? `அப்செக் டெய்ரி: ${animalName} இன்று கன்று ஈன வாய்ப்புள்ளது (எதிர்பார்க்கும் தேதி).`
+    : `Upcheck Dairy: ${animalName} is expected to calve today (expected date).`;
 
   return scheduleNotification(title, body, triggerDate);
 }
@@ -114,8 +114,8 @@ export async function scheduleVaccinationReminder(
 
   const title = language === "ta" ? "தடுப்பூசி நினைவூட்டல்! 🔔" : "Vaccination Reminder! 🔔";
   const body = language === "ta"
-    ? `ThulirFarm: ${animalName}-க்கு ${vaccineName} தடுப்பூசி இன்று செலுத்தப்பட வேண்டும்.`
-    : `ThulirFarm: ${vaccineName} vaccine is scheduled today for ${animalName}.`;
+    ? `அப்செக் டெய்ரி: ${animalName}-க்கு ${vaccineName} தடுப்பூசி இன்று செலுத்தப்பட வேண்டும்.`
+    : `Upcheck Dairy: ${vaccineName} vaccine is scheduled today for ${animalName}.`;
 
   return scheduleNotification(title, body, triggerDate);
 }

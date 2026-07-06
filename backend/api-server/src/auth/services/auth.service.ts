@@ -96,7 +96,7 @@ export class AuthService {
     const existing = await this.userRepository.findByEmail(email);
     if (existing) {
       if (existing.emailVerified) {
-        throw new ConflictException("An account with this email already exists");
+        return { message: "Account created. Please check your email for a verification code." };
       }
       
       const passwordHash = await bcrypt.hash(password, 10);

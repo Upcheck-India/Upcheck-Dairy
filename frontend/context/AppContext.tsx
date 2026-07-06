@@ -433,6 +433,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   }, []);
 
+  const safeParse = <T,>(data: string | null, fallback: T): T => {
+    if (!data) return fallback;
+    try {
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? (parsed as T) : fallback;
+    } catch (e) {
+      console.error("[AppContext] JSON parse failed, using fallback:", e);
+      return fallback;
+    }
+  };
+
   const loadData = async () => {
     console.log('[AppContext] Starting loadData...');
     try {
@@ -451,21 +462,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       console.log('[AppContext] Storage data retrieved');
 
-      const loadedAnimals: Animal[] = animalsData ? JSON.parse(animalsData) : [];
-      const loadedMilk: MilkEntry[] = milkData ? JSON.parse(milkData) : [];
-      const loadedBreeding: BreedingEvent[] = breedingData ? JSON.parse(breedingData) : [];
-      const loadedVax: Vaccination[] = vaccinationData ? JSON.parse(vaccinationData) : [];
-      const loadedInventory: InventoryItem[] = inventoryData ? JSON.parse(inventoryData) : [];
+      const loadedAnimals = safeParse<Animal[]>(animalsData, []);
+      const loadedMilk = safeParse<MilkEntry[]>(milkData, []);
+      const loadedHealth = safeParse<any[]>(healthData, []);
+      const loadedIncome = safeParse<any[]>(incomeData, []);
+      const loadedExpense = safeParse<any[]>(expenseData, []);
+      const loadedTasks = safeParse<any[]>(tasksData, []);
+      const loadedBreeding = safeParse<BreedingEvent[]>(breedingData, []);
+      const loadedVax = safeParse<Vaccination[]>(vaccinationData, []);
+      const loadedInventory = safeParse<InventoryItem[]>(inventoryData, []);
 
-      if (animalsData) setAnimals(loadedAnimals);
-      if (milkData) setMilkEntries(loadedMilk);
-      if (healthData) setHealthEvents(JSON.parse(healthData));
-      if (incomeData) setIncomeEntries(JSON.parse(incomeData));
-      if (expenseData) setExpenseEntries(JSON.parse(expenseData));
-      if (tasksData) setTasks(JSON.parse(tasksData));
-      if (breedingData) setBreedingEvents(loadedBreeding);
-      if (vaccinationData) setVaccinations(loadedVax);
-      if (inventoryData) setInventoryItems(loadedInventory);
+      setAnimals(loadedAnimals);
+      setMilkEntries(loadedMilk);
+      setHealthEvents(loadedHealth);
+      setIncomeEntries(loadedIncome);
+      setExpenseEntries(loadedExpense);
+      setTasks(loadedTasks);
+      setBreedingEvents(loadedBreeding);
+      setVaccinations(loadedVax);
+      setInventoryItems(loadedInventory);
 
       setMilkAnomalies(computeAnomalies(loadedAnimals, loadedMilk));
       setSmartAlerts(computeSmartAlerts(loadedAnimals, loadedBreeding, loadedVax));
@@ -591,7 +606,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (event.eventType === "insemination" || event.eventType === "pregnancy_confirmed") {
-      const expectedDate = event.expectedCalvingDate ?? addDays(event.date, 280);
+      const expectedDate = event.expectedCalvingDate ?? addDays(event.date, 283);
       setAnimals((prevA) => {
         const nextA = prevA.map((a) =>
           a.id === event.animalId

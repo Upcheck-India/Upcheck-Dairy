@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers, ParseIntPipe } from "@nestjs/common";
 import { BreedingEventsService } from "../services/breeding-events.service";
 import { CreateBreedingEventDto } from "../dto/create-breeding-event.dto";
 import { UpdateBreedingEventDto } from "../dto/update-breeding-event.dto";
@@ -20,18 +20,18 @@ export class BreedingEventsController {
   }
 
   @Get("animal/:animalId")
-  async getByAnimal(@GetUser() user: Farmer, @Param("animalId") animalId: string) {
-    return this.breedingEventsService.getAnimalHistory(user.id, Number(animalId));
+  async getByAnimal(@GetUser() user: Farmer, @Param("animalId", ParseIntPipe) animalId: number) {
+    return this.breedingEventsService.getAnimalHistory(user.id, animalId);
   }
 
   @Put(":id")
-  async update(@GetUser() user: Farmer, @Param("id") id: string, @Body() dto: UpdateBreedingEventDto) {
-    return this.breedingEventsService.update(user.id, Number(id), dto);
+  async update(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number, @Body() dto: UpdateBreedingEventDto) {
+    return this.breedingEventsService.update(user.id, id, dto);
   }
 
   @Delete(":id")
-  async remove(@GetUser() user: Farmer, @Param("id") id: string) {
-    await this.breedingEventsService.delete(user.id, Number(id));
+  async remove(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+    await this.breedingEventsService.delete(user.id, id);
     return { success: true };
   }
 }

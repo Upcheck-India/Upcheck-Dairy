@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { MilkEntry } from "../models/MilkEntry";
 import { milkRepository } from "../api/MilkRepository";
-import { CreateMilkEntryRequestDto, UpdateMilkEntryRequestDto } from "../types/MilkDto";
+import { CreateMilkEntryRequestDto, UpdateMilkEntryRequestDto, PendingMilkWrite } from "../types/MilkDto";
 import { useFarm } from "../../../modules/farms/hooks/useFarm";
 import { Storage } from "../../../core/storage/Storage";
 import { apiClient } from "../../../core/api/ApiClient";
@@ -41,11 +41,11 @@ export function MilkProvider({ children }: { children: React.ReactNode }) {
   const syncOfflineQueue = useCallback(async () => {
     if (!activeFarm?.id) return;
     const queueKey = `thulirfarm:${activeFarm.id}:pending_milk_writes`;
-    const pendingWrites = await Storage.get<any[]>(queueKey) || [];
+    const pendingWrites = await Storage.get<PendingMilkWrite[]>(queueKey) || [];
     if (pendingWrites.length === 0) return;
 
     console.log(`[MilkProvider] Starting sync for ${pendingWrites.length} offline writes...`);
-    const remainingWrites: any[] = [];
+    const remainingWrites: PendingMilkWrite[] = [];
     const tempIdMap = new Map<string, number>();
 
     for (const write of pendingWrites) {

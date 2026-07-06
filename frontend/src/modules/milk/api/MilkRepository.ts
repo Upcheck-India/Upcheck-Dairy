@@ -2,7 +2,7 @@ import { apiClient } from "../../../core/api/ApiClient";
 import { Storage } from "../../../core/storage/Storage";
 import { MilkEntry } from "../models/MilkEntry";
 import { MilkMapper } from "./MilkMapper";
-import { MilkEntryResponseDto, CreateMilkEntryRequestDto, UpdateMilkEntryRequestDto } from "../types/MilkDto";
+import { MilkEntryResponseDto, CreateMilkEntryRequestDto, UpdateMilkEntryRequestDto, PendingMilkWrite } from "../types/MilkDto";
 import NetInfo from "@react-native-community/netinfo";
 
 export class MilkRepository {
@@ -10,40 +10,42 @@ export class MilkRepository {
     return `thulirfarm:${farmId}:milk`;
   }
 
-  private async queuePendingWrite(farmId: string, write: { type: "create" | "update" | "delete"; data?: any; id?: string; tempId?: string }) {
+  private async queuePendingWrite(farmId: string, write: PendingMilkWrite) {
     const queueKey = `thulirfarm:${farmId}:pending_milk_writes`;
-    const currentQueue = await Storage.get<any[]>(queueKey) || [];
+    const currentQueue = await Storage.get<PendingMilkWrite[]>(queueKey) || [];
     currentQueue.push(write);
     await Storage.set(queueKey, currentQueue);
   }
 
-  private async updateLocalCache(farmId: string, action: { type: "create" | "update" | "delete"; data?: any; id?: string; tempId?: string }) {
+  private async updateLocalCache(farmId: string, action: PendingMilkWrite) {
     const cacheKey = this.getCacheKey(farmId);
     const cached = await Storage.get<MilkEntryResponseDto[]>(cacheKey) || [];
     let updated = [...cached];
-    if (action.type === "create") {
+    if (action.type === "create" && action.data) {
+      const data = action.data as CreateMilkEntryRequestDto;
       const newDto: MilkEntryResponseDto = {
         id: Number(action.tempId),
-        animalId: Number(action.data.animalId),
-        session: action.data.session,
-        quantity: action.data.quantity.toString(),
-        date: action.data.date,
-        fat: action.data.fat ? action.data.fat.toString() : null,
-        snf: action.data.snf ? action.data.snf.toString() : null,
-        notes: action.data.notes || null,
+        animalId: Number(data.animalId),
+        session: data.session,
+        quantity: data.quantity.toString(),
+        date: data.date,
+        fat: data.fat ? data.fat.toString() : null,
+        snf: data.snf ? data.snf.toString() : null,
+        notes: data.notes || null,
         createdAt: new Date().toISOString(),
       };
       updated = [newDto, ...updated];
-    } else if (action.type === "update") {
+    } else if (action.type === "update" && action.data) {
+      const data = action.data as UpdateMilkEntryRequestDto;
       updated = updated.map(item => {
         if (item.id.toString() === action.id) {
           return {
             ...item,
-            session: action.data.session ?? item.session,
-            quantity: action.data.quantity !== undefined ? action.data.quantity.toString() : item.quantity,
-            fat: action.data.fat !== undefined ? (action.data.fat ? action.data.fat.toString() : null) : item.fat,
-            snf: action.data.snf !== undefined ? (action.data.snf ? action.data.snf.toString() : null) : item.snf,
-            notes: action.data.notes !== undefined ? (action.data.notes || null) : item.notes,
+            session: data.session ?? item.session,
+            quantity: data.quantity !== undefined ? data.quantity.toString() : item.quantity,
+            fat: data.fat !== undefined ? (data.fat ? data.fat.toString() : null) : item.fat,
+            snf: data.snf !== undefined ? (data.snf ? data.snf.toString() : null) : item.snf,
+            notes: data.notes !== undefined ? (data.notes || null) : item.notes,
           };
         }
         return item;

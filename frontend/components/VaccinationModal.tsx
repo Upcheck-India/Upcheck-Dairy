@@ -87,6 +87,19 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
     setSaving(true);
     try {
       const vaxName = vaccineName.trim() || (selectedTypeInfo ? t[selectedTypeInfo.labelKey] : vaccineType);
+
+      let nextDueDate: string | undefined = undefined;
+      const intervalDays = 
+        vaccineType === "FMD" ? 180 :
+        (vaccineType === "HS" || vaccineType === "BQ" || vaccineType === "Anthrax") ? 365 :
+        vaccineType === "PPR" ? 1095 : undefined;
+
+      if (intervalDays) {
+        const nextDate = new Date(scheduledDate);
+        nextDate.setDate(nextDate.getDate() + intervalDays);
+        nextDueDate = nextDate.toISOString();
+      }
+
       await createVaccination({
         animalId: Number(selectedAnimalId),
         vaccineName: vaxName,
@@ -95,6 +108,7 @@ export default function VaccinationModal({ visible, onClose, preselectedAnimalId
         batchNo: batchNo.trim() || undefined,
         cost: cost ? parseFloat(cost) : undefined,
         note: note.trim() || undefined,
+        nextDueDate,
       });
 
       // Schedule reminders in the background

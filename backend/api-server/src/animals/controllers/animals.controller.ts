@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers, UseInterceptors, UploadedFile, BadRequestException } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers, UseInterceptors, UploadedFile, BadRequestException, ParseIntPipe } from "@nestjs/common";
 import { AnimalsService } from "../services/animals.service";
 import { CreateAnimalDto } from "../dto/create-animal.dto";
 import { UpdateAnimalDto } from "../dto/update-animal.dto";
@@ -24,17 +24,23 @@ export class AnimalsController {
         destination: "./uploads",
         filename: (req, file, cb) => {
           const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-          cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
+          cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
         },
       }),
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+          cb(new BadRequestException("Unsupported file type"), false);
+        } else {
+          cb(null, true);
+        }
+      },
     })
   )
   async uploadFile(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
-      throw new BadRequestException("No file uploaded");
+      throw new BadRequestException("File is required");
     }
-    const publicUrl = `/uploads/${file.filename}`;
-    return { url: publicUrl };
+    return { url: `/uploads/${file.filename}` };
   }
 
   @Get()
@@ -48,18 +54,18 @@ export class AnimalsController {
   }
 
   @Get(":id")
-  async getById(@GetUser() user: Farmer, @Param("id") id: string) {
-    return this.animalsService.getById(user.id, Number(id));
+  async getById(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+    return this.animalsService.getById(user.id, id);
   }
 
   @Put(":id")
-  async update(@GetUser() user: Farmer, @Param("id") id: string, @Body() dto: UpdateAnimalDto) {
-    return this.animalsService.update(user.id, Number(id), dto);
+  async update(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number, @Body() dto: UpdateAnimalDto) {
+    return this.animalsService.update(user.id, id, dto);
   }
 
   @Delete(":id")
-  async remove(@GetUser() user: Farmer, @Param("id") id: string) {
-    await this.animalsService.delete(user.id, Number(id));
+  async remove(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+    await this.animalsService.delete(user.id, id);
     return { success: true };
   }
 }
