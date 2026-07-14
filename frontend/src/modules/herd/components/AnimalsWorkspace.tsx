@@ -117,6 +117,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
+    paddingTop:24,
     paddingBottom: 120,
   },
   loadingWrapper: {
