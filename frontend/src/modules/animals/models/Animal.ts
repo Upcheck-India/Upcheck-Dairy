@@ -17,6 +17,9 @@ export class Animal {
   readonly isPregnant: boolean;
   readonly bodyConditionScore: number | null;
   readonly weightKg: number | null;
+  readonly shed: string | null;
+  readonly status: "lactating" | "pregnant" | "dry" | "calf" | "other" | null;
+  readonly gender: string | null;
   readonly createdAt: Date | null;
   readonly updatedAt: Date | null;
   readonly lastMilkEntry: { quantity: number; session: "morning" | "evening" } | null;
@@ -40,6 +43,9 @@ export class Animal {
     isPregnant: boolean;
     bodyConditionScore?: number | null;
     weightKg?: number | null;
+    shed?: string | null;
+    status?: "lactating" | "pregnant" | "dry" | "calf" | "other" | null;
+    gender?: string | null;
     createdAt?: Date | null;
     updatedAt?: Date | null;
     lastMilkEntry?: { quantity: number; session: "morning" | "evening" } | null;
@@ -62,6 +68,9 @@ export class Animal {
     this.isPregnant = data.isPregnant;
     this.bodyConditionScore = data.bodyConditionScore ?? null;
     this.weightKg = data.weightKg ?? null;
+    this.shed = data.shed ?? null;
+    this.status = data.status ?? null;
+    this.gender = data.gender ?? null;
     this.createdAt = data.createdAt ?? null;
     this.updatedAt = data.updatedAt ?? null;
     this.lastMilkEntry = data.lastMilkEntry ?? null;

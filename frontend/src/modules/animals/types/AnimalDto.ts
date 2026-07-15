@@ -17,6 +17,9 @@ export interface AnimalResponseDto {
   isPregnant: boolean;
   bodyConditionScore: string | number | null;
   weightKg: string | number | null;
+  shed?: string | null;
+  status?: "lactating" | "pregnant" | "dry" | "calf" | "other" | null;
+  gender?: string | null;
   createdAt?: string;
   updatedAt?: string;
   lastMilkEntry?: { quantity: number; session: "morning" | "evening" } | null;
@@ -40,6 +43,9 @@ export interface CreateAnimalRequestDto {
   isPregnant?: boolean;
   bodyConditionScore?: number;
   weightKg?: number;
+  shed?: string;
+  status?: "lactating" | "pregnant" | "dry" | "calf" | "other";
+  gender?: string;
 }
 
 export interface UpdateAnimalRequestDto extends Partial<Omit<CreateAnimalRequestDto, "farmId">> {}
