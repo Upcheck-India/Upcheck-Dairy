@@ -98,9 +98,9 @@ export class AnimalsService {
     return animal;
   }
 
-  async getByFarm(ownerFarmerId: string, farmId: string): Promise<Animal[]> {
+  async getByFarm(ownerFarmerId: string, farmId: string): Promise<any[]> {
     await this.verifyFarmOwnership(farmId, ownerFarmerId);
-    return this.animalsRepository.findByFarm(farmId);
+    return this.animalsRepository.findByFarmWithLatestMilk(farmId);
   }
 
   async delete(ownerFarmerId: string, id: number): Promise<void> {

@@ -120,8 +120,11 @@ export function HerdScreen() {
               activeTab={activeTab}
               animals={animals}
               onShedSelect={(shedId, shedName) => {
-                setSelectedShed(shedId);
-                setSelectedShedName(shedName);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push({
+                  pathname: "/animals" as any,
+                  params: { shedId, shedName }
+                });
               }}
               onCategorySelect={(catId, catName) => {
                 setSelectedCategory(catId);
