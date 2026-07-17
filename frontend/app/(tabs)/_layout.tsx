@@ -171,6 +171,12 @@ export default function TabLayout() {
             href: null,
           }}
         />
+        <Tabs.Screen
+          name="animals"
+          options={{
+            href: null,
+          }}
+        />
       </Tabs>
       <QuickActionsModal
         visible={voiceVisible}

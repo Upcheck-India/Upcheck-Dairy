@@ -68,4 +68,16 @@ export class CreateAnimalDto {
   @IsNumber()
   @IsOptional()
   weightKg?: number;
+
+  @IsString()
+  @IsOptional()
+  shed?: string;
+
+  @IsEnum(["lactating", "pregnant", "dry", "calf", "other"])
+  @IsOptional()
+  status?: "lactating" | "pregnant" | "dry" | "calf" | "other";
+
+  @IsString()
+  @IsOptional()
+  gender?: string;
 }

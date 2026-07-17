@@ -46,6 +46,8 @@ export class AnimalsService {
       notes: dto.notes || null,
       lactationNumber: dto.lactationNumber || null,
       isPregnant: dto.isPregnant ?? false,
+      status: dto.status || (dto.type === "calf" ? "calf" : (dto.isPregnant ? "pregnant" : "lactating")),
+      shed: dto.shed || null,
     });
   }
 
@@ -75,6 +77,15 @@ export class AnimalsService {
       weightKg: dto.weightKg ? dto.weightKg.toString() : undefined,
     } as any;
 
+    if (dto.isPregnant !== undefined && dto.status === undefined) {
+      updates.status = dto.isPregnant ? "pregnant" : "lactating";
+    }
+    if (dto.type !== undefined && dto.status === undefined) {
+      if (dto.type === "calf") {
+        updates.status = "calf";
+      }
+    }
+
     return this.animalsRepository.update(id, updates);
   }
 
@@ -87,9 +98,9 @@ export class AnimalsService {
     return animal;
   }
 
-  async getByFarm(ownerFarmerId: string, farmId: string): Promise<Animal[]> {
+  async getByFarm(ownerFarmerId: string, farmId: string): Promise<any[]> {
     await this.verifyFarmOwnership(farmId, ownerFarmerId);
-    return this.animalsRepository.findByFarm(farmId);
+    return this.animalsRepository.findByFarmWithLatestMilk(farmId);
   }
 
   async delete(ownerFarmerId: string, id: number): Promise<void> {
