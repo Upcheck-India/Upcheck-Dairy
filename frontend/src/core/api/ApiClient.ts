@@ -20,6 +20,10 @@ class ApiClient {
     this.farmId = null;
   }
 
+  getApiBase(): string {
+    return this.apiBase;
+  }
+
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -63,6 +67,30 @@ class ApiClient {
     const response = await fetch(`${this.apiBase}${path}`, {
       method: "DELETE",
       headers: this.getHeaders(),
+    });
+    return this.handleResponse<T>(response);
+  }
+
+  async uploadFile<T>(path: string, localUri: string, filename: string, mimeType: string): Promise<T> {
+    const formData = new FormData();
+    formData.append("file", {
+      uri: localUri,
+      name: filename,
+      type: mimeType || "application/octet-stream",
+    } as any);
+
+    const headers: Record<string, string> = {};
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+    if (this.farmId) {
+      headers["X-Farm-Id"] = this.farmId;
+    }
+
+    const response = await fetch(`${this.apiBase}${path}`, {
+      method: "POST",
+      body: formData,
+      headers,
     });
     return this.handleResponse<T>(response);
   }

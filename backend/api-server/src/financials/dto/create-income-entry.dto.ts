@@ -40,4 +40,8 @@ export class CreateIncomeEntryDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsString()
+  @IsOptional()
+  attachmentUrl?: string;
 }
