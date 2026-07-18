@@ -1,22 +1,29 @@
-import React from "react";
-import { ScrollView, ScrollViewProps, KeyboardAvoidingView, Platform } from "react-native";
+import {
+  KeyboardAwareScrollView,
+  KeyboardAwareScrollViewProps,
+} from "react-native-keyboard-controller";
+import { Platform, ScrollView, ScrollViewProps } from "react-native";
 
-type Props = ScrollViewProps;
+type Props = KeyboardAwareScrollViewProps & ScrollViewProps;
 
 export function KeyboardAwareScrollViewCompat({
   children,
   keyboardShouldPersistTaps = "handled",
   ...props
 }: Props) {
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-    >
+  if (Platform.OS === "web") {
+    return (
       <ScrollView keyboardShouldPersistTaps={keyboardShouldPersistTaps} {...props}>
         {children}
       </ScrollView>
-    </KeyboardAvoidingView>
+    );
+  }
+  return (
+    <KeyboardAwareScrollView
+      keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+      {...props}
+    >
+      {children}
+    </KeyboardAwareScrollView>
   );
 }

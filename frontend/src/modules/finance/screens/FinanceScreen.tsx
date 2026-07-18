@@ -1,5 +1,4 @@
 import { Feather } from "@expo/vector-icons";
-import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -513,18 +512,26 @@ export default function FinanceScreen() {
   };
 
   const pickPDF = async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: "application/pdf",
-      copyToCacheDirectory: true,
-    });
-    if (!result.canceled && result.assets?.[0]) {
-      const asset = result.assets[0];
-      setPickedFile({
-        uri: asset.uri,
-        name: asset.name || `doc_${Date.now()}.pdf`,
-        type: asset.mimeType || "application/pdf",
+    try {
+      const DocumentPicker = await import("expo-document-picker");
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "application/pdf",
+        copyToCacheDirectory: true,
       });
-      setUploadStep(2);
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        setPickedFile({
+          uri: asset.uri,
+          name: asset.name || `doc_${Date.now()}.pdf`,
+          type: asset.mimeType || "application/pdf",
+        });
+        setUploadStep(2);
+      }
+    } catch (error) {
+      Alert.alert(
+        "PDF upload unavailable",
+        "Document picking is not available in this build right now. You can still add records without a PDF attachment."
+      );
     }
   };
 
