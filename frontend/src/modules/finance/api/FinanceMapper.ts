@@ -15,6 +15,7 @@ export class FinanceMapper {
       fatPercentage: dto.fatPercentage !== null ? Number(dto.fatPercentage) : null,
       snfPercentage: dto.snfPercentage !== null ? Number(dto.snfPercentage) : null,
       notes: dto.notes,
+      attachmentUrl: dto.attachmentUrl ?? null,
       createdAt: new Date(dto.createdAt),
     });
   }
@@ -31,6 +32,7 @@ export class FinanceMapper {
       category: dto.category,
       description: dto.description,
       amount: Number(dto.amount),
+      attachmentUrl: dto.attachmentUrl ?? null,
       createdAt: new Date(dto.createdAt),
     });
   }

@@ -20,4 +20,8 @@ export class CreateExpenseEntryDto {
   @IsNumber()
   @IsNotEmpty()
   amount: number;
+
+  @IsString()
+  @IsOptional()
+  attachmentUrl?: string;
 }

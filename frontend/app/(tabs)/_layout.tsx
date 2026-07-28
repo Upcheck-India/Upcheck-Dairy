@@ -73,7 +73,7 @@ export default function TabLayout() {
   const TAB_BAR_HEIGHT = isWeb ? 84 : 68 + insets.bottom;
 
   return (
-    <>
+    <View style={styles.container}>
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: colors.primary,
@@ -128,17 +128,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="voice"
           options={{
-            title: "",
-            tabBarIcon: () => (
-              <VoiceButton onPress={() => setVoiceVisible(true)} />
-            ),
-            tabBarLabel: () => null,
-          }}
-          listeners={{
-            tabPress: (e) => {
-              e.preventDefault();
-              setVoiceVisible(true);
-            },
+            href: null,
           }}
         />
         <Tabs.Screen
@@ -178,15 +168,21 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
+      <View pointerEvents="box-none" style={styles.floatingActionWrap}>
+        <VoiceButton onPress={() => setVoiceVisible(true)} />
+      </View>
       <QuickActionsModal
         visible={voiceVisible}
         onClose={() => setVoiceVisible(false)}
       />
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   avatarBtn: { marginRight: 16 },
   avatarCircle: {
     width: 34,
@@ -196,4 +192,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  floatingActionWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 6,
+    alignItems: "center",
+  },
 });

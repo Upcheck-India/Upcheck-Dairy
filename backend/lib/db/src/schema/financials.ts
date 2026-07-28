@@ -24,6 +24,7 @@ export const incomeEntries = pgTable("income_entries", {
   fatPercentage: decimal("fat_percentage", { precision: 4, scale: 2 }),
   snfPercentage: decimal("snf_percentage", { precision: 4, scale: 2 }),
   notes: text("notes"),
+  attachmentUrl: text("attachment_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
   return {
@@ -46,6 +47,7 @@ export const expenseEntries = pgTable("expense_entries", {
   category: expenseCategory("category").notNull(),
   description: text("description").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  attachmentUrl: text("attachment_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
   return {
