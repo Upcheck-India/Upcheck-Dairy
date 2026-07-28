@@ -6,6 +6,7 @@ import { farms } from "./farms";
 
 export const animalType = pgEnum("animal_type", ["cow", "buffalo", "calf"]);
 export const healthStatus = pgEnum("health_status", ["healthy", "attention", "critical"]);
+export const animalStatus = pgEnum("animal_status", ["lactating", "pregnant", "dry", "calf", "other"]);
 export const cowBreed = pgEnum("cow_breed", [
   "HF (Holstein Friesian)", "Jersey", "Gir", "Sahiwal", "Tharparkar",
   "Kangayam", "Umblachery", "Bargur", "Ongole", "Kankrej", "Rathi", "Mixed/Crossbred",
@@ -34,6 +35,9 @@ export const animals = pgTable("animals", {
   isPregnant: boolean("is_pregnant").default(false),
   bodyConditionScore: decimal("body_condition_score", { precision: 3, scale: 1 }),
   weightKg: decimal("weight_kg", { precision: 5, scale: 1 }),
+  shed: text("shed"),
+  status: animalStatus("status").notNull().default("lactating"),
+  gender: text("gender").default("female").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => {
