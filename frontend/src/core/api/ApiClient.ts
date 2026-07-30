@@ -99,11 +99,35 @@ class ApiClient {
     if (response.status === 204) {
       return {} as T;
     }
-    const data = await response.json();
+    const text = await response.text();
+    const isHtml = text.trim().startsWith("<");
+
     if (!response.ok) {
-      throw new Error(data?.message || data?.error || `Request failed with status ${response.status}`);
+      if (isHtml) {
+        throw new Error(`Server error (${response.status} ${response.statusText}): Server returned HTML instead of JSON. Check backend URL (${this.apiBase}).`);
+      }
+      try {
+        const data = JSON.parse(text);
+        throw new Error(data?.message || data?.error || `Request failed with status ${response.status}`);
+      } catch (e: any) {
+        if (e.message && !e.message.startsWith("JSON")) throw e;
+        throw new Error(`Request failed with status ${response.status}`);
+      }
     }
-    return data as T;
+
+    if (isHtml) {
+      throw new Error(`Expected JSON but received HTML response from ${this.apiBase}. Check API route configuration.`);
+    }
+
+    if (!text) {
+      return {} as T;
+    }
+
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new Error(`Failed to parse server response as JSON.`);
+    }
   }
 }
 

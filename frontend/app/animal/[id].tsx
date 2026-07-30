@@ -430,7 +430,13 @@ export default function AnimalDetail() {
       if (!response.ok) {
         throw new Error(`Upload failed with status ${response.status}`);
       }
-      const resData = await response.json();
+      const text = await response.text();
+      let resData: any = {};
+      try {
+        resData = JSON.parse(text);
+      } catch {
+        throw new Error("Server returned non-JSON response for photo upload.");
+      }
       console.log("[uploadPhoto] NestJS server upload success:", resData.url);
       return resData.url;
     } catch (localError) {
