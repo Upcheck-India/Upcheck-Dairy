@@ -77,10 +77,19 @@ export default function AnimalsScreen() {
     toggleDropdown();
   };
 
+  // Helper to resolve an animal's shed if not explicitly set
+  const getAnimalShed = (animal: Animal): string => {
+    if (animal.shed) return animal.shed;
+    const idNum = parseInt(animal.id) || 0;
+    if (animal.type === "calf") return "shed_4";
+    const index = idNum % 3;
+    return `shed_${index + 1}`;
+  };
+
   // Step 1: filter to this shed's animals from the already-loaded context
   const shedAnimals: Animal[] = useMemo(() => {
     if (!shedId) return allAnimals;
-    return allAnimals.filter((a) => a.shed === shedId);
+    return allAnimals.filter((a) => (a.shed || getAnimalShed(a)) === shedId);
   }, [allAnimals, shedId]);
 
   // Step 2: further filter by search query

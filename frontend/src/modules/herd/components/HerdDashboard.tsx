@@ -1,10 +1,12 @@
-import React from "react";
-import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
+import React, { useState } from "react";
+import { View, Text, Pressable, StyleSheet, ScrollView, Alert } from "react-native";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 import { Animal } from "../../animals/models/Animal";
+import { useSheds, Shed } from "../context/ShedProvider";
+import { ShedManagementModal } from "./ShedManagementModal";
 
 interface HerdDashboardProps {
   activeTab: "by_shed" | "by_category";
@@ -29,6 +31,11 @@ export function HerdDashboard({
 }: HerdDashboardProps) {
   const colors = useColors();
   const { language } = useLanguage();
+  const { sheds: storedSheds } = useSheds();
+
+  const [shedModalVisible, setShedModalVisible] = useState(false);
+  const [shedModalAction, setShedModalAction] = useState<"list" | "create" | "edit">("list");
+  const [targetShedId, setTargetShedId] = useState<string | null>(null);
 
   const lx = (r: Record<string, string>) => r[language] ?? r.en ?? "";
 
@@ -38,7 +45,6 @@ export function HerdDashboard({
     if (animal.type === "calf") return "calf";
     if (animal.isPregnant) return "pregnant";
     
-    // Fallback deterministic distribution for demo/legacy data
     const idNum = parseInt(animal.id) || 0;
     if (idNum % 5 === 0) return "other";
     if (idNum % 3 === 0) return "dry";
@@ -48,30 +54,88 @@ export function HerdDashboard({
   // Helper to resolve an animal's shed
   const getAnimalShed = (animal: Animal): string => {
     if (animal.shed) return animal.shed;
-    
     const idNum = parseInt(animal.id) || 0;
     if (animal.type === "calf") return "shed_4";
     const index = idNum % 3;
     return `shed_${index + 1}`;
   };
 
-  // Process Sheds
-  const sheds = [
-    { id: "shed_1", name: lx({ ta: "கொட்டகை 1 - மெயின்", hi: "शेड 1 - मुख्य", en: "Shed 1 - Main Shed" }), desc: lx({ ta: "முக்கிய மாட்டு கொட்டகை", en: "Main housing shed" }) },
-    { id: "shed_2", name: lx({ ta: "கொட்டகை 2 - வடக்கு", hi: "शेड 2 - उत्तर", en: "Shed 2 - North Shed" }), desc: lx({ ta: "வடக்கு பகுதி", en: "North block" }) },
-    { id: "shed_3", name: lx({ ta: "கொட்டகை 3 - திறந்த", hi: "शेड 3 - खुला", en: "Shed 3 - Open Shed" }), desc: lx({ ta: "திறந்தவெளி கொட்டகை", en: "Open housing" }) },
-    { id: "shed_4", name: lx({ ta: "கொட்டகை 4 - கன்றுக்குட்டி", hi: "शेड 4 - बछड़ा", en: "Shed 4 - Calf Pen" }), desc: lx({ ta: "கன்றுக்குட்டிகள் பகுதி", en: "Calf and young stock" }) },
-  ].map((shed) => {
-    const shedAnimals = animals.filter((a) => getAnimalShed(a) === shed.id);
+  const STANDARD_SHEDS: Record<string, { en: string; ta: string; hi: string; descEn: string; descTa: string }> = {
+    shed_1: {
+      en: "Shed 1 - Main Shed",
+      ta: "கொட்டகை 1 - மெயின்",
+      hi: "शेड 1 - मुख्य",
+      descEn: "Main housing shed",
+      descTa: "முக்கிய மாட்டு கொட்டகை",
+    },
+    shed_2: {
+      en: "Shed 2 - North Shed",
+      ta: "கொட்டகை 2 - வடக்கு",
+      hi: "शेड 2 - उत्तर",
+      descEn: "North block",
+      descTa: "வடக்கு பகுதி",
+    },
+    shed_3: {
+      en: "Shed 3 - Open Shed",
+      ta: "கொட்டகை 3 - திறந்த",
+      hi: "शेड 3 - खुला",
+      descEn: "Open housing",
+      descTa: "திறந்தவெளி கொட்டகை",
+    },
+    shed_4: {
+      en: "Shed 4 - Calf Pen",
+      ta: "கொட்டகை 4 - கன்றுக்குட்டி",
+      hi: "शेड 4 - बछड़ा",
+      descEn: "Calf and young stock",
+      descTa: "கன்றுக்குட்டிகள் பகுதி",
+    },
+  };
+
+  const getShedMeta = (shedId: string) => {
+    const stored = storedSheds.find((s) => s.id === shedId);
+    if (stored) {
+      return {
+        name: stored.name,
+        desc: stored.desc || lx({ ta: "கொட்டகை இருப்பிடம்", en: "Housing section" }),
+      };
+    }
+    const key = shedId.toLowerCase().replace(/\s+/g, "_");
+    if (STANDARD_SHEDS[key]) {
+      return {
+        name: lx({ ta: STANDARD_SHEDS[key].ta, hi: STANDARD_SHEDS[key].hi, en: STANDARD_SHEDS[key].en }),
+        desc: lx({ ta: STANDARD_SHEDS[key].descTa, en: STANDARD_SHEDS[key].descEn }),
+      };
+    }
+    const formattedName = shedId.startsWith("shed_")
+      ? `Shed ${shedId.replace("shed_", "")}`
+      : shedId;
     return {
-      ...shed,
-      lactating: shedAnimals.filter((a) => getAnimalCategory(a) === "lactating").length,
-      pregnant: shedAnimals.filter((a) => getAnimalCategory(a) === "pregnant").length,
-      dry: shedAnimals.filter((a) => getAnimalCategory(a) === "dry").length,
-      calf: shedAnimals.filter((a) => getAnimalCategory(a) === "calf").length,
-      total: shedAnimals.length,
+      name: formattedName,
+      desc: lx({ ta: "கொட்டகை இருப்பிடம்", en: "Housing section" }),
     };
-  });
+  };
+
+  // Process Sheds dynamically combining stored custom sheds and animal occurrences
+  const sheds = React.useMemo(() => {
+    const storedIds = storedSheds.map((s) => s.id);
+    const animalShedIds = animals.map((a) => getAnimalShed(a)).filter(Boolean);
+    const uniqueShedIds = Array.from(new Set([...storedIds, ...animalShedIds]));
+
+    return uniqueShedIds.map((shedId) => {
+      const meta = getShedMeta(shedId);
+      const shedAnimals = animals.filter((a) => getAnimalShed(a) === shedId);
+      return {
+        id: shedId,
+        name: meta.name,
+        desc: meta.desc,
+        lactating: shedAnimals.filter((a) => getAnimalCategory(a) === "lactating").length,
+        pregnant: shedAnimals.filter((a) => getAnimalCategory(a) === "pregnant").length,
+        dry: shedAnimals.filter((a) => getAnimalCategory(a) === "dry").length,
+        calf: shedAnimals.filter((a) => getAnimalCategory(a) === "calf").length,
+        total: shedAnimals.length,
+      };
+    });
+  }, [animals, storedSheds, language]);
 
   // Process Categories
   const categories = [
@@ -126,9 +190,18 @@ export function HerdDashboard({
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
               {lx({ ta: "கொட்டகைகள் (இடங்கள்)", hi: "शेड (स्थान)", en: "Sheds (Locations)" })}
             </Text>
-            <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
-              Total Animals: {animals.length}
-            </Text>
+            <Pressable
+              style={styles.addShedBtn}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShedModalAction("create");
+                setTargetShedId(null);
+                setShedModalVisible(true);
+              }}
+            >
+              <Feather name="plus" size={14} color="#16a34a" style={{ marginRight: 3 }} />
+              <Text style={styles.addShedText}>{lx({ en: "New Shed", ta: "புதிய கொட்டகை" })}</Text>
+            </Pressable>
           </View>
 
           {/* Shed List */}
@@ -149,6 +222,18 @@ export function HerdDashboard({
                   </View>
                   <View style={styles.cardRight}>
                     <Text style={[styles.cardTotal, { color: "#16a34a" }]}>{shed.total}</Text>
+                    <Pressable
+                      style={styles.cardActionBtn}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setShedModalAction("edit");
+                        setTargetShedId(shed.id);
+                        setShedModalVisible(true);
+                      }}
+                      hitSlop={8}
+                    >
+                      <Feather name="edit-2" size={15} color={colors.mutedForeground} />
+                    </Pressable>
                     <Feather name="chevron-right" size={18} color="#16a34a" />
                   </View>
                 </View>
@@ -255,14 +340,14 @@ export function HerdDashboard({
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryCol}>
-            <Text style={[styles.summaryVal, { color: colors.foreground }]}>4</Text>
+            <Text style={[styles.summaryVal, { color: colors.foreground }]}>{sheds.length}</Text>
             <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
               {lx({ ta: "கொட்டகைகள்", en: "Sheds" })}
             </Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryCol}>
-            <Text style={[styles.summaryVal, { color: colors.foreground }]}>4</Text>
+            <Text style={[styles.summaryVal, { color: colors.foreground }]}>{sheds.length}</Text>
             <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
               {lx({ ta: "இடங்கள்", en: "Locations" })}
             </Text>
@@ -288,6 +373,9 @@ export function HerdDashboard({
               style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShedModalAction("list");
+                setTargetShedId(null);
+                setShedModalVisible(true);
                 onManageSheds();
               }}
             >
@@ -346,6 +434,13 @@ export function HerdDashboard({
           </View>
         </View>
       </View>
+
+      <ShedManagementModal
+        visible={shedModalVisible}
+        onClose={() => setShedModalVisible(false)}
+        initialAction={shedModalAction}
+        targetShedId={targetShedId}
+      />
     </ScrollView>
   );
 }
@@ -374,6 +469,24 @@ const styles = StyleSheet.create({
   sectionSub: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
+  },
+  addShedBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#16a34a15",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  addShedText: {
+    color: "#16a34a",
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
+  },
+  cardActionBtn: {
+    padding: 4,
+    marginLeft: 4,
+    marginRight: 2,
   },
   listContainer: {
     gap: 12,

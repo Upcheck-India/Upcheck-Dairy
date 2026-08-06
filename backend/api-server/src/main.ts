@@ -35,8 +35,14 @@ async function bootstrap() {
       // 2. Check if the origin matches the configured whitelist
       const isWhitelisted = allowedOrigins.includes(origin);
 
-      // 3. In non-production environments, dynamically allow any localhost origin to ease development
-      const isLocalDev = process.env["NODE_ENV"] !== "production" && origin.startsWith("http://localhost:");
+      // 3. In non-production environments, dynamically allow any local origin to ease development
+      const isLocalDev =
+        process.env["NODE_ENV"] !== "production" &&
+        (origin.startsWith("http://localhost:") ||
+          origin.startsWith("http://127.0.0.1:") ||
+          origin.startsWith("http://192.168.") ||
+          origin.startsWith("http://10.") ||
+          origin.startsWith("http://172."));
 
       if (isWhitelisted || isLocalDev) {
         callback(null, true);

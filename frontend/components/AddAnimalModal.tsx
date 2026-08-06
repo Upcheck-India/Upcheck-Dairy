@@ -19,6 +19,7 @@ import { COW_BREEDS, BUFFALO_BREEDS } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
+import { useSheds } from "../src/modules/herd/context/ShedProvider";
 
 interface AddAnimalModalProps {
   visible: boolean;
@@ -278,12 +279,12 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
     value: b,
   }));
 
-  const shedOptions = [
-    { label: lx({ en: "Shed 1 - Main Shed", ta: "கொட்டகை 1" }), value: "shed_1" },
-    { label: lx({ en: "Shed 2 - North Shed", ta: "கொட்டகை 2" }), value: "shed_2" },
-    { label: lx({ en: "Shed 3 - Open Shed", ta: "கொட்டகை 3" }), value: "shed_3" },
-    { label: lx({ en: "Shed 4 - Calf Pen", ta: "கொட்டகை 4" }), value: "shed_4" },
-  ];
+  const { sheds } = useSheds();
+
+  const shedOptions = sheds.map((s) => ({
+    label: s.name,
+    value: s.id,
+  }));
 
   const categoryOptions = [
     { label: lx({ en: "Lactating", ta: "பால் கறக்கும்" }), value: "lactating" },

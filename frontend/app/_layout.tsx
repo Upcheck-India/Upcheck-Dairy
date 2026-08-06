@@ -17,6 +17,7 @@ import { FarmerProvider, useFarmer } from "@/context/FarmerContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { FarmProvider, useFarmContext } from "../src/modules/farms/context/FarmProvider";
 import { AnimalProvider } from "../src/modules/animals/context/AnimalProvider";
+import { ShedProvider } from "../src/modules/herd/context/ShedProvider";
 import { MilkProvider } from "../src/modules/milk/context/MilkProvider";
 import { HealthProvider } from "../src/modules/health/context/HealthProvider";
 import { BreedingProvider } from "../src/modules/breeding/context/BreedingProvider";
@@ -128,25 +129,27 @@ export default function RootLayout() {
             <FarmerProvider>
               <FarmProvider>
                 <AnimalProvider>
-                  <MilkProvider>
-                    <HealthProvider>
-                      <BreedingProvider>
-                        <VaccinationProvider>
-                          <InventoryProvider>
-                            <TaskProvider>
-                              <FinanceProvider>
-                                <GestureHandlerRootView>
-                                  <AuthGuard>
-                                    <RootLayoutNav />
-                                  </AuthGuard>
-                                </GestureHandlerRootView>
-                              </FinanceProvider>
-                            </TaskProvider>
-                          </InventoryProvider>
-                        </VaccinationProvider>
-                      </BreedingProvider>
-                    </HealthProvider>
-                  </MilkProvider>
+                  <ShedProvider>
+                    <MilkProvider>
+                      <HealthProvider>
+                        <BreedingProvider>
+                          <VaccinationProvider>
+                            <InventoryProvider>
+                              <TaskProvider>
+                                <FinanceProvider>
+                                  <GestureHandlerRootView>
+                                    <AuthGuard>
+                                      <RootLayoutNav />
+                                    </AuthGuard>
+                                  </GestureHandlerRootView>
+                                </FinanceProvider>
+                              </TaskProvider>
+                            </InventoryProvider>
+                          </VaccinationProvider>
+                        </BreedingProvider>
+                      </HealthProvider>
+                    </MilkProvider>
+                  </ShedProvider>
                 </AnimalProvider>
               </FarmProvider>
             </FarmerProvider>
