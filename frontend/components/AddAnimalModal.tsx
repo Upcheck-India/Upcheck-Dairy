@@ -20,6 +20,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 import { useSheds } from "../src/modules/herd/context/ShedProvider";
+import { defaultShedIdFor } from "../src/modules/herd/utils/shedAssignment";
 
 interface AddAnimalModalProps {
   visible: boolean;
@@ -109,6 +110,7 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
   const insets = useSafeAreaInsets();
   const { createAnimal } = useAnimals();
   const { t, language } = useLanguage();
+  const { sheds } = useSheds();
 
   const lx = (r: Record<string, string>) => r[language] ?? r.en ?? "";
 
@@ -122,7 +124,7 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
   const [breed, setBreed] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState<"female" | "male">("female");
-  const [shed, setShed] = useState("shed_1");
+  const [shed, setShed] = useState(() => defaultShedIdFor("cow", sheds));
   const [status, setStatus] = useState("lactating");
   const [notes, setNotes] = useState("");
 
@@ -142,7 +144,7 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
       setBreed("");
       setBirthDate("");
       setGender("female");
-      setShed("shed_1");
+      setShed(defaultShedIdFor("cow", sheds));
       setStatus("lactating");
       setNotes("");
     }
@@ -150,13 +152,12 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
 
   // Adjust defaults when type changes
   useEffect(() => {
+    setShed(defaultShedIdFor(type, sheds));
     if (type === "calf") {
       setGender("female");
       setBreed("");
-      setShed("shed_4");
       setStatus("calf");
     } else {
-      setShed("shed_1");
       setStatus("lactating");
     }
   }, [type]);
@@ -278,8 +279,6 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
     label: b,
     value: b,
   }));
-
-  const { sheds } = useSheds();
 
   const shedOptions = sheds.map((s) => ({
     label: s.name,

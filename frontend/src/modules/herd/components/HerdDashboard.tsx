@@ -5,7 +5,8 @@ import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 import { Animal } from "../../animals/models/Animal";
-import { useSheds, Shed } from "../context/ShedProvider";
+import { useSheds, Shed, DEFAULT_SHEDS, DEFAULT_SHED_CAPACITY } from "../context/ShedProvider";
+import { resolveAnimalShed } from "../utils/shedAssignment";
 import { ShedManagementModal } from "./ShedManagementModal";
 
 interface HerdDashboardProps {
@@ -51,14 +52,8 @@ export function HerdDashboard({
     return "lactating";
   };
 
-  // Helper to resolve an animal's shed
-  const getAnimalShed = (animal: Animal): string => {
-    if (animal.shed) return animal.shed;
-    const idNum = parseInt(animal.id) || 0;
-    if (animal.type === "calf") return "shed_4";
-    const index = idNum % 3;
-    return `shed_${index + 1}`;
-  };
+  // Helper to resolve an animal's shed against the sheds that currently exist
+  const getAnimalShed = (animal: Animal): string => resolveAnimalShed(animal, storedSheds);
 
   const STANDARD_SHEDS: Record<string, { en: string; ta: string; hi: string; descEn: string; descTa: string }> = {
     shed_1: {
@@ -91,43 +86,34 @@ export function HerdDashboard({
     },
   };
 
-  const getShedMeta = (shedId: string) => {
-    const stored = storedSheds.find((s) => s.id === shedId);
-    if (stored) {
-      return {
-        name: stored.name,
-        desc: stored.desc || lx({ ta: "கொட்டகை இருப்பிடம்", en: "Housing section" }),
-      };
-    }
-    const key = shedId.toLowerCase().replace(/\s+/g, "_");
-    if (STANDARD_SHEDS[key]) {
-      return {
-        name: lx({ ta: STANDARD_SHEDS[key].ta, hi: STANDARD_SHEDS[key].hi, en: STANDARD_SHEDS[key].en }),
-        desc: lx({ ta: STANDARD_SHEDS[key].descTa, en: STANDARD_SHEDS[key].descEn }),
-      };
-    }
-    const formattedName = shedId.startsWith("shed_")
-      ? `Shed ${shedId.replace("shed_", "")}`
-      : shedId;
+  // Seeded sheds get translated copy until the farmer renames them; anything the
+  // farmer typed is shown exactly as entered.
+  const getShedMeta = (shed: Shed) => {
+    const seeded = DEFAULT_SHEDS.find((d) => d.id === shed.id);
+    const standard = STANDARD_SHEDS[shed.id];
+    const untouched = seeded && standard && seeded.name === shed.name;
+
     return {
-      name: formattedName,
-      desc: lx({ ta: "கொட்டகை இருப்பிடம்", en: "Housing section" }),
+      name: untouched
+        ? lx({ ta: standard.ta, hi: standard.hi, en: standard.en })
+        : shed.name,
+      desc: untouched
+        ? lx({ ta: standard.descTa, en: standard.descEn })
+        : shed.desc || lx({ ta: "கொட்டகை இருப்பிடம்", en: "Housing section" }),
     };
   };
 
-  // Process Sheds dynamically combining stored custom sheds and animal occurrences
+  // Sheds come straight from the shed list, so created/renamed/deleted sheds
+  // show up immediately and deleted ones never reappear.
   const sheds = React.useMemo(() => {
-    const storedIds = storedSheds.map((s) => s.id);
-    const animalShedIds = animals.map((a) => getAnimalShed(a)).filter(Boolean);
-    const uniqueShedIds = Array.from(new Set([...storedIds, ...animalShedIds]));
-
-    return uniqueShedIds.map((shedId) => {
-      const meta = getShedMeta(shedId);
-      const shedAnimals = animals.filter((a) => getAnimalShed(a) === shedId);
+    return storedSheds.map((shed) => {
+      const meta = getShedMeta(shed);
+      const shedAnimals = animals.filter((a) => getAnimalShed(a) === shed.id);
       return {
-        id: shedId,
+        id: shed.id,
         name: meta.name,
         desc: meta.desc,
+        capacity: shed.capacity ?? DEFAULT_SHED_CAPACITY,
         lactating: shedAnimals.filter((a) => getAnimalCategory(a) === "lactating").length,
         pregnant: shedAnimals.filter((a) => getAnimalCategory(a) === "pregnant").length,
         dry: shedAnimals.filter((a) => getAnimalCategory(a) === "dry").length,
@@ -136,6 +122,11 @@ export function HerdDashboard({
       };
     });
   }, [animals, storedSheds, language]);
+
+  const totalCapacity = React.useMemo(
+    () => sheds.reduce((sum, s) => sum + s.capacity, 0),
+    [sheds]
+  );
 
   // Process Categories
   const categories = [
@@ -206,6 +197,17 @@ export function HerdDashboard({
 
           {/* Shed List */}
           <View style={styles.listContainer}>
+            {sheds.length === 0 ? (
+              <View style={[styles.emptyShedCard, { borderColor: colors.border }]}>
+                <Feather name="home" size={22} color={colors.mutedForeground} />
+                <Text style={[styles.emptyShedText, { color: colors.mutedForeground }]}>
+                  {lx({
+                    en: "No sheds yet. Create one to start organising your herd.",
+                    ta: "கொட்டகைகள் இல்லை. ஒன்றை உருவாக்கி தொடங்குங்கள்.",
+                  })}
+                </Text>
+              </View>
+            ) : null}
             {sheds.map((shed) => (
               <Pressable
                 key={shed.id}
@@ -347,16 +349,18 @@ export function HerdDashboard({
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryCol}>
-            <Text style={[styles.summaryVal, { color: colors.foreground }]}>{sheds.length}</Text>
+            <Text style={[styles.summaryVal, { color: colors.foreground }]}>{totalCapacity}</Text>
             <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-              {lx({ ta: "இடங்கள்", en: "Locations" })}
+              {lx({ ta: "கொள்ளளவு", en: "Capacity" })}
             </Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryCol}>
-            <Text style={[styles.summaryVal, { color: colors.foreground }]}>100</Text>
+            <Text style={[styles.summaryVal, { color: colors.foreground }]}>
+              {totalCapacity > 0 ? `${Math.round((animals.length / totalCapacity) * 100)}%` : "—"}
+            </Text>
             <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-              {lx({ ta: "கொள்ளளவு", en: "Capacity" })}
+              {lx({ ta: "நிரம்பியது", en: "Occupancy" })}
             </Text>
           </View>
         </View>
@@ -490,6 +494,20 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     gap: 12,
+  },
+  emptyShedCard: {
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+  },
+  emptyShedText: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
   },
   card: {
     borderWidth: 1,

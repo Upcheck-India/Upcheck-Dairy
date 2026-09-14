@@ -13,6 +13,8 @@ import { useColors } from "@/hooks/useColors";
 import { HerdHeader } from "../components/HerdHeader";
 import { HerdTabs, HerdTabType } from "../components/HerdTabs";
 import { HerdDashboard } from "../components/HerdDashboard";
+import { useSheds } from "../context/ShedProvider";
+import { resolveAnimalShed } from "../utils/shedAssignment";
 import { AnimalsWorkspace } from "../components/AnimalsWorkspace";
 
 import AddAnimalModal from "@/components/AddAnimalModal";
@@ -27,6 +29,7 @@ export function HerdScreen() {
   const { t, language } = useLanguage();
 
   const { animals, loading: animalsLoading, refresh: refreshAnimals } = useAnimals();
+  const { sheds } = useSheds();
 
   const [activeTab, setActiveTab] = useState<HerdTabType>("by_shed");
   const [selectedShed, setSelectedShed] = useState<string | null>(null);
@@ -68,15 +71,8 @@ export function HerdScreen() {
     return "lactating";
   };
 
-  // Helper to resolve an animal's shed
-  const getAnimalShed = (animal: Animal): string => {
-    if (animal.shed) return animal.shed;
-    
-    const idNum = parseInt(animal.id) || 0;
-    if (animal.type === "calf") return "shed_4";
-    const index = idNum % 3;
-    return `shed_${index + 1}`;
-  };
+  // Helper to resolve an animal's shed against the sheds that currently exist
+  const getAnimalShed = (animal: Animal): string => resolveAnimalShed(animal, sheds);
 
   // Filter animals based on drill-down state
   const isDrillDown = selectedShed !== null || selectedCategory !== null;

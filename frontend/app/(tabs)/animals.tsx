@@ -21,6 +21,8 @@ import { useFarmer } from "@/context/FarmerContext";
 import { useAnimals } from "@/src/modules/animals/hooks/useAnimals";
 import { Animal } from "@/src/modules/animals/models/Animal";
 import { useHealth } from "@/src/modules/health/hooks/useHealth";
+import { useSheds } from "@/src/modules/herd/context/ShedProvider";
+import { resolveAnimalShed } from "@/src/modules/herd/utils/shedAssignment";
 
 // Helper: resolve the display status label and colour from an Animal model
 function getAnimalStatusDisplay(animal: Animal): { label: string; color: string } {
@@ -39,6 +41,7 @@ export default function AnimalsScreen() {
   const { farmer } = useFarmer();
   const { animals: allAnimals, loading, error } = useAnimals();
   const { healthEvents, loading: healthLoading, error: healthError } = useHealth();
+  const { sheds } = useSheds();
   const params = useLocalSearchParams();
   const shedId = params.shedId as string | undefined;
   const shedName = params.shedName as string;
@@ -77,20 +80,11 @@ export default function AnimalsScreen() {
     toggleDropdown();
   };
 
-  // Helper to resolve an animal's shed if not explicitly set
-  const getAnimalShed = (animal: Animal): string => {
-    if (animal.shed) return animal.shed;
-    const idNum = parseInt(animal.id) || 0;
-    if (animal.type === "calf") return "shed_4";
-    const index = idNum % 3;
-    return `shed_${index + 1}`;
-  };
-
   // Step 1: filter to this shed's animals from the already-loaded context
   const shedAnimals: Animal[] = useMemo(() => {
     if (!shedId) return allAnimals;
-    return allAnimals.filter((a) => (a.shed || getAnimalShed(a)) === shedId);
-  }, [allAnimals, shedId]);
+    return allAnimals.filter((a) => resolveAnimalShed(a, sheds) === shedId);
+  }, [allAnimals, shedId, sheds]);
 
   // Step 2: further filter by search query
   const filteredAnimals: Animal[] = useMemo(() => {

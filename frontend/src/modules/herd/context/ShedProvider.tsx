@@ -22,7 +22,9 @@ interface ShedContextType {
   refreshSheds: () => Promise<void>;
 }
 
-const DEFAULT_SHEDS: Shed[] = [
+export const DEFAULT_SHED_CAPACITY = 25;
+
+export const DEFAULT_SHEDS: Shed[] = [
   { id: "shed_1", name: "Shed 1 - Main Shed", desc: "Main housing shed", isDefault: true },
   { id: "shed_2", name: "Shed 2 - North Shed", desc: "North block", isDefault: true },
   { id: "shed_3", name: "Shed 3 - Open Shed", desc: "Open housing", isDefault: true },
@@ -77,15 +79,23 @@ export function ShedProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const assertNameAvailable = (list: Shed[], name: string, ignoreId?: string) => {
+    const clash = list.some(
+      (s) => s.id !== ignoreId && s.name.trim().toLowerCase() === name.toLowerCase()
+    );
+    if (clash) throw new Error(`A shed named "${name}" already exists.`);
+  };
+
   const addShed = useCallback(async (name: string, desc?: string, capacity?: number): Promise<Shed> => {
     const cleanName = name.trim();
     if (!cleanName) throw new Error("Shed name cannot be empty");
+    assertNameAvailable(sheds, cleanName);
 
     const newShed: Shed = {
       id: `shed_custom_${Date.now()}`,
       name: cleanName,
       desc: desc?.trim() || undefined,
-      capacity: capacity || 25,
+      capacity: capacity || DEFAULT_SHED_CAPACITY,
       isDefault: false,
       createdAt: new Date().toISOString(),
     };
@@ -101,6 +111,7 @@ export function ShedProvider({ children }: { children: React.ReactNode }) {
 
     const existingIndex = sheds.findIndex((s) => s.id === id);
     if (existingIndex === -1) throw new Error("Shed not found");
+    assertNameAvailable(sheds, cleanName, id);
 
     const updatedShed: Shed = {
       ...sheds[existingIndex],
@@ -115,19 +126,24 @@ export function ShedProvider({ children }: { children: React.ReactNode }) {
     return updatedShed;
   }, [sheds, storageKey]);
 
-  const deleteShed = useCallback(async (id: string, reassignToShedId: string = "shed_1") => {
+  const deleteShed = useCallback(async (id: string, reassignToShedId?: string) => {
     if (sheds.length <= 1) {
       throw new Error("Cannot delete the only shed. At least one shed must exist.");
     }
+    if (!sheds.some((s) => s.id === id)) throw new Error("Shed not found");
+
+    const remaining = sheds.filter((s) => s.id !== id);
+    // Fall back to the first surviving shed — the caller's target may itself be gone.
+    const target =
+      remaining.find((s) => s.id === reassignToShedId)?.id ?? remaining[0].id;
 
     // Check animals in this shed and reassign them
     const affectedAnimals = animals.filter((a) => a.shed === id);
     for (const animal of affectedAnimals) {
-      await updateAnimal(Number(animal.id), { shed: reassignToShedId });
+      await updateAnimal(Number(animal.id), { shed: target });
     }
 
-    const updated = sheds.filter((s) => s.id !== id);
-    await saveSheds(updated);
+    await saveSheds(remaining);
   }, [sheds, animals, updateAnimal, storageKey]);
 
   const getShedById = useCallback((id: string) => {
