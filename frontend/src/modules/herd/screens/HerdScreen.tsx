@@ -17,7 +17,6 @@ import { useSheds } from "../context/ShedProvider";
 import { resolveAnimalShed } from "../utils/shedAssignment";
 import { AnimalsWorkspace } from "../components/AnimalsWorkspace";
 
-import AddAnimalModal from "@/components/AddAnimalModal";
 import MilkLogModal from "@/components/MilkLogModal";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
 import { Animal } from "../../animals/models/Animal";
@@ -37,7 +36,6 @@ export function HerdScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
 
-  const [addVisible, setAddVisible] = useState(false);
   const [milkAnimal, setMilkAnimal] = useState<Animal | null>(null);
   const [celebration, setCelebration] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -97,7 +95,6 @@ export function HerdScreen() {
             activeFarm={activeFarm}
             farms={farms}
             onSwitchFarm={switchFarm}
-            onAddAnimalPress={() => setAddVisible(true)}
             onNotificationPress={() => {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
               Alert.alert("Alerts", "You have 3 notifications regarding breeding cycle updates.");
@@ -164,13 +161,6 @@ export function HerdScreen() {
                 {drillDownAnimals.length} {t.animalsCountSuffix}
               </Text>
             </View>
-            <Pressable
-              style={[styles.miniAddBtn, { backgroundColor: "#16a34a" }]}
-              onPress={() => setAddVisible(true)}
-              hitSlop={8}
-            >
-              <Feather name="plus" size={16} color="#fff" />
-            </Pressable>
           </View>
 
           <View style={{ flex: 1 }}>
@@ -186,8 +176,6 @@ export function HerdScreen() {
         </>
       )}
 
-      <AddAnimalModal visible={addVisible} onClose={() => setAddVisible(false)} />
-      
       <MilkLogModal
         visible={milkAnimal !== null}
         animal={milkAnimal}
@@ -228,12 +216,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_500Medium",
     marginTop: 2,
-  },
-  miniAddBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

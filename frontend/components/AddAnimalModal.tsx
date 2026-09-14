@@ -21,10 +21,13 @@ import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 import { useSheds } from "../src/modules/herd/context/ShedProvider";
 import { defaultShedIdFor } from "../src/modules/herd/utils/shedAssignment";
+import { useCategories } from "../src/modules/herd/context/CategoryProvider";
 
 interface AddAnimalModalProps {
   visible: boolean;
   onClose: () => void;
+  /** Pre-selects the shed the animal is being added to (e.g. from a shed screen). */
+  initialShedId?: string | null;
 }
 
 // Custom Option Picker Component for Dropdowns
@@ -105,14 +108,22 @@ function CustomPicker({ visible, onClose, title, options, selectedValue, onSelec
   );
 }
 
-export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps) {
+export default function AddAnimalModal({ visible, onClose, initialShedId = null }: AddAnimalModalProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { createAnimal } = useAnimals();
   const { t, language } = useLanguage();
   const { sheds } = useSheds();
+  const { categories } = useCategories();
 
   const lx = (r: Record<string, string>) => r[language] ?? r.en ?? "";
+
+  // Falls back through the categories that still exist so a deleted one is never preselected.
+  const defaultCategoryFor = (animalType: "cow" | "buffalo" | "calf") => {
+    const assignable = categories.filter((c) => c.isDefault);
+    const preferred = animalType === "calf" ? "calf" : "lactating";
+    return assignable.find((c) => c.id === preferred)?.id ?? assignable[0]?.id ?? preferred;
+  };
 
   // Step state
   const [step, setStep] = useState(1); // 1, 2, or 3
@@ -124,7 +135,13 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
   const [breed, setBreed] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState<"female" | "male">("female");
-  const [shed, setShed] = useState(() => defaultShedIdFor("cow", sheds));
+  const [shed, setShed] = useState(() => initialShedId ?? defaultShedIdFor("cow", sheds));
+
+  // A shed passed in by the caller wins over the type-based default.
+  const resolveShedFor = (animalType: "cow" | "buffalo" | "calf") =>
+    initialShedId && sheds.some((s) => s.id === initialShedId)
+      ? initialShedId
+      : defaultShedIdFor(animalType, sheds);
   const [status, setStatus] = useState("lactating");
   const [notes, setNotes] = useState("");
 
@@ -144,21 +161,19 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
       setBreed("");
       setBirthDate("");
       setGender("female");
-      setShed(defaultShedIdFor("cow", sheds));
-      setStatus("lactating");
+      setShed(resolveShedFor("cow"));
+      setStatus(defaultCategoryFor("cow"));
       setNotes("");
     }
-  }, [visible]);
+  }, [visible, initialShedId]);
 
   // Adjust defaults when type changes
   useEffect(() => {
-    setShed(defaultShedIdFor(type, sheds));
+    setShed(resolveShedFor(type));
+    setStatus(defaultCategoryFor(type));
     if (type === "calf") {
       setGender("female");
       setBreed("");
-      setStatus("calf");
-    } else {
-      setStatus("lactating");
     }
   }, [type]);
 
@@ -285,13 +300,23 @@ export default function AddAnimalModal({ visible, onClose }: AddAnimalModalProps
     value: s.id,
   }));
 
-  const categoryOptions = [
-    { label: lx({ en: "Lactating", ta: "பால் கறக்கும்" }), value: "lactating" },
-    { label: lx({ en: "Pregnant", ta: "சினை மாடு" }), value: "pregnant" },
-    { label: lx({ en: "Dry", ta: "வறண்ட மாடு" }), value: "dry" },
-    { label: lx({ en: "Calf", ta: "கன்றுக்குட்டி" }), value: "calf" },
-    { label: lx({ en: "Other", ta: "மற்றவை" }), value: "other" },
-  ];
+  const CATEGORY_LABELS: Record<string, Record<string, string>> = {
+    lactating: { en: "Lactating", ta: "பால் கறக்கும்" },
+    pregnant: { en: "Pregnant", ta: "சினை மாடு" },
+    dry: { en: "Dry", ta: "வறண்ட மாடு" },
+    calf: { en: "Calf", ta: "கன்றுக்குட்டி" },
+    other: { en: "Other", ta: "மற்றவை" },
+  };
+
+  // Only built-in categories can be saved on an animal (see CategoryProvider),
+  // so custom ones are not offered here.
+  const categoryOptions = categories
+    .filter((c) => c.isDefault)
+    .map((c) => {
+      const translated = CATEGORY_LABELS[c.id];
+      const untouched = translated && translated.en === c.name;
+      return { label: untouched ? lx(translated) : c.name, value: c.id };
+    });
 
   const getShedLabel = (key: string) => shedOptions.find((s) => s.value === key)?.label ?? key;
   const getCategoryLabel = (key: string) => categoryOptions.find((c) => c.value === key)?.label ?? key;

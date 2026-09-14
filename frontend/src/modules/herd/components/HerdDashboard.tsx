@@ -7,7 +7,9 @@ import { useLanguage } from "@/context/LanguageContext";
 import { Animal } from "../../animals/models/Animal";
 import { useSheds, Shed, DEFAULT_SHEDS, DEFAULT_SHED_CAPACITY } from "../context/ShedProvider";
 import { resolveAnimalShed } from "../utils/shedAssignment";
+import { useCategories, DEFAULT_CATEGORIES } from "../context/CategoryProvider";
 import { ShedManagementModal } from "./ShedManagementModal";
+import { CategoryManagementModal } from "./CategoryManagementModal";
 
 interface HerdDashboardProps {
   activeTab: "by_shed" | "by_category";
@@ -33,10 +35,15 @@ export function HerdDashboard({
   const colors = useColors();
   const { language } = useLanguage();
   const { sheds: storedSheds } = useSheds();
+  const { categories: storedCategories } = useCategories();
 
   const [shedModalVisible, setShedModalVisible] = useState(false);
   const [shedModalAction, setShedModalAction] = useState<"list" | "create" | "edit">("list");
   const [targetShedId, setTargetShedId] = useState<string | null>(null);
+
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [categoryModalAction, setCategoryModalAction] = useState<"list" | "create" | "edit">("list");
+  const [targetCategoryId, setTargetCategoryId] = useState<string | null>(null);
 
   const lx = (r: Record<string, string>) => r[language] ?? r.en ?? "";
 
@@ -128,49 +135,75 @@ export function HerdDashboard({
     [sheds]
   );
 
-  // Process Categories
-  const categories = [
-    {
-      id: "lactating",
-      name: lx({ ta: "பால் கறப்பவை", te: "పాలు ఇచ్చేవి", hi: "दुधारू पशु", en: "Lactating" }),
-      desc: lx({ ta: "தற்போது பால் கறக்கும் மாடுகள்", en: "Animals that are currently giving milk" }),
-      color: "#7c3aed", // Purple
-      icon: "cow" as const,
-      count: animals.filter((a) => getAnimalCategory(a) === "lactating").length,
+  // Translated copy for the built-in categories, used until they are renamed.
+  const STANDARD_CATEGORIES: Record<string, { en: string; ta: string; te?: string; hi?: string; descEn: string; descTa: string }> = {
+    lactating: {
+      en: "Lactating",
+      ta: "பால் கறப்பவை",
+      te: "పాలు ఇచ్చేవి",
+      hi: "दुधारू पशु",
+      descEn: "Animals that are currently giving milk",
+      descTa: "தற்போது பால் கறக்கும் மாடுகள்",
     },
-    {
-      id: "pregnant",
-      name: lx({ ta: "சினை மாடுகள்", te: "గర్భం", hi: "गर्भवती पशु", en: "Pregnant" }),
-      desc: lx({ ta: "கர்ப்பமாக உள்ள மாடுகள்", en: "Pregnant animals" }),
-      color: "#ef4444", // Red
-      icon: "heart" as const,
-      count: animals.filter((a) => getAnimalCategory(a) === "pregnant").length,
+    pregnant: {
+      en: "Pregnant",
+      ta: "சினை மாடுகள்",
+      te: "గర్భం",
+      hi: "गर्भवती पशु",
+      descEn: "Pregnant animals",
+      descTa: "கர்ப்பமாக உள்ள மாடுகள்",
     },
-    {
-      id: "dry",
-      name: lx({ ta: "வறண்ட மாடுகள்", te: "పాలు ఇవ్వనివి", hi: "सूखे पशु", en: "Dry" }),
-      desc: lx({ ta: "பால் கறக்காத மாடுகள்", en: "Animals not giving milk" }),
-      color: "#2563eb", // Blue
-      icon: "water-off" as const,
-      count: animals.filter((a) => getAnimalCategory(a) === "dry").length,
+    dry: {
+      en: "Dry",
+      ta: "வறண்ட மாடுகள்",
+      te: "పాలు ఇవ్వనివి",
+      hi: "सूखे पशु",
+      descEn: "Animals not giving milk",
+      descTa: "பால் கறக்காத மாடுகள்",
     },
-    {
-      id: "calf",
-      name: lx({ ta: "கன்றுகள்", te: "దూడలు", hi: "बछड़े", en: "Calves" }),
-      desc: lx({ ta: "இளம் கன்றுக்குட்டிகள்", en: "Young animals (not weaned)" }),
-      color: "#ea580c", // Orange
-      icon: "baby-bottle" as const,
-      count: animals.filter((a) => getAnimalCategory(a) === "calf").length,
+    calf: {
+      en: "Calves",
+      ta: "கன்றுகள்",
+      te: "దూడలు",
+      hi: "बछड़े",
+      descEn: "Young animals (not weaned)",
+      descTa: "இளம் கன்றுக்குட்டிகள்",
     },
-    {
-      id: "other",
-      name: lx({ ta: "மற்றவை", te: "ఇతరాలు", hi: "अन्य", en: "Others" }),
-      desc: lx({ ta: "காளைகள், கிடேரிகள் மற்றும் சிகிச்சை பெறுபவை", en: "Bulls, sick, in treatment, heifers, etc." }),
-      color: "#4b5563", // Grey
-      icon: "dots-horizontal" as const,
-      count: animals.filter((a) => getAnimalCategory(a) === "other").length,
+    other: {
+      en: "Others",
+      ta: "மற்றவை",
+      te: "ఇతరాలు",
+      hi: "अन्य",
+      descEn: "Bulls, sick, in treatment, heifers, etc.",
+      descTa: "காளைகள், கிடேரிகள் மற்றும் சிகிச்சை பெறுபவை",
     },
-  ];
+  };
+
+  // Categories come from the category list, so create/rename/delete show up here
+  // immediately. Only built-in categories can hold animals today — see
+  // CategoryProvider for why.
+  const categories = React.useMemo(() => {
+    return storedCategories.map((category) => {
+      const seeded = DEFAULT_CATEGORIES.find((d) => d.id === category.id);
+      const standard = STANDARD_CATEGORIES[category.id];
+      const untouched = seeded && standard && seeded.name === category.name;
+
+      return {
+        id: category.id,
+        name: untouched
+          ? lx({ ta: standard.ta, te: standard.te ?? standard.en, hi: standard.hi ?? standard.en, en: standard.en })
+          : category.name,
+        desc: untouched
+          ? lx({ ta: standard.descTa, en: standard.descEn })
+          : category.desc || lx({ ta: "தனிப்பயன் வகை", en: "Custom category" }),
+        color: category.color,
+        icon: category.icon,
+        count: category.isDefault
+          ? animals.filter((a) => getAnimalCategory(a) === category.id).length
+          : 0,
+      };
+    });
+  }, [storedCategories, animals, language]);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -281,9 +314,18 @@ export function HerdDashboard({
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
               {lx({ ta: "விலங்கு நிலைமை", hi: "पशु स्थिति", en: "Animal Status" })}
             </Text>
-            <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
-              Total Animals: {animals.length}
-            </Text>
+            <Pressable
+              style={styles.addCategoryBtn}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setCategoryModalAction("create");
+                setTargetCategoryId(null);
+                setCategoryModalVisible(true);
+              }}
+            >
+              <Feather name="plus" size={14} color="#7c3aed" style={{ marginRight: 3 }} />
+              <Text style={styles.addCategoryText}>{lx({ en: "New Category", ta: "புதிய வகை" })}</Text>
+            </Pressable>
           </View>
 
           {/* Categories List */}
@@ -311,7 +353,7 @@ export function HerdDashboard({
                     ) : cat.icon === "baby-bottle" ? (
                       <MaterialCommunityIcons name="baby-bottle" size={22} color="#fff" />
                     ) : (
-                      <MaterialCommunityIcons name="dots-horizontal" size={22} color="#fff" />
+                      <MaterialCommunityIcons name={(cat.icon as any) || "dots-horizontal"} size={22} color="#fff" />
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
@@ -323,6 +365,18 @@ export function HerdDashboard({
                 </View>
                 <View style={styles.categoryRight}>
                   <Text style={[styles.categoryCount, { color: colors.foreground }]}>{cat.count}</Text>
+                  <Pressable
+                    style={styles.cardActionBtn}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setCategoryModalAction("edit");
+                      setTargetCategoryId(cat.id);
+                      setCategoryModalVisible(true);
+                    }}
+                    hitSlop={8}
+                  >
+                    <Feather name="edit-2" size={15} color={colors.mutedForeground} />
+                  </Pressable>
                   <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
                 </View>
               </Pressable>
@@ -394,6 +448,9 @@ export function HerdDashboard({
               style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setCategoryModalAction("list");
+                setTargetCategoryId(null);
+                setCategoryModalVisible(true);
                 onManageCategories();
               }}
             >
@@ -445,6 +502,13 @@ export function HerdDashboard({
         initialAction={shedModalAction}
         targetShedId={targetShedId}
       />
+
+      <CategoryManagementModal
+        visible={categoryModalVisible}
+        onClose={() => setCategoryModalVisible(false)}
+        initialAction={categoryModalAction}
+        targetCategoryId={targetCategoryId}
+      />
     </ScrollView>
   );
 }
@@ -484,6 +548,19 @@ const styles = StyleSheet.create({
   },
   addShedText: {
     color: "#16a34a",
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
+  },
+  addCategoryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#7c3aed15",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  addCategoryText: {
+    color: "#7c3aed",
     fontSize: 12,
     fontFamily: "Inter_700Bold",
   },

@@ -14,7 +14,6 @@ interface HerdHeaderProps {
   activeFarm?: Farm | null;
   farms: Farm[];
   onSwitchFarm: (farmId: string) => void;
-  onAddAnimalPress: () => void;
   onNotificationPress: () => void;
 }
 
@@ -23,7 +22,6 @@ export function HerdHeader({
   activeFarm,
   farms,
   onSwitchFarm,
-  onAddAnimalPress,
   onNotificationPress,
 }: HerdHeaderProps) {
   const colors = useColors();
@@ -56,7 +54,7 @@ export function HerdHeader({
 
   return (
     <View style={[styles.header, { zIndex: 1000 }]}>
-      {/* Top Row: Bell, Title, Add Button */}
+      {/* Top Row: Bell, Title. Animals are added from inside a shed, not here. */}
       <View style={styles.topRow}>
         <Pressable onPress={onNotificationPress} style={styles.bellBtn} hitSlop={12}>
           <Feather name="bell" size={22} color={colors.foreground} />
@@ -67,17 +65,7 @@ export function HerdHeader({
 
         <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
 
-        <Pressable
-          style={[styles.addBtn, { backgroundColor: "#16a34a" }]}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onAddAnimalPress();
-          }}
-          hitSlop={8}
-        >
-          <Feather name="plus" size={16} color="#fff" style={{ marginRight: 4 }} />
-          <Text style={styles.addBtnText}>Add Animal</Text>
-        </Pressable>
+        <View style={styles.topRowSpacer} />
       </View>
 
       {/* Second Row: Farm Selector Dropdown */}
@@ -211,22 +199,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: "Inter_700Bold",
   },
-  addBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 18,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-  },
-  addBtnText: {
-    color: "#fff",
-    fontSize: 12,
-    fontFamily: "Inter_700Bold",
+  // Balances the bell so the title stays centred.
+  topRowSpacer: {
+    width: 34,
   },
   dropdownContainer: {
     marginTop: 10,

@@ -18,6 +18,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { FarmProvider, useFarmContext } from "../src/modules/farms/context/FarmProvider";
 import { AnimalProvider } from "../src/modules/animals/context/AnimalProvider";
 import { ShedProvider } from "../src/modules/herd/context/ShedProvider";
+import { CategoryProvider } from "../src/modules/herd/context/CategoryProvider";
 import { MilkProvider } from "../src/modules/milk/context/MilkProvider";
 import { HealthProvider } from "../src/modules/health/context/HealthProvider";
 import { BreedingProvider } from "../src/modules/breeding/context/BreedingProvider";
@@ -126,6 +127,7 @@ export default function RootLayout() {
               <FarmProvider>
                 <AnimalProvider>
                   <ShedProvider>
+                   <CategoryProvider>
                     <MilkProvider>
                       <HealthProvider>
                         <BreedingProvider>
@@ -145,6 +147,7 @@ export default function RootLayout() {
                         </BreedingProvider>
                       </HealthProvider>
                     </MilkProvider>
+                   </CategoryProvider>
                   </ShedProvider>
                 </AnimalProvider>
               </FarmProvider>

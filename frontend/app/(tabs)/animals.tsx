@@ -10,6 +10,7 @@ import {
   Alert,
   Animated,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -21,8 +22,25 @@ import { useFarmer } from "@/context/FarmerContext";
 import { useAnimals } from "@/src/modules/animals/hooks/useAnimals";
 import { Animal } from "@/src/modules/animals/models/Animal";
 import { useHealth } from "@/src/modules/health/hooks/useHealth";
+import { useMilk } from "@/src/modules/milk/hooks/useMilk";
 import { useSheds } from "@/src/modules/herd/context/ShedProvider";
 import { resolveAnimalShed } from "@/src/modules/herd/utils/shedAssignment";
+import { HerdFilters } from "@/src/modules/herd/components/HerdFilters";
+import AddAnimalModal from "@/components/AddAnimalModal";
+import MilkLogModal from "@/components/MilkLogModal";
+import HealthNoteModal from "@/components/HealthNoteModal";
+import CelebrationOverlay from "@/components/CelebrationOverlay";
+
+type TabKey = "animals" | "milk" | "feed" | "health" | "breeding";
+
+const STATUS_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "lactating", label: "Lactating" },
+  { key: "pregnant", label: "Pregnant" },
+  { key: "dry", label: "Dry" },
+  { key: "calf", label: "Calves" },
+  { key: "attention", label: "Needs attention" },
+];
 
 // Helper: resolve the display status label and colour from an Animal model
 function getAnimalStatusDisplay(animal: Animal): { label: string; color: string } {
@@ -40,16 +58,25 @@ export default function AnimalsScreen() {
   const { activeFarm, farms, switchFarm } = useFarm();
   const { farmer } = useFarmer();
   const { animals: allAnimals, loading, error } = useAnimals();
-  const { healthEvents, loading: healthLoading, error: healthError } = useHealth();
+  const { healthEvents, loading: healthLoading, error: healthError, createEvent } = useHealth();
+  const { milkEntries, loading: milkLoading, error: milkError } = useMilk();
   const { sheds } = useSheds();
   const params = useLocalSearchParams();
   const shedId = params.shedId as string | undefined;
   const shedName = params.shedName as string;
 
-  const [activeTab, setActiveTab] = useState<"animals" | "feed" | "health" | "breeding">("animals");
+  const [activeTab, setActiveTab] = useState<TabKey>("animals");
   const [searchQuery, setSearchQuery] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownAnim = useRef(new Animated.Value(0)).current;
+
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [addVisible, setAddVisible] = useState(false);
+  const [milkAnimal, setMilkAnimal] = useState<Animal | null>(null);
+  const [optionsAnimal, setOptionsAnimal] = useState<Animal | null>(null);
+  const [healthNoteAnimal, setHealthNoteAnimal] = useState<Animal | null>(null);
+  const [celebration, setCelebration] = useState(false);
 
   // Initials for avatar
   const initials = farmer?.name
@@ -80,23 +107,51 @@ export default function AnimalsScreen() {
     toggleDropdown();
   };
 
+  const handleLogMilk = (animal: Animal) => {
+    setOptionsAnimal(null);
+    setMilkAnimal(animal);
+  };
+
+  const handleSelectHealthNote = (description: string) => {
+    const animal = healthNoteAnimal;
+    setHealthNoteAnimal(null);
+    if (!animal) return;
+    createEvent({
+      animalId: Number(animal.id),
+      date: new Date().toISOString(),
+      type: "observation",
+      description,
+    }).catch((err) => {
+      console.error("[Animals] Failed to create health event:", err);
+      Alert.alert("Error", "Could not save the health note. Please try again.");
+    });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
   // Step 1: filter to this shed's animals from the already-loaded context
   const shedAnimals: Animal[] = useMemo(() => {
     if (!shedId) return allAnimals;
     return allAnimals.filter((a) => resolveAnimalShed(a, sheds) === shedId);
   }, [allAnimals, shedId, sheds]);
 
-  // Step 2: further filter by search query
+  // Step 2: further filter by search query and the selected status filter
   const filteredAnimals: Animal[] = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    if (!q) return shedAnimals;
-    return shedAnimals.filter(
-      (a) =>
+    return shedAnimals.filter((a) => {
+      const matchesQuery =
+        !q ||
         a.name.toLowerCase().includes(q) ||
         (a.tagNumber ?? "").toLowerCase().includes(q) ||
-        (a.breed ?? "").toLowerCase().includes(q)
-    );
-  }, [shedAnimals, searchQuery]);
+        (a.breed ?? "").toLowerCase().includes(q);
+      if (!matchesQuery) return false;
+
+      if (statusFilter === "all") return true;
+      if (statusFilter === "attention") return a.healthStatus !== "healthy";
+      if (statusFilter === "calf") return a.type === "calf" || a.status === "calf";
+      if (statusFilter === "pregnant") return a.status === "pregnant" || a.isPregnant;
+      return a.status === statusFilter;
+    });
+  }, [shedAnimals, searchQuery, statusFilter]);
 
   // Step 3: compute summary counts from the shed's animals (not filtered)
   const summary = useMemo(() => ({
@@ -112,6 +167,40 @@ export default function AnimalsScreen() {
     const shedAnimalIds = new Set(shedAnimals.map((a) => Number(a.id)));
     return healthEvents.filter((e) => !shedId || shedAnimalIds.has(Number(e.animalId)));
   }, [healthEvents, shedAnimals, shedId]);
+
+  // Step 4b: milk entries for this shed's animals, newest first
+  const shedMilkEntries = useMemo(() => {
+    const shedAnimalIds = new Set(shedAnimals.map((a) => Number(a.id)));
+    return milkEntries
+      .filter((e) => !shedId || shedAnimalIds.has(Number(e.animalId)))
+      .slice()
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [milkEntries, shedAnimals, shedId]);
+
+  const filteredMilkEntries = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    if (!q) return shedMilkEntries;
+    return shedMilkEntries.filter((e) => {
+      const animal = allAnimals.find((a) => Number(a.id) === Number(e.animalId));
+      return (
+        (animal?.name ?? "").toLowerCase().includes(q) ||
+        (animal?.tagNumber ?? "").toLowerCase().includes(q) ||
+        e.session.toLowerCase().includes(q)
+      );
+    });
+  }, [shedMilkEntries, searchQuery, allAnimals]);
+
+  // Today's yield across the shed, split by session
+  const milkSummary = useMemo(() => {
+    const today = new Date().toDateString();
+    const todays = shedMilkEntries.filter((e) => new Date(e.date).toDateString() === today);
+    return {
+      morning: todays.filter((e) => e.session === "morning").reduce((s, e) => s + e.quantity, 0),
+      evening: todays.filter((e) => e.session === "evening").reduce((s, e) => s + e.quantity, 0),
+      total: todays.reduce((s, e) => s + e.quantity, 0),
+      count: todays.length,
+    };
+  }, [shedMilkEntries]);
 
   // Step 5: search/filter health alerts
   const filteredHealthEvents = useMemo(() => {
@@ -146,16 +235,21 @@ export default function AnimalsScreen() {
         <View style={styles.headerRight}>
           <Pressable
             onPress={() => {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-              Alert.alert("Alerts", "You have 3 notifications regarding breeding cycle updates.");
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setSearchQuery("");
+              setActiveTab("health");
             }}
             style={styles.bellBtn}
             hitSlop={12}
           >
             <Feather name="bell" size={22} color={colors.foreground} />
-            <View style={[styles.badge, { backgroundColor: "#ef4444" }]}>
-              <Text style={styles.badgeText}>3</Text>
-            </View>
+            {shedHealthEvents.length > 0 && (
+              <View style={[styles.badge, { backgroundColor: "#ef4444" }]}>
+                <Text style={styles.badgeText}>
+                  {shedHealthEvents.length > 9 ? "9+" : shedHealthEvents.length}
+                </Text>
+              </View>
+            )}
           </Pressable>
 
           <Pressable
@@ -271,7 +365,7 @@ export default function AnimalsScreen() {
           style={[styles.addBtn, { backgroundColor: "#16a34a" }]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            Alert.alert("Add Animal", "Opening Add Animal Modal...");
+            setAddVisible(true);
           }}
           hitSlop={8}
         >
@@ -281,9 +375,15 @@ export default function AnimalsScreen() {
       </View>
 
       {/* Tabs */}
-      <View style={[styles.tabsContainer, { borderBottomColor: colors.border }]}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={[styles.tabsScroll, { borderBottomColor: colors.border }]}
+        contentContainerStyle={styles.tabsContainer}
+      >
         {[
           { key: "animals", label: "Animals", icon: "cow" },
+          { key: "milk", label: "Milk", icon: "cup-water" },
           { key: "feed", label: "Feed", icon: "grain" },
           { key: "health", label: "Health", icon: "heart-pulse" },
           { key: "breeding", label: "Breeding", icon: "cards-playing-heart-multiple" },
@@ -298,7 +398,8 @@ export default function AnimalsScreen() {
               ]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setActiveTab(tab.key as any);
+                setSearchQuery("");
+                setActiveTab(tab.key as TabKey);
               }}
             >
               <View style={styles.tabContent}>
@@ -323,21 +424,13 @@ export default function AnimalsScreen() {
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* Scrollable Content */}
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Animal Summary Section */}
         <View style={styles.summaryHeader}>
           <Text style={[styles.summaryTitle, { color: colors.foreground }]}>Animal Summary</Text>
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              Alert.alert("Insights", "Navigating to Animal Insights...");
-            }}
-          >
-            <Text style={[styles.insightsLink, { color: "#16a34a" }]}>View Insights &gt;</Text>
-          </Pressable>
         </View>
 
         <View style={styles.summaryContainer}>
@@ -404,15 +497,33 @@ export default function AnimalsScreen() {
                 )}
               </View>
               <Pressable
-                style={[styles.filterBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                style={[
+                  styles.filterBtn,
+                  {
+                    backgroundColor: filtersOpen || statusFilter !== "all" ? "#16a34a15" : colors.card,
+                    borderColor: filtersOpen || statusFilter !== "all" ? "#16a34a" : colors.border,
+                  },
+                ]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Alert.alert("Filters", "Filters clicked");
+                  setFiltersOpen((open) => !open);
                 }}
               >
-                <Feather name="sliders" size={18} color={colors.foreground} />
+                <Feather
+                  name="sliders"
+                  size={18}
+                  color={filtersOpen || statusFilter !== "all" ? "#16a34a" : colors.foreground}
+                />
               </Pressable>
             </View>
+
+            {filtersOpen && (
+              <HerdFilters
+                options={STATUS_FILTERS}
+                selectedKey={statusFilter}
+                onSelect={setStatusFilter}
+              />
+            )}
 
             {/* Animals List */}
             {!loading && !error && (
@@ -513,7 +624,7 @@ export default function AnimalsScreen() {
                             style={styles.actionIcon}
                             onPress={() => {
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                              Alert.alert("More Options", `Options for ${animal.name}`);
+                              setOptionsAnimal(animal);
                             }}
                             hitSlop={8}
                           >
@@ -541,18 +652,181 @@ export default function AnimalsScreen() {
                   </View>
                 )}
 
-                {filteredAnimals.length > 0 && (
+                {/* Only offer "view all" while the list is narrowed to one shed */}
+                {filteredAnimals.length > 0 && shedId && (
                   <Pressable
                     style={styles.viewAllBtn}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      Alert.alert("All Animals", "Navigating to View All Animals...");
+                      router.push("/animals");
                     }}
                   >
                     <Text style={styles.viewAllText}>View All Animals &gt;</Text>
                   </Pressable>
                 )}
               </View>
+            )}
+          </>
+        )}
+
+        {/* --- MILK TAB CONTENT --- */}
+        {activeTab === "milk" && (
+          <>
+            {milkLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading milk records...</Text>
+              </View>
+            )}
+
+            {!milkLoading && milkError && (
+              <View style={styles.emptyContainer}>
+                <Feather name="alert-circle" size={48} color={colors.destructive} />
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Failed to load milk records.</Text>
+              </View>
+            )}
+
+            {!milkLoading && !milkError && (
+              <>
+                {/* Today's yield for this shed */}
+                <View style={[styles.milkTotalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={styles.milkTotalMain}>
+                    <Text style={[styles.milkTotalValue, { color: "#0ea5e9" }]}>
+                      {milkSummary.total.toFixed(1)} L
+                    </Text>
+                    <Text style={[styles.milkTotalLabel, { color: colors.mutedForeground }]}>
+                      Today • {milkSummary.count} {milkSummary.count === 1 ? "entry" : "entries"}
+                    </Text>
+                  </View>
+                  <View style={styles.milkSessionSplit}>
+                    <View style={styles.milkSessionCol}>
+                      <Feather name="sunrise" size={14} color="#f59e0b" />
+                      <Text style={[styles.milkSessionValue, { color: colors.foreground }]}>
+                        {milkSummary.morning.toFixed(1)} L
+                      </Text>
+                      <Text style={[styles.milkSessionLabel, { color: colors.mutedForeground }]}>Morning</Text>
+                    </View>
+                    <View style={styles.milkSessionCol}>
+                      <Feather name="sunset" size={14} color="#6366f1" />
+                      <Text style={[styles.milkSessionValue, { color: colors.foreground }]}>
+                        {milkSummary.evening.toFixed(1)} L
+                      </Text>
+                      <Text style={[styles.milkSessionLabel, { color: colors.mutedForeground }]}>Evening</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.listSectionHeader}>
+                  <Text style={[styles.listTitle, { color: colors.foreground }]}>
+                    Milk Records ({filteredMilkEntries.length})
+                  </Text>
+                  {shedAnimals.length > 0 && (
+                    <Pressable
+                      style={styles.logMilkBtn}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setActiveTab("animals");
+                      }}
+                      hitSlop={8}
+                    >
+                      <Feather name="plus" size={14} color="#16a34a" style={{ marginRight: 3 }} />
+                      <Text style={styles.logMilkText}>Log milk</Text>
+                    </Pressable>
+                  )}
+                </View>
+
+                {/* Search Row */}
+                <View style={styles.searchRow}>
+                  <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Feather name="search" size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+                    <TextInput
+                      style={[styles.searchInput, { color: colors.foreground }]}
+                      placeholder="Search milk records..."
+                      placeholderTextColor={colors.mutedForeground}
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                    />
+                    {searchQuery.length > 0 && (
+                      <Pressable onPress={() => setSearchQuery("")}>
+                        <Feather name="x" size={16} color={colors.mutedForeground} />
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.animalsList}>
+                  {filteredMilkEntries.map((entry) => {
+                    const animal = allAnimals.find((a) => Number(a.id) === Number(entry.animalId));
+                    const animalName = animal ? animal.name : `Animal #${entry.animalId}`;
+                    const isMorning = entry.session === "morning";
+                    const sessionColor = isMorning ? "#f59e0b" : "#6366f1";
+
+                    return (
+                      <Pressable
+                        key={entry.id}
+                        style={[styles.animalCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          router.push(`/animal/${entry.animalId}`);
+                        }}
+                      >
+                        <View style={[styles.healthEntryIcon, { backgroundColor: sessionColor + "15" }]}>
+                          <Feather name={isMorning ? "sunrise" : "sunset"} size={16} color={sessionColor} />
+                        </View>
+
+                        <View style={styles.animalInfo}>
+                          <View style={styles.nameRow}>
+                            <Text style={[styles.animalName, { color: colors.foreground }]} numberOfLines={1}>
+                              {animalName}
+                            </Text>
+                            <View style={[styles.statusBadge, { backgroundColor: sessionColor + "15" }]}>
+                              <Text style={[styles.statusText, { color: sessionColor }]}>
+                                {isMorning ? "Morning" : "Evening"}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <Text style={[styles.animalBreed, { color: colors.mutedForeground }]}>
+                            {new Date(entry.date).toLocaleDateString(undefined, {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                            {entry.fat !== null ? ` • Fat ${entry.fat.toFixed(1)}%` : ""}
+                            {entry.snf !== null ? ` • SNF ${entry.snf.toFixed(1)}%` : ""}
+                          </Text>
+                        </View>
+
+                        <View style={styles.animalRight}>
+                          <Text style={[styles.rightMilkQty, { color: "#0ea5e9" }]}>
+                            {entry.quantity.toFixed(1)} L
+                          </Text>
+                          {animal && (
+                            <Pressable
+                              style={styles.actionIcon}
+                              onPress={() => handleLogMilk(animal)}
+                              hitSlop={8}
+                            >
+                              <Feather name="plus-circle" size={18} color={colors.mutedForeground} />
+                            </Pressable>
+                          )}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+
+                  {filteredMilkEntries.length === 0 && (
+                    <View style={styles.emptyContainer}>
+                      <MaterialCommunityIcons name="cup-water" size={48} color={colors.border} />
+                      <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                        {searchQuery.length > 0
+                          ? "No matching milk records found"
+                          : "No milk records for this shed yet"}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </>
             )}
           </>
         )}
@@ -715,6 +989,102 @@ export default function AnimalsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Per-animal actions */}
+      <Modal
+        visible={optionsAnimal !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOptionsAnimal(null)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setOptionsAnimal(null)}>
+          <Pressable
+            style={[
+              styles.sheet,
+              { backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 16) + 8 },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
+              {optionsAnimal?.name}
+            </Text>
+
+            {[
+              {
+                key: "details",
+                label: "View animal details",
+                icon: "user" as const,
+                color: "#16a34a",
+                onPress: () => {
+                  const id = optionsAnimal?.id;
+                  setOptionsAnimal(null);
+                  if (id) router.push(`/animal/${id}`);
+                },
+              },
+              {
+                key: "milk",
+                label: "Log milk",
+                icon: "droplet" as const,
+                color: "#0ea5e9",
+                onPress: () => optionsAnimal && handleLogMilk(optionsAnimal),
+              },
+              {
+                key: "health",
+                label: "Add health note",
+                icon: "heart" as const,
+                color: "#ef4444",
+                onPress: () => {
+                  const animal = optionsAnimal;
+                  setOptionsAnimal(null);
+                  setHealthNoteAnimal(animal);
+                },
+              },
+            ].map((action) => (
+              <Pressable
+                key={action.key}
+                style={styles.sheetRow}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  action.onPress();
+                }}
+              >
+                <View style={[styles.sheetIconBg, { backgroundColor: action.color + "15" }]}>
+                  <Feather name={action.icon} size={17} color={action.color} />
+                </View>
+                <Text style={[styles.sheetRowText, { color: colors.foreground }]}>{action.label}</Text>
+                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <AddAnimalModal
+        visible={addVisible}
+        onClose={() => setAddVisible(false)}
+        initialShedId={shedId ?? null}
+      />
+
+      <MilkLogModal
+        visible={milkAnimal !== null}
+        animal={milkAnimal}
+        onClose={() => setMilkAnimal(null)}
+        onSuccess={() => setCelebration(true)}
+      />
+
+      <HealthNoteModal
+        visible={healthNoteAnimal !== null}
+        onClose={() => setHealthNoteAnimal(null)}
+        onSelect={handleSelectHealthNote}
+      />
+
+      <CelebrationOverlay
+        visible={celebration}
+        message="Milk logged successfully!"
+        messageTamil="பால் பதிவு ஆனது!"
+        onHide={() => setCelebration(false)}
+      />
     </View>
   );
 }
@@ -872,15 +1242,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_700Bold",
   },
-  tabsContainer: {
-    flexDirection: "row",
+  tabsScroll: {
     marginTop: 14,
     borderBottomWidth: 1,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  tabsContainer: {
+    flexDirection: "row",
     paddingHorizontal: 16,
   },
   tabButton: {
-    flex: 1,
     paddingVertical: 10,
+    paddingHorizontal: 12,
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
     alignItems: "center",
@@ -946,12 +1320,107 @@ const styles = StyleSheet.create({
     lineHeight: 11,
   },
   listSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     marginTop: 20,
   },
   listTitle: {
     fontSize: 15,
     fontFamily: "Inter_700Bold",
+  },
+  logMilkBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#16a34a15",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  logMilkText: {
+    color: "#16a34a",
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
+  },
+  milkTotalCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  milkTotalMain: {
+    flex: 1,
+  },
+  milkTotalValue: {
+    fontSize: 24,
+    fontFamily: "Inter_700Bold",
+  },
+  milkTotalLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    marginTop: 2,
+  },
+  milkSessionSplit: {
+    flexDirection: "row",
+    gap: 18,
+  },
+  milkSessionCol: {
+    alignItems: "center",
+    gap: 2,
+  },
+  milkSessionValue: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+  },
+  milkSessionLabel: {
+    fontSize: 10,
+    fontFamily: "Inter_500Medium",
+  },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 10,
+    paddingHorizontal: 16,
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 8,
+  },
+  sheetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+  },
+  sheetIconBg: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetRowText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
   },
   searchRow: {
     flexDirection: "row",
