@@ -133,7 +133,7 @@ export function ShedManagementModal({
           onPress: async () => {
             try {
               setSubmitting(true);
-              await deleteShed(shed.id, nextShed?.id ?? "shed_1");
+              await deleteShed(shed.id, nextShed?.id);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (err: any) {
               Alert.alert(lx({ en: "Error", ta: "பிழை" }), err.message || "Failed to delete shed");

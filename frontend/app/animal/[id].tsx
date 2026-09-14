@@ -24,6 +24,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
 import { useHealth } from "../../src/modules/health/hooks/useHealth";
 import { useMilk } from "../../src/modules/milk/hooks/useMilk";
+import { useCategories, DEFAULT_CATEGORIES } from "../../src/modules/herd/context/CategoryProvider";
 import { MilkEntry } from "../../src/modules/milk/models/MilkEntry";
 import { useFarmer } from "@/context/FarmerContext";
 import Svg, { Circle, G } from "react-native-svg";
@@ -128,6 +129,7 @@ export default function AnimalDetail() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { animals, updateAnimal, removeAnimal } = useAnimals();
+  const { categories } = useCategories();
   const { accessToken } = useFarmer();
   const { healthEvents, createEvent } = useHealth();
   const { milkEntries: rawMilkEntries, removeMilk } = useMilk();
@@ -353,9 +355,37 @@ export default function AnimalDetail() {
     };
   }, [animalHealth]);
 
-  const currentStatus = animal?.status || "lactating";
-  const groupName = GROUP_NAMES[currentStatus]?.[language as "en" | "ta"] || GROUP_NAMES[currentStatus]?.en || "Lactating Cows";
-  const animalsInGroupCount = animals.filter((a) => (a.status || "lactating") === currentStatus).length;
+  // Animals with no category yet fall into the farm's first one.
+  const fallbackCategoryId = categories[0]?.id ?? "lactating";
+  const currentStatus = animal?.status || fallbackCategoryId;
+
+  // The farm's own categories drive the herd group UI; seeded ones keep their
+  // translated copy until the farmer renames them.
+  const groupOptions = useMemo(
+    () =>
+      categories.map((category) => {
+        const seeded = DEFAULT_CATEGORIES.find((d) => d.id === category.id);
+        const translated = GROUP_NAMES[category.id];
+        const untouched = seeded && translated && seeded.name === category.name;
+        const style = GROUP_STYLE_MAP[category.id];
+
+        return {
+          status: category.id,
+          name: untouched ? translated[language === "ta" ? "ta" : "en"] : category.name,
+          desc: category.desc ?? "",
+          icon: style?.icon ?? category.icon ?? "cow",
+          iconColor: style?.color ?? category.color,
+          badgeBg: style?.bg ?? category.color + "15",
+        };
+      }),
+    [categories, language]
+  );
+
+  const groupName =
+    groupOptions.find((o) => o.status === currentStatus)?.name ?? currentStatus;
+  const animalsInGroupCount = animals.filter(
+    (a) => (a.status || fallbackCategoryId) === currentStatus
+  ).length;
 
   const setHerdStatus = async (status: any) => {
     if (!animal) return;
@@ -1664,13 +1694,7 @@ export default function AnimalDetail() {
               </View>
 
               <View style={styles.sheetOptions}>
-                {([
-                  { status: "lactating", name: isTa ? "பால் கறப்பவை (Lactating)" : "Lactating Cows", desc: isTa ? "தினசரி பால் தரும் மாடுகள்" : "Cows currently being milked", icon: "water-outline", iconColor: colors.accent, badgeBg: "#e0f2fe" },
-                  { status: "pregnant", name: isTa ? "சினை மாடுகள் (Pregnant)" : "Pregnant Cows", desc: isTa ? "சினை பருவம் உறுதி செய்யப்பட்டவை" : "Cows confirmed pregnant", icon: "heart-outline", iconColor: "#ef4444", badgeBg: "#fef2f2" },
-                  { status: "dry", name: isTa ? "வறண்ட மாடுகள் (Dry)" : "Dry Cows", desc: isTa ? "தற்போது கறவை தற்காலிகமாக நிறுத்தப்பட்டவை" : "Cows not producing milk currently", icon: "weather-sunny", iconColor: "#f59e0b", badgeBg: "#fff7ed" },
-                  { status: "calf", name: isTa ? "கன்றுகள் (Calves)" : "Calves", desc: isTa ? "இளம் மற்றும் சிறிய கன்றுகள்" : "Young calves and heifers", icon: "baby-carriage", iconColor: colors.primary, badgeBg: "#eafaf1" },
-                  { status: "other", name: isTa ? "மற்றவை (Other)" : "Others", desc: isTa ? "காளைகள் அல்லது மற்ற மாடுகள்" : "Bulls or other categories", icon: "dots-horizontal", iconColor: colors.mutedForeground, badgeBg: colors.muted },
-                ] as const).map((opt) => {
+                {groupOptions.map((opt) => {
                   const isSelected = currentStatus === opt.status;
                   return (
                     <Pressable

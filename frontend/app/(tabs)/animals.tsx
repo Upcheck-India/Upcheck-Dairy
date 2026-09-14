@@ -24,6 +24,7 @@ import { Animal } from "@/src/modules/animals/models/Animal";
 import { useHealth } from "@/src/modules/health/hooks/useHealth";
 import { useMilk } from "@/src/modules/milk/hooks/useMilk";
 import { useSheds } from "@/src/modules/herd/context/ShedProvider";
+import { useCategories, AnimalCategory } from "@/src/modules/herd/context/CategoryProvider";
 import { resolveAnimalShed } from "@/src/modules/herd/utils/shedAssignment";
 import { HerdFilters } from "@/src/modules/herd/components/HerdFilters";
 import AddAnimalModal from "@/components/AddAnimalModal";
@@ -33,23 +34,29 @@ import CelebrationOverlay from "@/components/CelebrationOverlay";
 
 type TabKey = "animals" | "milk" | "feed" | "health" | "breeding";
 
-const STATUS_FILTERS = [
-  { key: "all", label: "All" },
-  { key: "lactating", label: "Lactating" },
-  { key: "pregnant", label: "Pregnant" },
-  { key: "dry", label: "Dry" },
-  { key: "calf", label: "Calves" },
-  { key: "attention", label: "Needs attention" },
-];
+const BUILT_IN_STATUS_DISPLAY: Record<string, { label: string; color: string }> = {
+  lactating: { label: "Lactating", color: "#22c55e" },
+  pregnant: { label: "Pregnant", color: "#ef4444" },
+  dry: { label: "Dry", color: "#a855f7" },
+  calf: { label: "Calf", color: "#0ea5e9" },
+  other: { label: "Other", color: "#64748b" },
+};
 
-// Helper: resolve the display status label and colour from an Animal model
-function getAnimalStatusDisplay(animal: Animal): { label: string; color: string } {
+// Helper: resolve the display status label and colour, falling back to the farm's
+// own categories so custom ones do not all show up as "Other".
+function getAnimalStatusDisplay(
+  animal: Animal,
+  categories: AnimalCategory[]
+): { label: string; color: string } {
   const s = animal.status;
-  if (s === "lactating") return { label: "Lactating", color: "#22c55e" };
-  if (s === "pregnant") return { label: "Pregnant", color: "#ef4444" };
-  if (s === "dry") return { label: "Dry", color: "#a855f7" };
-  if (s === "calf" || animal.type === "calf") return { label: "Calf", color: "#0ea5e9" };
-  return { label: "Other", color: "#64748b" };
+  const category = s ? categories.find((c) => c.id === s) : undefined;
+  const builtIn = s ? BUILT_IN_STATUS_DISPLAY[s] : undefined;
+
+  // Built-in categories keep their familiar colour even after a rename.
+  if (category) return { label: category.name, color: builtIn?.color ?? category.color };
+  if (builtIn) return builtIn;
+  if (animal.type === "calf") return BUILT_IN_STATUS_DISPLAY.calf;
+  return BUILT_IN_STATUS_DISPLAY.other;
 }
 
 export default function AnimalsScreen() {
@@ -61,6 +68,7 @@ export default function AnimalsScreen() {
   const { healthEvents, loading: healthLoading, error: healthError, createEvent } = useHealth();
   const { milkEntries, loading: milkLoading, error: milkError } = useMilk();
   const { sheds } = useSheds();
+  const { categories } = useCategories();
   const params = useLocalSearchParams();
   const shedId = params.shedId as string | undefined;
   const shedName = params.shedName as string;
@@ -133,6 +141,16 @@ export default function AnimalsScreen() {
     if (!shedId) return allAnimals;
     return allAnimals.filter((a) => resolveAnimalShed(a, sheds) === shedId);
   }, [allAnimals, shedId, sheds]);
+
+  // Filter chips follow the farm's categories, so custom ones are filterable too.
+  const statusFilters = useMemo(
+    () => [
+      { key: "all", label: "All" },
+      ...categories.map((c) => ({ key: c.id, label: c.name })),
+      { key: "attention", label: "Needs attention" },
+    ],
+    [categories]
+  );
 
   // Step 2: further filter by search query and the selected status filter
   const filteredAnimals: Animal[] = useMemo(() => {
@@ -519,7 +537,7 @@ export default function AnimalsScreen() {
 
             {filtersOpen && (
               <HerdFilters
-                options={STATUS_FILTERS}
+                options={statusFilters}
                 selectedKey={statusFilter}
                 onSelect={setStatusFilter}
               />
@@ -529,7 +547,7 @@ export default function AnimalsScreen() {
             {!loading && !error && (
               <View style={styles.animalsList}>
                 {filteredAnimals.map((animal) => {
-                  const { label: statusLabel, color: statusColor } = getAnimalStatusDisplay(animal);
+                  const { label: statusLabel, color: statusColor } = getAnimalStatusDisplay(animal, categories);
                   const milkQty = animal.lastMilkEntry
                     ? `${animal.lastMilkEntry.quantity.toFixed(1)} L`
                     : "--";

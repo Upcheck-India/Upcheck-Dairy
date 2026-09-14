@@ -48,8 +48,8 @@ export function HerdDashboard({
   const lx = (r: Record<string, string>) => r[language] ?? r.en ?? "";
 
   // Helper to resolve an animal's category
-  const getAnimalCategory = (animal: Animal): "lactating" | "pregnant" | "dry" | "calf" | "other" => {
-    if (animal.status) return animal.status as any;
+  const getAnimalCategory = (animal: Animal): string => {
+    if (animal.status) return animal.status;
     if (animal.type === "calf") return "calf";
     if (animal.isPregnant) return "pregnant";
     
@@ -180,8 +180,7 @@ export function HerdDashboard({
   };
 
   // Categories come from the category list, so create/rename/delete show up here
-  // immediately. Only built-in categories can hold animals today — see
-  // CategoryProvider for why.
+  // immediately.
   const categories = React.useMemo(() => {
     return storedCategories.map((category) => {
       const seeded = DEFAULT_CATEGORIES.find((d) => d.id === category.id);
@@ -198,9 +197,7 @@ export function HerdDashboard({
           : category.desc || lx({ ta: "தனிப்பயன் வகை", en: "Custom category" }),
         color: category.color,
         icon: category.icon,
-        count: category.isDefault
-          ? animals.filter((a) => getAnimalCategory(a) === category.id).length
-          : 0,
+        count: animals.filter((a) => getAnimalCategory(a) === category.id).length,
       };
     });
   }, [storedCategories, animals, language]);

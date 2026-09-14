@@ -120,9 +120,8 @@ export default function AddAnimalModal({ visible, onClose, initialShedId = null 
 
   // Falls back through the categories that still exist so a deleted one is never preselected.
   const defaultCategoryFor = (animalType: "cow" | "buffalo" | "calf") => {
-    const assignable = categories.filter((c) => c.isDefault);
     const preferred = animalType === "calf" ? "calf" : "lactating";
-    return assignable.find((c) => c.id === preferred)?.id ?? assignable[0]?.id ?? preferred;
+    return categories.find((c) => c.id === preferred)?.id ?? categories[0]?.id ?? preferred;
   };
 
   // Step state
@@ -308,15 +307,11 @@ export default function AddAnimalModal({ visible, onClose, initialShedId = null 
     other: { en: "Other", ta: "மற்றவை" },
   };
 
-  // Only built-in categories can be saved on an animal (see CategoryProvider),
-  // so custom ones are not offered here.
-  const categoryOptions = categories
-    .filter((c) => c.isDefault)
-    .map((c) => {
-      const translated = CATEGORY_LABELS[c.id];
-      const untouched = translated && translated.en === c.name;
-      return { label: untouched ? lx(translated) : c.name, value: c.id };
-    });
+  const categoryOptions = categories.map((c) => {
+    const translated = CATEGORY_LABELS[c.id];
+    const untouched = translated && translated.en === c.name;
+    return { label: untouched ? lx(translated) : c.name, value: c.id };
+  });
 
   const getShedLabel = (key: string) => shedOptions.find((s) => s.value === key)?.label ?? key;
   const getCategoryLabel = (key: string) => categoryOptions.find((c) => c.value === key)?.label ?? key;

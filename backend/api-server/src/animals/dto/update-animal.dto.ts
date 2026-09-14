@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsNumber, IsBoolean, IsDateString } from "class-validator";
+import { IsString, IsEnum, IsOptional, IsNumber, IsBoolean, IsDateString, IsNotEmpty, MaxLength } from "class-validator";
 
 export class UpdateAnimalDto {
   @IsString()
@@ -69,9 +69,12 @@ export class UpdateAnimalDto {
   @IsOptional()
   shed?: string;
 
-  @IsEnum(["lactating", "pregnant", "dry", "calf", "other"])
+  // Free text: see CreateAnimalDto.status.
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
   @IsOptional()
-  status?: "lactating" | "pregnant" | "dry" | "calf" | "other";
+  status?: string;
 
   @IsString()
   @IsOptional()

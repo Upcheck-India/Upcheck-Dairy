@@ -6,7 +6,13 @@ import { farms } from "./farms";
 
 export const animalType = pgEnum("animal_type", ["cow", "buffalo", "calf"]);
 export const healthStatus = pgEnum("health_status", ["healthy", "attention", "critical"]);
-export const animalStatus = pgEnum("animal_status", ["lactating", "pregnant", "dry", "calf", "other"]);
+/**
+ * The categories every farm starts with. `animals.status` is free text rather
+ * than an enum so farmers can define their own categories (see the herd module
+ * in the app); these are just the seeded ones.
+ */
+export const DEFAULT_ANIMAL_STATUSES = ["lactating", "pregnant", "dry", "calf", "other"] as const;
+export type DefaultAnimalStatus = (typeof DEFAULT_ANIMAL_STATUSES)[number];
 export const cowBreed = pgEnum("cow_breed", [
   "HF (Holstein Friesian)", "Jersey", "Gir", "Sahiwal", "Tharparkar",
   "Kangayam", "Umblachery", "Bargur", "Ongole", "Kankrej", "Rathi", "Mixed/Crossbred",
@@ -36,7 +42,7 @@ export const animals = pgTable("animals", {
   bodyConditionScore: decimal("body_condition_score", { precision: 3, scale: 1 }),
   weightKg: decimal("weight_kg", { precision: 5, scale: 1 }),
   shed: text("shed"),
-  status: animalStatus("status").notNull().default("lactating"),
+  status: text("status").notNull().default("lactating"),
   gender: text("gender").default("female").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

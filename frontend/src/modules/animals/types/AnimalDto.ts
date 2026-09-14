@@ -1,3 +1,9 @@
+/**
+ * The category an animal belongs to. Free text, because farmers can define their
+ * own categories; the seeded ones are in DEFAULT_CATEGORIES (CategoryProvider).
+ */
+export type AnimalStatus = string;
+
 export interface AnimalResponseDto {
   id: number;
   farmId: string;
@@ -18,7 +24,7 @@ export interface AnimalResponseDto {
   bodyConditionScore: string | number | null;
   weightKg: string | number | null;
   shed?: string | null;
-  status?: "lactating" | "pregnant" | "dry" | "calf" | "other" | null;
+  status?: AnimalStatus | null;
   gender?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -44,7 +50,7 @@ export interface CreateAnimalRequestDto {
   bodyConditionScore?: number;
   weightKg?: number;
   shed?: string;
-  status?: "lactating" | "pregnant" | "dry" | "calf" | "other";
+  status?: AnimalStatus;
   gender?: string;
 }
 

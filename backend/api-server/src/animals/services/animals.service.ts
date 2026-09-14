@@ -3,7 +3,7 @@ import { AnimalsRepository } from "../repositories/animals.repository";
 import { FarmsRepository } from "../../farms/repositories/farms.repository";
 import { CreateAnimalDto } from "../dto/create-animal.dto";
 import { UpdateAnimalDto } from "../dto/update-animal.dto";
-import { type Animal } from "@workspace/db";
+import { type Animal, DEFAULT_ANIMAL_STATUSES } from "@workspace/db";
 
 @Injectable()
 export class AnimalsService {
@@ -77,10 +77,15 @@ export class AnimalsService {
       weightKg: dto.weightKg ? dto.weightKg.toString() : undefined,
     } as any;
 
-    if (dto.isPregnant !== undefined && dto.status === undefined) {
+    // Derive the status from pregnancy/type only while the animal still sits in
+    // one of the seeded categories — a farmer's own category must not be
+    // silently overwritten.
+    const inSeededCategory = (DEFAULT_ANIMAL_STATUSES as readonly string[]).includes(animal.status);
+
+    if (dto.isPregnant !== undefined && dto.status === undefined && inSeededCategory) {
       updates.status = dto.isPregnant ? "pregnant" : "lactating";
     }
-    if (dto.type !== undefined && dto.status === undefined) {
+    if (dto.type !== undefined && dto.status === undefined && inSeededCategory) {
       if (dto.type === "calf") {
         updates.status = "calf";
       }

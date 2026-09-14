@@ -80,7 +80,7 @@ export function CategoryManagementModal({
   };
 
   const countFor = (category: AnimalCategory) =>
-    category.isDefault ? animals.filter((a) => a.status === category.id).length : 0;
+    animals.filter((a) => a.status === category.id).length;
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -120,26 +120,15 @@ export function CategoryManagementModal({
       return;
     }
 
-    const fallback = categories.find((c) => c.id !== category.id && c.isDefault);
-    if (category.isDefault && !fallback) {
-      Alert.alert(
-        lx({ en: "Cannot Delete", ta: "நீக்க முடியாது" }),
-        lx({
-          en: "At least one built-in category must remain so animals always have a status.",
-          ta: "மாடுகளுக்கு நிலை இருக்க குறைந்தது ஒரு இயல்பு வகை தேவை.",
-        })
-      );
-      return;
-    }
-
+    const fallback = categories.find((c) => c.id !== category.id)!;
     const animalCount = countFor(category);
 
     Alert.alert(
       lx({ en: `Delete '${category.name}'?`, ta: `'${category.name}' ஐ நீக்கவா?` }),
       animalCount > 0
         ? lx({
-            en: `${animalCount} animal(s) in this category will be moved to '${fallback!.name}'. Are you sure?`,
-            ta: `இந்த வகையில் உள்ள ${animalCount} மாடுகள் '${fallback!.name}' க்கு மாற்றப்படும். நிச்சயமாக நீக்கவா?`,
+            en: `${animalCount} animal(s) in this category will be moved to '${fallback.name}'. Are you sure?`,
+            ta: `இந்த வகையில் உள்ள ${animalCount} மாடுகள் '${fallback.name}' க்கு மாற்றப்படும். நிச்சயமாக நீக்கவா?`,
           })
         : lx({
             en: "Are you sure you want to delete this category?",
@@ -233,9 +222,7 @@ export function CategoryManagementModal({
                           </Text>
                         ) : null}
                         <Text style={[styles.animalBadge, { color: category.color }]}>
-                          {category.isDefault
-                            ? `${count} ${count === 1 ? "Animal" : "Animals"}`
-                            : lx({ en: "Custom category", ta: "தனிப்பயன் வகை" })}
+                          {count} {count === 1 ? "Animal" : "Animals"}
                         </Text>
                       </View>
 

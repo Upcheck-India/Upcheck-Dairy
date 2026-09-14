@@ -1,3 +1,5 @@
+import { AnimalStatus } from "../types/AnimalDto";
+
 export class Animal {
   readonly id: string;
   readonly farmId: string;
@@ -18,7 +20,7 @@ export class Animal {
   readonly bodyConditionScore: number | null;
   readonly weightKg: number | null;
   readonly shed: string | null;
-  readonly status: "lactating" | "pregnant" | "dry" | "calf" | "other" | null;
+  readonly status: AnimalStatus | null;
   readonly gender: string | null;
   readonly createdAt: Date | null;
   readonly updatedAt: Date | null;
@@ -44,7 +46,7 @@ export class Animal {
     bodyConditionScore?: number | null;
     weightKg?: number | null;
     shed?: string | null;
-    status?: "lactating" | "pregnant" | "dry" | "calf" | "other" | null;
+    status?: AnimalStatus | null;
     gender?: string | null;
     createdAt?: Date | null;
     updatedAt?: Date | null;

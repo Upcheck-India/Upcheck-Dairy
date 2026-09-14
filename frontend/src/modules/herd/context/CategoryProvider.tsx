@@ -9,11 +9,7 @@ export interface AnimalCategory {
   desc?: string;
   color: string;
   icon: string;
-  /**
-   * Built-in categories are the ones the API's `animal_status` enum accepts, so
-   * only these can be written onto an animal. Custom categories are display-only
-   * until that enum is widened on the backend.
-   */
+  /** True for the categories every farm is seeded with, false for farmer-created ones. */
   isDefault?: boolean;
   createdAt?: string;
 }
@@ -191,22 +187,13 @@ export function CategoryProvider({ children }: { children: React.ReactNode }) {
 
       const remaining = categories.filter((c) => c.id !== id);
 
-      if (target.isDefault) {
-        // Animals carry a built-in category as their status, so they need another
-        // built-in one to move to.
-        const fallback =
-          remaining.find((c) => c.isDefault && c.id === reassignToCategoryId) ??
-          remaining.find((c) => c.isDefault);
-        if (!fallback) {
-          throw new Error(
-            "At least one built-in category must remain so animals always have a status."
-          );
-        }
+      // Animals carry their category as their status, so they need somewhere to go.
+      const fallback =
+        remaining.find((c) => c.id === reassignToCategoryId) ?? remaining[0];
 
-        const affected = animals.filter((a) => a.status === id);
-        for (const animal of affected) {
-          await updateAnimal(Number(animal.id), { status: fallback.id as any });
-        }
+      const affected = animals.filter((a) => a.status === id);
+      for (const animal of affected) {
+        await updateAnimal(Number(animal.id), { status: fallback.id });
       }
 
       await saveCategories(remaining);
