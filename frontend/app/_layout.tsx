@@ -89,15 +89,11 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
-        name="profile"
+        name="profile-screen"
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
         name="farms"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="herd"
         options={{ headerShown: false, presentation: "card" }}
       />
     </Stack>
