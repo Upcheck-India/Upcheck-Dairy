@@ -54,13 +54,15 @@ export function HerdHeader({
     toggleDropdown();
   };
 
+  const farmDisplayName = activeFarm?.name || "xyz farm";
+
   return (
     <View style={[styles.header, { zIndex: 1000 }]}>
       {/* Top Row: Bell, Title, Add Button */}
       <View style={styles.topRow}>
         <Pressable onPress={onNotificationPress} style={styles.bellBtn} hitSlop={12}>
-          <Feather name="bell" size={22} color={colors.foreground} />
-          <View style={[styles.badge, { backgroundColor: "#ef4444" }]}>
+          <Feather name="bell" size={24} color={colors.foreground} />
+          <View style={styles.badge}>
             <Text style={styles.badgeText}>3</Text>
           </View>
         </Pressable>
@@ -68,7 +70,7 @@ export function HerdHeader({
         <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
 
         <Pressable
-          style={[styles.addBtn, { backgroundColor: "#16a34a" }]}
+          style={styles.addBtn}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             onAddAnimalPress();
@@ -86,24 +88,29 @@ export function HerdHeader({
           style={[
             styles.selectorCard,
             {
-              backgroundColor: colors.muted,
+              backgroundColor: colors.card,
               borderColor: colors.border,
             },
           ]}
           onPress={toggleDropdown}
         >
           <View style={styles.selectorLeft}>
-            <View style={[styles.homeIconBg, { backgroundColor: "#16a34a20" }]}>
-              <Feather name="home" size={16} color="#16a34a" />
+            <View style={styles.homeIconBg}>
+              <Feather name="home" size={24} color="#00a651" />
             </View>
-            <Text style={[styles.farmName, { color: colors.foreground }]} numberOfLines={1}>
-              {activeFarm?.name || "Select Farm"}
-            </Text>
+            <View style={styles.farmTextWrap}>
+              <Text style={[styles.farmName, { color: colors.foreground }]} numberOfLines={1}>
+                {farmDisplayName}
+              </Text>
+              <Text style={[styles.farmSub, { color: colors.mutedForeground }]}>
+                Current farm
+              </Text>
+            </View>
           </View>
           <Feather
             name={dropdownOpen ? "chevron-up" : "chevron-down"}
-            size={18}
-            color={colors.mutedForeground}
+            size={20}
+            color={colors.foreground}
           />
         </Pressable>
 
@@ -140,7 +147,7 @@ export function HerdHeader({
                       styles.farmItem,
                       {
                         backgroundColor: isSelected
-                          ? colors.primary + "12"
+                          ? "#00a65115"
                           : pressed
                           ? colors.muted
                           : "transparent",
@@ -150,15 +157,15 @@ export function HerdHeader({
                   >
                     <Feather
                       name="home"
-                      size={14}
-                      color={isSelected ? "#16a34a" : colors.mutedForeground}
-                      style={{ marginRight: 8 }}
+                      size={16}
+                      color={isSelected ? "#00a651" : colors.mutedForeground}
+                      style={{ marginRight: 10 }}
                     />
                     <Text
                       style={[
                         styles.farmItemText,
                         {
-                          color: isSelected ? colors.primary : colors.foreground,
+                          color: isSelected ? "#00a651" : colors.foreground,
                           fontFamily: isSelected ? "Inter_700Bold" : "Inter_400Regular",
                         },
                       ]}
@@ -179,7 +186,7 @@ export function HerdHeader({
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingBottom: 4,
   },
   topRow: {
     flexDirection: "row",
@@ -188,57 +195,58 @@ const styles = StyleSheet.create({
     height: 48,
   },
   bellBtn: {
-    padding: 6,
+    padding: 4,
     position: "relative",
   },
   badge: {
     position: "absolute",
-    top: 2,
-    right: 2,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -2,
+    right: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#ef4444",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 3,
   },
   badgeText: {
     color: "#fff",
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "700",
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: "Inter_700Bold",
   },
   addBtn: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 18,
-    elevation: 1,
+    backgroundColor: "#00a651",
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 22,
+    elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 1,
+    shadowRadius: 2,
   },
   addBtnText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: "Inter_700Bold",
   },
   dropdownContainer: {
-    marginTop: 10,
+    marginTop: 14,
     position: "relative",
   },
   selectorCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 16,
     borderWidth: 1,
   },
   selectorLeft: {
@@ -247,24 +255,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   homeIconBg: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#e8f5e9",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
+    marginRight: 12,
+  },
+  farmTextWrap: {
+    flex: 1,
+    justifyContent: "center",
   },
   farmName: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-    flex: 1,
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
+  },
+  farmSub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
   },
   dropdownMenu: {
     position: "absolute",
     top: "105%",
     left: 0,
     right: 0,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     paddingVertical: 6,
     shadowColor: "#000",

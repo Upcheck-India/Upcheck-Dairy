@@ -32,10 +32,7 @@ export function HerdTabs({
         return (
           <Pressable
             key={tab.id}
-            style={[
-              styles.subTab,
-              { borderBottomColor: active ? colors.primary : "transparent" },
-            ]}
+            style={styles.subTab}
             onPress={() => {
               onTabChange(tab.id);
               Haptics.selectionAsync();
@@ -45,13 +42,14 @@ export function HerdTabs({
               style={[
                 styles.subTabLabel,
                 {
-                  color: active ? colors.primary : colors.mutedForeground,
+                  color: active ? "#00a651" : colors.mutedForeground,
                   fontFamily: active ? "Inter_700Bold" : "Inter_600SemiBold",
                 },
               ]}
             >
               {tab.label}
             </Text>
+            {active && <View style={styles.activeIndicator} />}
           </Pressable>
         );
       })}
@@ -63,17 +61,27 @@ const styles = StyleSheet.create({
   tabRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    marginTop: 4,
-    paddingHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 0,
   },
   subTab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 3,
+    paddingVertical: 14,
+    position: "relative",
   },
   subTabLabel: {
-    fontSize: 14,
+    fontSize: 16,
+  },
+  activeIndicator: {
+    position: "absolute",
+    bottom: -1,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: "#00a651",
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
   },
 });

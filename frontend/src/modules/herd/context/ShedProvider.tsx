@@ -26,7 +26,6 @@ const DEFAULT_SHEDS: Shed[] = [
   { id: "shed_1", name: "Shed 1 - Main Shed", desc: "Main housing shed", isDefault: true },
   { id: "shed_2", name: "Shed 2 - North Shed", desc: "North block", isDefault: true },
   { id: "shed_3", name: "Shed 3 - Open Shed", desc: "Open housing", isDefault: true },
-  { id: "shed_4", name: "Shed 4 - Calf Pen", desc: "Calf and young stock", isDefault: true },
 ];
 
 const ShedContext = createContext<ShedContextType | null>(null);

@@ -55,7 +55,6 @@ export function HerdDashboard({
   const getAnimalShed = (animal: Animal): string => {
     if (animal.shed) return animal.shed;
     const idNum = parseInt(animal.id) || 0;
-    if (animal.type === "calf") return "shed_4";
     const index = idNum % 3;
     return `shed_${index + 1}`;
   };
@@ -81,13 +80,6 @@ export function HerdDashboard({
       hi: "शेड 3 - खुला",
       descEn: "Open housing",
       descTa: "திறந்தவெளி கொட்டகை",
-    },
-    shed_4: {
-      en: "Shed 4 - Calf Pen",
-      ta: "கொட்டகை 4 - கன்றுக்குட்டி",
-      hi: "शेड 4 - बछड़ा",
-      descEn: "Calf and young stock",
-      descTa: "கன்றுக்குட்டிகள் பகுதி",
     },
   };
 
@@ -143,13 +135,13 @@ export function HerdDashboard({
       id: "lactating",
       name: lx({ ta: "பால் கறப்பவை", te: "పాలు ఇచ్చేవి", hi: "दुधारू पशु", en: "Lactating" }),
       desc: lx({ ta: "தற்போது பால் கறக்கும் மாடுகள்", en: "Animals that are currently giving milk" }),
-      color: "#7c3aed", // Purple
+      color: "#9333ea", // Purple
       icon: "cow" as const,
       count: animals.filter((a) => getAnimalCategory(a) === "lactating").length,
     },
     {
       id: "pregnant",
-      name: lx({ ta: "சினை மாடுகள்", te: "గర్భం", hi: "गर्भवती पशु", en: "Pregnant" }),
+      name: lx({ ta: "சினை மாடுகள்", te: "గర్భம்", hi: "गर्भवती पशु", en: "Pregnant" }),
       desc: lx({ ta: "கர்ப்பமாக உள்ள மாடுகள்", en: "Pregnant animals" }),
       color: "#ef4444", // Red
       icon: "heart" as const,
@@ -157,7 +149,7 @@ export function HerdDashboard({
     },
     {
       id: "dry",
-      name: lx({ ta: "வறண்ட மாடுகள்", te: "పాలు ఇవ్వనివి", hi: "सूखे पशु", en: "Dry" }),
+      name: lx({ ta: "வறண்ட மாடுகள்", te: "పాలు ఇవ్వనిவி", hi: "सूखे पशु", en: "Dry" }),
       desc: lx({ ta: "பால் கறக்காத மாடுகள்", en: "Animals not giving milk" }),
       color: "#2563eb", // Blue
       icon: "water-off" as const,
@@ -188,7 +180,7 @@ export function HerdDashboard({
           {/* Header Row */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              {lx({ ta: "கொட்டகைகள் (இடங்கள்)", hi: "शेड (स्थान)", en: "Sheds (Locations)" })}
+              {lx({ ta: "கொட்டகைகள்", hi: "शेड", en: "Sheds" })}
             </Text>
             <Pressable
               style={styles.addShedBtn}
@@ -199,7 +191,7 @@ export function HerdDashboard({
                 setShedModalVisible(true);
               }}
             >
-              <Feather name="plus" size={14} color="#16a34a" style={{ marginRight: 3 }} />
+              <Feather name="plus" size={14} color="#00a651" style={{ marginRight: 4 }} />
               <Text style={styles.addShedText}>{lx({ en: "New Shed", ta: "புதிய கொட்டகை" })}</Text>
             </Pressable>
           </View>
@@ -209,66 +201,98 @@ export function HerdDashboard({
             {sheds.map((shed) => (
               <Pressable
                 key={shed.id}
-                style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+                style={[styles.shedCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   onShedSelect(shed.id, shed.name);
                 }}
               >
-                <View style={styles.cardHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>{shed.name}</Text>
-                    <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>{shed.desc}</Text>
+                {/* Top Section */}
+                <View style={styles.shedCardTop}>
+                  <View style={styles.shedIconBadge}>
+                    <Feather name="home" size={22} color="#00a651" />
                   </View>
-                  <View style={styles.cardRight}>
-                    <Text style={[styles.cardTotal, { color: "#16a34a" }]}>{shed.total}</Text>
-                    <Pressable
-                      style={styles.cardActionBtn}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setShedModalAction("edit");
-                        setTargetShedId(shed.id);
-                        setShedModalVisible(true);
-                      }}
-                      hitSlop={8}
-                    >
-                      <Feather name="edit-2" size={15} color={colors.mutedForeground} />
-                    </Pressable>
-                    <Feather name="chevron-right" size={18} color="#16a34a" />
+
+                  <View style={styles.shedTitleWrap}>
+                    <View style={styles.shedNameRow}>
+                      <Text style={[styles.shedName, { color: colors.foreground }]}>{shed.name}</Text>
+                      <Pressable
+                        style={styles.editPencilBtn}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setShedModalAction("edit");
+                          setTargetShedId(shed.id);
+                          setShedModalVisible(true);
+                        }}
+                        hitSlop={8}
+                      >
+                        <Feather name="edit-2" size={12} color="#6b7280" />
+                      </Pressable>
+                    </View>
+                    <Text style={[styles.shedDesc, { color: colors.mutedForeground }]}>{shed.desc}</Text>
                   </View>
+
+                  <Feather name="chevron-right" size={20} color="#00a651" />
                 </View>
 
-                {/* Circles for Status Counts */}
-                <View style={styles.countsRow}>
-                  <View style={[styles.countCircle, { backgroundColor: "#7c3aed18" }]}>
-                    <Text style={[styles.countText, { color: "#7c3aed" }]}>{shed.lactating}</Text>
+                {/* Light Dotted Divider */}
+                <View style={styles.cardDivider} />
+
+                {/* Bottom Counts Row */}
+                <View style={styles.shedCardBottom}>
+                  {/* Left Column: Total Animals */}
+                  <View style={styles.animalsTotalCol}>
+                    <Text style={[styles.animalsTotalNum, { color: "#00a651" }]}>{shed.total}</Text>
+                    <Text style={[styles.animalsTotalLabel, { color: colors.mutedForeground }]}>Animals</Text>
                   </View>
-                  <View style={[styles.countCircle, { backgroundColor: "#ef444418" }]}>
-                    <Text style={[styles.countText, { color: "#ef4444" }]}>{shed.pregnant}</Text>
-                  </View>
-                  <View style={[styles.countCircle, { backgroundColor: "#2563eb18" }]}>
-                    <Text style={[styles.countText, { color: "#2563eb" }]}>{shed.dry}</Text>
-                  </View>
-                  <View style={[styles.countCircle, { backgroundColor: "#ea580c18" }]}>
-                    <Text style={[styles.countText, { color: "#ea580c" }]}>{shed.calf}</Text>
+
+                  {/* Right 4 Metric Columns */}
+                  <View style={styles.breakdownRow}>
+                    {/* Lactating */}
+                    <View style={styles.breakdownCol}>
+                      <View style={styles.dotLabelRow}>
+                        <View style={[styles.statusDot, { backgroundColor: "#9333ea" }]} />
+                        <Text style={styles.statusLabel}>Lactating</Text>
+                      </View>
+                      <Text style={[styles.statusCountNum, { color: "#9333ea" }]}>{shed.lactating}</Text>
+                    </View>
+
+                    <View style={styles.verticalDivider} />
+
+                    {/* Pregnant */}
+                    <View style={styles.breakdownCol}>
+                      <View style={styles.dotLabelRow}>
+                        <View style={[styles.statusDot, { backgroundColor: "#ef4444" }]} />
+                        <Text style={styles.statusLabel}>Pregnant</Text>
+                      </View>
+                      <Text style={[styles.statusCountNum, { color: "#ef4444" }]}>{shed.pregnant}</Text>
+                    </View>
+
+                    <View style={styles.verticalDivider} />
+
+                    {/* Dry */}
+                    <View style={styles.breakdownCol}>
+                      <View style={styles.dotLabelRow}>
+                        <View style={[styles.statusDot, { backgroundColor: "#2563eb" }]} />
+                        <Text style={styles.statusLabel}>Dry</Text>
+                      </View>
+                      <Text style={[styles.statusCountNum, { color: "#2563eb" }]}>{shed.dry}</Text>
+                    </View>
+
+                    <View style={styles.verticalDivider} />
+
+                    {/* Calves */}
+                    <View style={styles.breakdownCol}>
+                      <View style={styles.dotLabelRow}>
+                        <View style={[styles.statusDot, { backgroundColor: "#ea580c" }]} />
+                        <Text style={styles.statusLabel}>Calves</Text>
+                      </View>
+                      <Text style={[styles.statusCountNum, { color: "#ea580c" }]}>{shed.calf}</Text>
+                    </View>
                   </View>
                 </View>
               </Pressable>
-            ))}
-          </View>
-
-          {/* Legend */}
-          <View style={styles.legendContainer}>
-            {[
-              { label: lx({ ta: "கறவை", en: "Lactating" }), color: "#7c3aed" },
-              { label: lx({ ta: "சினை", en: "Pregnant" }), color: "#ef4444" },
-              { label: lx({ ta: "வறண்ட", en: "Dry" }), color: "#2563eb" },
-              { label: lx({ ta: "கன்றுகள்", en: "Calves" }), color: "#ea580c" },
-            ].map((item, idx) => (
-              <View key={idx} style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                <Text style={[styles.legendLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
-              </View>
             ))}
           </View>
         </View>
@@ -329,108 +353,42 @@ export function HerdDashboard({
         </View>
       )}
 
-      {/* Summary Stats Box */}
-      <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={styles.summaryGrid}>
-          <View style={styles.summaryCol}>
-            <Text style={[styles.summaryVal, { color: "#16a34a" }]}>{animals.length}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-              {lx({ ta: "மொத்த மாடுகள்", en: "Total Animals" })}
-            </Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryCol}>
-            <Text style={[styles.summaryVal, { color: colors.foreground }]}>{sheds.length}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-              {lx({ ta: "கொட்டகைகள்", en: "Sheds" })}
-            </Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryCol}>
-            <Text style={[styles.summaryVal, { color: colors.foreground }]}>{sheds.length}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-              {lx({ ta: "இடங்கள்", en: "Locations" })}
-            </Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryCol}>
-            <Text style={[styles.summaryVal, { color: colors.foreground }]}>100</Text>
-            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-              {lx({ ta: "கொள்ளளவு", en: "Capacity" })}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Quick Actions Grid */}
-      <View style={styles.quickActionsContainer}>
-        <Text style={[styles.quickActionsTitle, { color: colors.foreground }]}>
-          {lx({ ta: "விரைவு செயல்பாடுகள்", hi: "त्वरित कार्रवाई", en: "Quick Actions" })}
+      {/* Farm Overview Section */}
+      <View style={styles.overviewSection}>
+        <Text style={[styles.overviewTitle, { color: colors.foreground }]}>
+          {lx({ ta: "பண்ணை மேலோட்டம்", hi: "फार्म अवलोकन", en: "Farm Overview" })}
         </Text>
-        <View style={styles.quickActionsGrid}>
-          <View style={styles.quickActionsRow}>
-            <Pressable
-              style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShedModalAction("list");
-                setTargetShedId(null);
-                setShedModalVisible(true);
-                onManageSheds();
-              }}
-            >
-              <View style={[styles.actionIconBg, { backgroundColor: "#16a34a15" }]}>
-                <Feather name="home" size={18} color="#16a34a" />
-              </View>
-              <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>
-                {lx({ ta: "கொட்டகைகள்", en: "Manage Sheds" })}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onManageCategories();
-              }}
-            >
-              <View style={[styles.actionIconBg, { backgroundColor: "#7c3aed15" }]}>
-                <Feather name="tag" size={18} color="#7c3aed" />
-              </View>
-              <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>
-                {lx({ ta: "வகைகள்", en: "Manage Categories" })}
-              </Text>
-            </Pressable>
+
+        <View style={[styles.overviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.overviewCol}>
+            <View style={styles.overviewIconCircle}>
+              <MaterialCommunityIcons name="cow" size={22} color="#00a651" />
+            </View>
+            <Text style={styles.overviewVal}>{animals.length}</Text>
+            <Text style={[styles.overviewLabel, { color: colors.mutedForeground }]}>Animals</Text>
           </View>
 
-          <View style={styles.quickActionsRow}>
-            <Pressable
-              style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onHealthOverview();
-              }}
-            >
-              <View style={[styles.actionIconBg, { backgroundColor: "#ef444415" }]}>
-                <Feather name="activity" size={18} color="#ef4444" />
-              </View>
-              <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>
-                {lx({ ta: "ஆரோக்கியம்", en: "Health Overview" })}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onHerdReports();
-              }}
-            >
-              <View style={[styles.actionIconBg, { backgroundColor: "#ea580c15" }]}>
-                <Feather name="trending-up" size={18} color="#ea580c" />
-              </View>
-              <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>
-                {lx({ ta: "அறிக்கைகள்", en: "Herd Reports" })}
-              </Text>
-            </Pressable>
+          <View style={styles.overviewDivider} />
+
+          <View style={styles.overviewCol}>
+            <View style={styles.overviewIconCircle}>
+              <Feather name="home" size={20} color="#00a651" />
+            </View>
+            <Text style={styles.overviewVal}>{sheds.length}</Text>
+            <Text style={[styles.overviewLabel, { color: colors.mutedForeground }]}>Sheds</Text>
+          </View>
+
+          <View style={styles.overviewDivider} />
+
+          <View style={styles.overviewCol}>
+            <View style={styles.overviewIconCircle}>
+              <MaterialCommunityIcons name="gauge" size={22} color="#00a651" />
+            </View>
+            <Text style={styles.overviewVal}>{animals.length} / 100</Text>
+            <View style={styles.capacityLabelRow}>
+              <Text style={[styles.overviewLabel, { color: colors.mutedForeground }]}>Capacity</Text>
+              <Feather name="info" size={13} color={colors.mutedForeground} style={{ marginLeft: 3 }} />
+            </View>
           </View>
         </View>
       </View>
@@ -460,10 +418,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 14,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: "Inter_700Bold",
   },
   sectionSub: {
@@ -473,86 +431,127 @@ const styles = StyleSheet.create({
   addShedBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#16a34a15",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
+    backgroundColor: "#e8f5e9",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   addShedText: {
-    color: "#16a34a",
-    fontSize: 12,
+    color: "#00a651",
+    fontSize: 13,
     fontFamily: "Inter_700Bold",
   },
-  cardActionBtn: {
-    padding: 4,
-    marginLeft: 4,
-    marginRight: 2,
-  },
   listContainer: {
-    gap: 12,
+    gap: 14,
   },
-  card: {
+  shedCard: {
     borderWidth: 1,
     borderRadius: 16,
     padding: 16,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
   },
-  cardHeader: {
+  shedCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  shedIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#e8f5e9",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  shedTitleWrap: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  shedNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  shedName: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
+  editPencilBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+  shedDesc: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  cardDivider: {
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#e5e7eb",
+    marginVertical: 14,
+  },
+  shedCardBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  animalsTotalCol: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingRight: 12,
+    minWidth: 52,
+  },
+  animalsTotalNum: {
+    fontSize: 24,
+    fontFamily: "Inter_700Bold",
+  },
+  animalsTotalLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    marginTop: 2,
+  },
+  breakdownRow: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  cardTitle: {
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
-  },
-  cardDesc: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  cardRight: {
-    flexDirection: "row",
+  breakdownCol: {
+    flex: 1,
     alignItems: "center",
-    gap: 4,
   },
-  cardTotal: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-  },
-  countsRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 12,
-  },
-  countCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  countText: {
-    fontSize: 12,
-    fontFamily: "Inter_700Bold",
-  },
-  legendContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    marginTop: 16,
-  },
-  legendItem: {
+  dotLabelRow: {
     flexDirection: "row",
     alignItems: "center",
   },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 4,
   },
-  legendLabel: {
+  statusLabel: {
     fontSize: 11,
     fontFamily: "Inter_500Medium",
+    color: "#4b5563",
+  },
+  statusCountNum: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    marginTop: 4,
+  },
+  verticalDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "#f0f0f0",
   },
   categoryList: {
     borderWidth: 1,
@@ -595,73 +594,54 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_700Bold",
   },
-  summaryCard: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 16,
+  overviewSection: {
+    paddingHorizontal: 16,
     marginTop: 20,
   },
-  summaryGrid: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  summaryCol: {
-    flex: 1,
-    alignItems: "center",
-  },
-  summaryVal: {
+  overviewTitle: {
     fontSize: 18,
     fontFamily: "Inter_700Bold",
-  },
-  summaryLabel: {
-    fontSize: 10,
-    marginTop: 4,
-    textAlign: "center",
-    fontFamily: "Inter_500Medium",
-  },
-  summaryDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: "#ccc",
-    opacity: 0.3,
-  },
-  quickActionsContainer: {
-    marginTop: 20,
-  },
-  quickActionsTitle: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-    marginHorizontal: 16,
     marginBottom: 12,
   },
-  quickActionsGrid: {
-    paddingHorizontal: 16,
-    gap: 10,
-  },
-  quickActionsRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  quickActionBtn: {
-    flex: 1,
+  overviewCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 8,
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-    borderWidth: 1,
-    borderRadius: 12,
-    gap: 10,
   },
-  actionIconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+  overviewCol: {
+    flex: 1,
+    alignItems: "center",
+  },
+  overviewIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#e8f5e9",
     alignItems: "center",
     justifyContent: "center",
   },
-  actionBtnLabel: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    flex: 1,
+  overviewVal: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    color: "#00a651",
+    marginTop: 8,
+  },
+  overviewLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    marginTop: 2,
+  },
+  capacityLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  overviewDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: "#f0f0f0",
   },
 });
