@@ -47,22 +47,33 @@ export function CategoryManagementModal({
   const [color, setColor] = useState(CATEGORY_COLORS[0]);
   const [submitting, setSubmitting] = useState(false);
 
+  // True when the modal was opened straight into a form (the pencil on a
+  // category card, for example). Leaving that form must dismiss the modal
+  // rather than drop the farmer on the management list they never asked for.
+  const [openedIntoForm, setOpenedIntoForm] = useState(false);
+
   React.useEffect(() => {
-    if (visible) {
-      if (initialAction === "create") {
-        openCreate();
-      } else if (initialAction === "edit" && targetCategoryId) {
-        const c = categories.find((item) => item.id === targetCategoryId);
-        if (c) openEdit(c);
-        else setMode("list");
+    if (!visible) return;
+
+    if (initialAction === "create") {
+      resetToCreate();
+      setOpenedIntoForm(true);
+    } else if (initialAction === "edit" && targetCategoryId) {
+      const c = categories.find((item) => item.id === targetCategoryId);
+      if (c) {
+        resetToEdit(c);
+        setOpenedIntoForm(true);
       } else {
         setMode("list");
+        setOpenedIntoForm(false);
       }
+    } else {
+      setMode("list");
+      setOpenedIntoForm(false);
     }
   }, [visible, initialAction, targetCategoryId]);
 
-  const openCreate = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const resetToCreate = () => {
     setName("");
     setDesc("");
     setColor(CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length]);
@@ -70,13 +81,33 @@ export function CategoryManagementModal({
     setMode("create");
   };
 
-  const openEdit = (category: AnimalCategory) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const resetToEdit = (category: AnimalCategory) => {
     setName(category.name);
     setDesc(category.desc || "");
     setColor(category.color);
     setEditingCategoryId(category.id);
     setMode("edit");
+  };
+
+  const openCreate = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    resetToCreate();
+  };
+
+  const openEdit = (category: AnimalCategory) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    resetToEdit(category);
+  };
+
+  /** Leaves the current form: back to the list, or out of the modal entirely. */
+  const leaveForm = () => {
+    if (openedIntoForm) onClose();
+    else setMode("list");
+  };
+
+  const handleBack = () => {
+    if (mode === "list") onClose();
+    else leaveForm();
   };
 
   const countFor = (category: AnimalCategory) =>
@@ -100,7 +131,7 @@ export function CategoryManagementModal({
         await updateCategory(editingCategoryId, name, desc, color);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      setMode("list");
+      leaveForm();
     } catch (err: any) {
       Alert.alert(lx({ en: "Error", ta: "பிழை" }), err.message || "Failed to save category");
     } finally {
@@ -156,7 +187,7 @@ export function CategoryManagementModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={handleBack}>
       <View
         style={[
           styles.container,
@@ -165,15 +196,14 @@ export function CategoryManagementModal({
       >
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Pressable
-            onPress={() => {
-              if (mode !== "list") setMode("list");
-              else onClose();
-            }}
-            style={styles.headerBtn}
-            hitSlop={10}
-          >
-            <Feather name={mode !== "list" ? "arrow-left" : "x"} size={22} color={colors.foreground} />
+          <Pressable onPress={handleBack} style={styles.headerBtn} hitSlop={10}>
+            {/* Backing out of a directly-opened form dismisses the modal, so show
+                a close icon rather than implying there is a list behind it. */}
+            <Feather
+              name={mode !== "list" && !openedIntoForm ? "arrow-left" : "x"}
+              size={22}
+              color={colors.foreground}
+            />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>
             {mode === "create"
@@ -306,7 +336,7 @@ export function CategoryManagementModal({
               <View style={styles.formActions}>
                 <Pressable
                   style={[styles.btnSecondary, { borderColor: colors.border }]}
-                  onPress={() => setMode("list")}
+                  onPress={leaveForm}
                   disabled={submitting}
                 >
                   <Text style={[styles.btnTextSecondary, { color: colors.foreground }]}>

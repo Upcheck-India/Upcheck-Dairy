@@ -8,6 +8,7 @@ import VoiceButton from "@/components/VoiceButton";
 import VoiceModal from "@/components/VoiceModal";
 import QuickActionsModal from "@/components/QuickActionsModal";
 import { useColors } from "@/hooks/useColors";
+import { TAB_BAR_CONTENT_HEIGHT } from "@/hooks/useTabBarHeight";
 import { useLanguage } from "@/context/LanguageContext";
 import { useFarmer } from "@/context/FarmerContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -73,7 +74,6 @@ export default function TabLayout() {
   // The bar is a fixed-height strip of tab content sitting on top of the OS
   // navigation inset, so anything docked to the bar must clear that inset too.
   const tabBarInset = isWeb ? 0 : insets.bottom;
-  const TAB_BAR_CONTENT_HEIGHT = isWeb ? 84 : 68;
   const TAB_BAR_HEIGHT = TAB_BAR_CONTENT_HEIGHT + tabBarInset;
 
   return (

@@ -13,6 +13,8 @@ interface HerdHeaderProps {
   title: string;
   activeFarm?: Farm | null;
   farms: Farm[];
+  /** Number of outstanding alerts; the badge is hidden when there are none. */
+  notificationCount: number;
   onSwitchFarm: (farmId: string) => void;
   onNotificationPress: () => void;
 }
@@ -21,6 +23,7 @@ export function HerdHeader({
   title,
   activeFarm,
   farms,
+  notificationCount,
   onSwitchFarm,
   onNotificationPress,
 }: HerdHeaderProps) {
@@ -58,9 +61,13 @@ export function HerdHeader({
       <View style={styles.topRow}>
         <Pressable onPress={onNotificationPress} style={styles.bellBtn} hitSlop={12}>
           <Feather name="bell" size={22} color={colors.foreground} />
-          <View style={[styles.badge, { backgroundColor: "#ef4444" }]}>
-            <Text style={styles.badgeText}>3</Text>
-          </View>
+          {notificationCount > 0 && (
+            <View style={[styles.badge, { backgroundColor: "#ef4444" }]}>
+              <Text style={styles.badgeText}>
+                {notificationCount > 9 ? "9+" : notificationCount}
+              </Text>
+            </View>
+          )}
         </Pressable>
 
         <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>

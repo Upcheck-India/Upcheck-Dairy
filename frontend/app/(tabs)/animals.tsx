@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,12 +17,16 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
+import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { useFarm } from "@/src/modules/farms/hooks/useFarm";
 import { useFarmer } from "@/context/FarmerContext";
 import { useAnimals } from "@/src/modules/animals/hooks/useAnimals";
 import { Animal } from "@/src/modules/animals/models/Animal";
 import { useHealth } from "@/src/modules/health/hooks/useHealth";
 import { useMilk } from "@/src/modules/milk/hooks/useMilk";
+import { useBreeding } from "@/src/modules/breeding/hooks/useBreeding";
+import { useInventory } from "@/src/modules/inventory/hooks/useInventory";
+import { computeBreedingAlertsCount } from "@/src/modules/breeding/services/breedingAlerts";
 import { useSheds } from "@/src/modules/herd/context/ShedProvider";
 import { useCategories, AnimalCategory } from "@/src/modules/herd/context/CategoryProvider";
 import { resolveAnimalShed } from "@/src/modules/herd/utils/shedAssignment";
@@ -30,9 +34,21 @@ import { HerdFilters } from "@/src/modules/herd/components/HerdFilters";
 import AddAnimalModal from "@/components/AddAnimalModal";
 import MilkLogModal from "@/components/MilkLogModal";
 import HealthNoteModal from "@/components/HealthNoteModal";
+import BreedingEventModal from "@/components/BreedingEventModal";
+import InventoryModal from "@/components/InventoryModal";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
 
 type TabKey = "animals" | "milk" | "feed" | "health" | "breeding";
+
+const TABS: { key: TabKey; label: string; icon: string }[] = [
+  { key: "animals", label: "Animals", icon: "cow" },
+  { key: "milk", label: "Milk", icon: "cup-water" },
+  { key: "feed", label: "Feed", icon: "grain" },
+  { key: "health", label: "Health", icon: "heart-pulse" },
+  { key: "breeding", label: "Breeding", icon: "cards-playing-heart-multiple" },
+];
+
+const TAB_KEYS = TABS.map((tab) => tab.key);
 
 const BUILT_IN_STATUS_DISPLAY: Record<string, { label: string; color: string }> = {
   lactating: { label: "Lactating", color: "#22c55e" },
@@ -62,18 +78,29 @@ function getAnimalStatusDisplay(
 export default function AnimalsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight();
   const { activeFarm, farms, switchFarm } = useFarm();
   const { farmer } = useFarmer();
   const { animals: allAnimals, loading, error } = useAnimals();
   const { healthEvents, loading: healthLoading, error: healthError, createEvent } = useHealth();
   const { milkEntries, loading: milkLoading, error: milkError } = useMilk();
+  const { breedingEvents, loading: breedingLoading, error: breedingError } = useBreeding();
+  const {
+    inventoryItems,
+    loading: inventoryLoading,
+    error: inventoryError,
+  } = useInventory();
   const { sheds } = useSheds();
   const { categories } = useCategories();
   const params = useLocalSearchParams();
   const shedId = params.shedId as string | undefined;
   const shedName = params.shedName as string;
 
-  const [activeTab, setActiveTab] = useState<TabKey>("animals");
+  // Callers can deep-link straight to a tab, e.g. the herd screen's bell.
+  const requestedTab = params.tab as TabKey | undefined;
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    requestedTab && TAB_KEYS.includes(requestedTab) ? requestedTab : "animals"
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownAnim = useRef(new Animated.Value(0)).current;
@@ -84,7 +111,17 @@ export default function AnimalsScreen() {
   const [milkAnimal, setMilkAnimal] = useState<Animal | null>(null);
   const [optionsAnimal, setOptionsAnimal] = useState<Animal | null>(null);
   const [healthNoteAnimal, setHealthNoteAnimal] = useState<Animal | null>(null);
+  const [breedingVisible, setBreedingVisible] = useState(false);
+  const [feedItemVisible, setFeedItemVisible] = useState(false);
   const [celebration, setCelebration] = useState(false);
+
+  // The screen stays mounted between tab switches, so a fresh `tab` param has
+  // to be applied on update as well as on first render.
+  useEffect(() => {
+    if (requestedTab && TAB_KEYS.includes(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [requestedTab]);
 
   // Initials for avatar
   const initials = farmer?.name
@@ -219,6 +256,65 @@ export default function AnimalsScreen() {
       count: todays.length,
     };
   }, [shedMilkEntries]);
+
+  // Step 4c: breeding events for this shed's animals, newest first
+  const shedBreedingEvents = useMemo(() => {
+    const shedAnimalIds = new Set(shedAnimals.map((a) => String(a.id)));
+    return breedingEvents
+      .filter((e) => !shedId || shedAnimalIds.has(String(e.animalId)))
+      .slice()
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [breedingEvents, shedAnimals, shedId]);
+
+  const filteredBreedingEvents = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    if (!q) return shedBreedingEvents;
+    return shedBreedingEvents.filter((e) => {
+      const animal = allAnimals.find((a) => String(a.id) === String(e.animalId));
+      return (
+        (animal?.name ?? "").toLowerCase().includes(q) ||
+        (animal?.tagNumber ?? "").toLowerCase().includes(q) ||
+        e.typeLabel.toLowerCase().includes(q) ||
+        (e.bullName ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [shedBreedingEvents, searchQuery, allAnimals]);
+
+  // Animals due to be re-checked for heat, using the shared 18-24 day rule.
+  const breedingAlertCount = useMemo(
+    () => computeBreedingAlertsCount(shedAnimals, breedingEvents),
+    [shedAnimals, breedingEvents]
+  );
+
+  const pregnantCount = useMemo(
+    () => shedAnimals.filter((a) => a.isPregnant || a.status === "pregnant").length,
+    [shedAnimals]
+  );
+
+  // Feed stock comes from the farm's inventory, narrowed to the feed category.
+  // Stock is held per farm rather than per shed, so this is not shed-filtered.
+  const feedItems = useMemo(
+    () => inventoryItems.filter((item) => item.category === "feed"),
+    [inventoryItems]
+  );
+
+  const filteredFeedItems = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    if (!q) return feedItems;
+    return feedItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) || item.unit.toLowerCase().includes(q)
+    );
+  }, [feedItems, searchQuery]);
+
+  const feedSummary = useMemo(
+    () => ({
+      items: feedItems.length,
+      lowStock: feedItems.filter((item) => item.isLowStock).length,
+      value: feedItems.reduce((sum, item) => sum + item.totalValue, 0),
+    }),
+    [feedItems]
+  );
 
   // Step 5: search/filter health alerts
   const filteredHealthEvents = useMemo(() => {
@@ -399,13 +495,7 @@ export default function AnimalsScreen() {
         style={[styles.tabsScroll, { borderBottomColor: colors.border }]}
         contentContainerStyle={styles.tabsContainer}
       >
-        {[
-          { key: "animals", label: "Animals", icon: "cow" },
-          { key: "milk", label: "Milk", icon: "cup-water" },
-          { key: "feed", label: "Feed", icon: "grain" },
-          { key: "health", label: "Health", icon: "heart-pulse" },
-          { key: "breeding", label: "Breeding", icon: "cards-playing-heart-multiple" },
-        ].map((tab) => {
+        {TABS.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
             <Pressable
@@ -417,7 +507,7 @@ export default function AnimalsScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setSearchQuery("");
-                setActiveTab(tab.key as TabKey);
+                setActiveTab(tab.key);
               }}
             >
               <View style={styles.tabContent}>
@@ -447,12 +537,8 @@ export default function AnimalsScreen() {
       {/* Scrollable Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.scrollContent,
-          // Clear the tab bar (68pt of content) plus the OS navigation inset,
-          // with room to spare for the docked action button.
-          { paddingBottom: insets.bottom + 96 },
-        ]}
+        // Clear the tab bar plus room for the action button docked above it.
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 28 }}
       >
         {/* Animal Summary Section */}
         <View style={styles.summaryHeader}>
@@ -882,6 +968,22 @@ export default function AnimalsScreen() {
                 <Text style={[styles.listTitle, { color: colors.foreground }]}>
                   Health Alerts ({filteredHealthEvents.length})
                 </Text>
+                {shedAnimals.length > 0 && (
+                  <Pressable
+                    style={styles.logMilkBtn}
+                    onPress={() => {
+                      // Notes are recorded against a specific animal, so send the
+                      // farmer to the list to pick one first.
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSearchQuery("");
+                      setActiveTab("animals");
+                    }}
+                    hitSlop={8}
+                  >
+                    <Feather name="plus" size={14} color="#16a34a" style={{ marginRight: 3 }} />
+                    <Text style={styles.logMilkText}>Add note</Text>
+                  </Pressable>
+                )}
               </View>
             )}
 
@@ -991,28 +1093,321 @@ export default function AnimalsScreen() {
           </>
         )}
 
-        {/* --- FEED TAB CONTENT (PLACEHOLDER) --- */}
+        {/* --- FEED TAB CONTENT --- */}
         {activeTab === "feed" && (
-          <View style={styles.animalsList}>
-            <View style={styles.emptyContainer}>
-              <MaterialCommunityIcons name="grain" size={48} color={colors.border} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                No feed alerts for this shed
-              </Text>
-            </View>
-          </View>
+          <>
+            {inventoryLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading feed stock...</Text>
+              </View>
+            )}
+
+            {!inventoryLoading && inventoryError && (
+              <View style={styles.emptyContainer}>
+                <Feather name="alert-circle" size={48} color={colors.destructive} />
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Failed to load feed stock.</Text>
+              </View>
+            )}
+
+            {!inventoryLoading && !inventoryError && (
+              <>
+                {/* Stock summary across the farm's feed items */}
+                <View style={[styles.milkTotalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={styles.milkTotalMain}>
+                    <Text style={[styles.milkTotalValue, { color: "#16a34a" }]}>
+                      {feedSummary.items}
+                    </Text>
+                    <Text style={[styles.milkTotalLabel, { color: colors.mutedForeground }]}>
+                      {feedSummary.items === 1 ? "feed item" : "feed items"} in stock
+                    </Text>
+                  </View>
+                  <View style={styles.milkSessionSplit}>
+                    <View style={styles.milkSessionCol}>
+                      <Feather
+                        name="alert-triangle"
+                        size={14}
+                        color={feedSummary.lowStock > 0 ? "#ea580c" : colors.mutedForeground}
+                      />
+                      <Text
+                        style={[
+                          styles.milkSessionValue,
+                          { color: feedSummary.lowStock > 0 ? "#ea580c" : colors.foreground },
+                        ]}
+                      >
+                        {feedSummary.lowStock}
+                      </Text>
+                      <Text style={[styles.milkSessionLabel, { color: colors.mutedForeground }]}>Low stock</Text>
+                    </View>
+                    <View style={styles.milkSessionCol}>
+                      <Feather name="tag" size={14} color="#6366f1" />
+                      <Text style={[styles.milkSessionValue, { color: colors.foreground }]}>
+                        ₹{feedSummary.value.toFixed(0)}
+                      </Text>
+                      <Text style={[styles.milkSessionLabel, { color: colors.mutedForeground }]}>Value</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.listSectionHeader}>
+                  <Text style={[styles.listTitle, { color: colors.foreground }]}>
+                    Feed Stock ({filteredFeedItems.length})
+                  </Text>
+                  <Pressable
+                    style={styles.logMilkBtn}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setFeedItemVisible(true);
+                    }}
+                    hitSlop={8}
+                  >
+                    <Feather name="plus" size={14} color="#16a34a" style={{ marginRight: 3 }} />
+                    <Text style={styles.logMilkText}>Add feed</Text>
+                  </Pressable>
+                </View>
+
+                {/* Search Row */}
+                <View style={styles.searchRow}>
+                  <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Feather name="search" size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+                    <TextInput
+                      style={[styles.searchInput, { color: colors.foreground }]}
+                      placeholder="Search feed..."
+                      placeholderTextColor={colors.mutedForeground}
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                    />
+                    {searchQuery.length > 0 && (
+                      <Pressable onPress={() => setSearchQuery("")}>
+                        <Feather name="x" size={16} color={colors.mutedForeground} />
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.animalsList}>
+                  {filteredFeedItems.map((item) => {
+                    const low = item.isLowStock;
+                    const accent = low ? "#ea580c" : "#16a34a";
+
+                    return (
+                      <View
+                        key={item.id}
+                        style={[styles.animalCard, { backgroundColor: colors.card, borderColor: low ? accent : colors.border }]}
+                      >
+                        <View style={[styles.healthEntryIcon, { backgroundColor: accent + "15" }]}>
+                          <MaterialCommunityIcons name="sprout" size={16} color={accent} />
+                        </View>
+
+                        <View style={styles.animalInfo}>
+                          <View style={styles.nameRow}>
+                            <Text style={[styles.animalName, { color: colors.foreground }]} numberOfLines={1}>
+                              {item.name}
+                            </Text>
+                            {low && (
+                              <View style={[styles.statusBadge, { backgroundColor: accent + "15" }]}>
+                                <Text style={[styles.statusText, { color: accent }]}>Low stock</Text>
+                              </View>
+                            )}
+                          </View>
+
+                          <Text style={[styles.animalBreed, { color: colors.mutedForeground }]}>
+                            Reorder at {item.minQuantity} {item.unit}
+                            {item.pricePerUnit !== null ? ` • ₹${item.pricePerUnit}/${item.unit}` : ""}
+                          </Text>
+
+                          <Text style={[styles.detailText, { color: colors.mutedForeground }]}>
+                            Updated {item.lastUpdated.toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                          </Text>
+                        </View>
+
+                        <View style={styles.animalRight}>
+                          <Text style={[styles.rightMilkQty, { color: accent }]}>
+                            {item.quantity} {item.unit}
+                          </Text>
+                          <Text style={[styles.rightMilkLabel, { color: colors.mutedForeground }]}>In stock</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+
+                  {filteredFeedItems.length === 0 && (
+                    <View style={styles.emptyContainer}>
+                      <MaterialCommunityIcons name="grain" size={48} color={colors.border} />
+                      <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                        {searchQuery.length > 0
+                          ? "No matching feed items found"
+                          : "No feed stock recorded yet"}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </>
+            )}
+          </>
         )}
 
-        {/* --- BREEDING TAB CONTENT (PLACEHOLDER) --- */}
+        {/* --- BREEDING TAB CONTENT --- */}
         {activeTab === "breeding" && (
-          <View style={styles.animalsList}>
-            <View style={styles.emptyContainer}>
-              <MaterialCommunityIcons name="cards-playing-heart-multiple" size={48} color={colors.border} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                No breeding alerts for this shed
-              </Text>
-            </View>
-          </View>
+          <>
+            {breedingLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading breeding records...</Text>
+              </View>
+            )}
+
+            {!breedingLoading && breedingError && (
+              <View style={styles.emptyContainer}>
+                <Feather name="alert-circle" size={48} color={colors.destructive} />
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Failed to load breeding records.</Text>
+              </View>
+            )}
+
+            {!breedingLoading && !breedingError && (
+              <>
+                {/* Breeding status across the shed */}
+                <View style={[styles.milkTotalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={styles.milkTotalMain}>
+                    <Text style={[styles.milkTotalValue, { color: "#f43f5e" }]}>
+                      {breedingAlertCount}
+                    </Text>
+                    <Text style={[styles.milkTotalLabel, { color: colors.mutedForeground }]}>
+                      due for heat check
+                    </Text>
+                  </View>
+                  <View style={styles.milkSessionSplit}>
+                    <View style={styles.milkSessionCol}>
+                      <Feather name="heart" size={14} color="#10b981" />
+                      <Text style={[styles.milkSessionValue, { color: colors.foreground }]}>{pregnantCount}</Text>
+                      <Text style={[styles.milkSessionLabel, { color: colors.mutedForeground }]}>Pregnant</Text>
+                    </View>
+                    <View style={styles.milkSessionCol}>
+                      <Feather name="file-text" size={14} color="#6366f1" />
+                      <Text style={[styles.milkSessionValue, { color: colors.foreground }]}>
+                        {shedBreedingEvents.length}
+                      </Text>
+                      <Text style={[styles.milkSessionLabel, { color: colors.mutedForeground }]}>Events</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.listSectionHeader}>
+                  <Text style={[styles.listTitle, { color: colors.foreground }]}>
+                    Breeding Records ({filteredBreedingEvents.length})
+                  </Text>
+                  {shedAnimals.length > 0 && (
+                    <Pressable
+                      style={styles.logMilkBtn}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setBreedingVisible(true);
+                      }}
+                      hitSlop={8}
+                    >
+                      <Feather name="plus" size={14} color="#16a34a" style={{ marginRight: 3 }} />
+                      <Text style={styles.logMilkText}>Log event</Text>
+                    </Pressable>
+                  )}
+                </View>
+
+                {/* Search Row */}
+                <View style={styles.searchRow}>
+                  <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Feather name="search" size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+                    <TextInput
+                      style={[styles.searchInput, { color: colors.foreground }]}
+                      placeholder="Search breeding records..."
+                      placeholderTextColor={colors.mutedForeground}
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                    />
+                    {searchQuery.length > 0 && (
+                      <Pressable onPress={() => setSearchQuery("")}>
+                        <Feather name="x" size={16} color={colors.mutedForeground} />
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.animalsList}>
+                  {filteredBreedingEvents.map((event) => {
+                    const animal = allAnimals.find((a) => String(a.id) === String(event.animalId));
+                    const animalName = animal ? animal.name : `Animal #${event.animalId}`;
+                    const accent = event.statusColor;
+
+                    return (
+                      <Pressable
+                        key={event.id}
+                        style={[styles.animalCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          router.push(`/animal/${event.animalId}`);
+                        }}
+                      >
+                        <View style={[styles.healthEntryIcon, { backgroundColor: accent + "15" }]}>
+                          <MaterialCommunityIcons name="heart-pulse" size={16} color={accent} />
+                        </View>
+
+                        <View style={styles.animalInfo}>
+                          <View style={styles.nameRow}>
+                            <Text style={[styles.animalName, { color: colors.foreground }]} numberOfLines={1}>
+                              {animalName}
+                            </Text>
+                            <View style={[styles.statusBadge, { backgroundColor: accent + "15" }]}>
+                              <Text style={[styles.statusText, { color: accent }]}>{event.typeLabel}</Text>
+                            </View>
+                          </View>
+
+                          <Text style={[styles.animalBreed, { color: colors.mutedForeground }]}>
+                            {event.date.toLocaleDateString(undefined, {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                            {event.bullName ? ` • Bull: ${event.bullName}` : ""}
+                          </Text>
+
+                          {event.note && (
+                            <Text style={[styles.healthDescText, { color: colors.foreground }]} numberOfLines={2}>
+                              {event.note}
+                            </Text>
+                          )}
+
+                          {event.formattedExpectedCalvingDate && (
+                            <View style={[styles.subtextBadge, { backgroundColor: "#fef9c3" }]}>
+                              <Text style={[styles.subtextText, { color: "#eab308" }]}>
+                                Expected calving {event.formattedExpectedCalvingDate}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <View style={styles.animalRight}>
+                          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+
+                  {filteredBreedingEvents.length === 0 && (
+                    <View style={styles.emptyContainer}>
+                      <MaterialCommunityIcons
+                        name="cards-playing-heart-multiple"
+                        size={48}
+                        color={colors.border}
+                      />
+                      <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                        {searchQuery.length > 0
+                          ? "No matching breeding records found"
+                          : "No breeding records for this shed yet"}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -1103,6 +1498,17 @@ export default function AnimalsScreen() {
         visible={healthNoteAnimal !== null}
         onClose={() => setHealthNoteAnimal(null)}
         onSelect={handleSelectHealthNote}
+      />
+
+      <BreedingEventModal
+        visible={breedingVisible}
+        onClose={() => setBreedingVisible(false)}
+        preselectedAnimalId={shedAnimals.length === 1 ? String(shedAnimals[0].id) : undefined}
+      />
+
+      <InventoryModal
+        visible={feedItemVisible}
+        onClose={() => setFeedItemVisible(false)}
       />
 
       <CelebrationOverlay
@@ -1269,18 +1675,22 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
   },
   tabsScroll: {
-    marginTop: 14,
+    marginTop: 16,
     borderBottomWidth: 1,
     flexGrow: 0,
     flexShrink: 0,
   },
+  // flexGrow lets the row fill the screen so the tabs spread evenly when they
+  // fit, while still scrolling if longer labels ever overflow.
   tabsContainer: {
     flexDirection: "row",
-    paddingHorizontal: 16,
+    justifyContent: "space-between",
+    flexGrow: 1,
+    paddingHorizontal: 10,
   },
   tabButton: {
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
     alignItems: "center",
@@ -1291,9 +1701,6 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 12,
-  },
-  scrollContent: {
-    paddingBottom: 100,
   },
   summaryHeader: {
     flexDirection: "row",

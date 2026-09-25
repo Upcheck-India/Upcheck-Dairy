@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { useFarm } from "../../farms/hooks/useFarm";
 import { useFinance } from "../hooks/useFinance";
 import { useInventory } from "../../inventory/hooks/useInventory";
@@ -280,6 +281,7 @@ function ModalShell({ title, visible, onClose, children }: ModalShellProps) {
 export default function FinanceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight();
   const { language, t } = useLanguage();
   const { activeFarm } = useFarm();
   const { incomeEntries, expenseEntries, addIncome, addExpense, refresh: refreshFinance, loading: financeLoading } = useFinance();
@@ -294,7 +296,6 @@ export default function FinanceScreen() {
   const isLoaded = !financeLoading && !inventoryLoading;
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 28 : insets.bottom;
 
   const [refreshing, setRefreshing] = useState(false);
   const [section, setSection] = useState<FinanceSection>("overview");
@@ -914,7 +915,7 @@ export default function FinanceScreen() {
       ) : (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 120 }]}
+          contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 52 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
           showsVerticalScrollIndicator={false}
         >
@@ -1259,7 +1260,7 @@ export default function FinanceScreen() {
 
       {/* Floating Action Button (FAB) */}
       <Pressable
-        style={[styles.fab, { backgroundColor: colors.primary, bottom: isWeb ? 100 : 84 + insets.bottom }]}
+        style={[styles.fab, { backgroundColor: colors.primary, bottom: tabBarHeight + 16 }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           if (section === "inventory") {

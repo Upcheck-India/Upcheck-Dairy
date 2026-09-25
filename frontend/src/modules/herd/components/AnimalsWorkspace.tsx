@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, FlatList, RefreshControl, ActivityIndicator, Text, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
+import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { useLanguage } from "@/context/LanguageContext";
 import { Animal } from "../../animals/models/Animal";
 import { HerdSearchBar } from "./HerdSearchBar";
@@ -26,6 +27,7 @@ export function AnimalsWorkspace({
   refreshing,
 }: AnimalsWorkspaceProps) {
   const colors = useColors();
+  const tabBarHeight = useTabBarHeight();
   const { t } = useLanguage();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -84,7 +86,7 @@ export function AnimalsWorkspace({
               onMilkLog={() => onMilkLogPress(animal)}
             />
           )}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: tabBarHeight + 24 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -117,8 +119,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
-    paddingTop:24,
-    paddingBottom: 120,
+    paddingTop: 24,
   },
   loadingWrapper: {
     alignItems: "center",

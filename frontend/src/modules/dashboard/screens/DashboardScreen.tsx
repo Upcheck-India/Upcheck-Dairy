@@ -9,6 +9,7 @@ import { useFarmer } from "@/context/FarmerContext";
 import { useFarm } from "../../farms/hooks/useFarm";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 
 // Import presentation components
 import { DashboardHeader } from "../components/DashboardHeader";
@@ -27,6 +28,7 @@ import { Animal } from "../../animals/models/Animal";
 export function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight();
   const { farmer } = useFarmer();
   const { activeFarm } = useFarm();
   const { t, language } = useLanguage();
@@ -51,7 +53,7 @@ export function DashboardScreen() {
 
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : 0;
+  const bottomPad = tabBarHeight + 32;
 
   // Multi-language helper
   const lx = (r: Record<string, string>) => r[language] ?? r.en ?? "";
@@ -142,7 +144,7 @@ export function DashboardScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.scrollBody, { paddingBottom: bottomPad + 100 }]}
+        contentContainerStyle={[styles.scrollBody, { paddingBottom: bottomPad }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

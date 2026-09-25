@@ -43,6 +43,11 @@ export function ShedManagementModal({
   const [mode, setMode] = useState<"list" | "create" | "edit">("list");
   const [editingShedId, setEditingShedId] = useState<string | null>(null);
 
+  // True when the modal was opened straight into a form (the pencil on a shed
+  // card, for example). Leaving that form must dismiss the modal rather than
+  // drop the farmer on the management list they never asked to see.
+  const [openedIntoForm, setOpenedIntoForm] = useState(false);
+
   // Form fields
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
@@ -50,33 +55,59 @@ export function ShedManagementModal({
 
   // Initialize modal state when opened
   React.useEffect(() => {
-    if (visible) {
-      if (initialAction === "create") {
-        openCreate();
-      } else if (initialAction === "edit" && targetShedId) {
-        const s = sheds.find((item) => item.id === targetShedId);
-        if (s) openEdit(s);
-        else setMode("list");
+    if (!visible) return;
+
+    if (initialAction === "create") {
+      resetToCreate();
+      setOpenedIntoForm(true);
+    } else if (initialAction === "edit" && targetShedId) {
+      const s = sheds.find((item) => item.id === targetShedId);
+      if (s) {
+        resetToEdit(s);
+        setOpenedIntoForm(true);
       } else {
         setMode("list");
+        setOpenedIntoForm(false);
       }
+    } else {
+      setMode("list");
+      setOpenedIntoForm(false);
     }
   }, [visible, initialAction, targetShedId]);
 
-  const openCreate = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const resetToCreate = () => {
     setName("");
     setDesc("");
     setEditingShedId(null);
     setMode("create");
   };
 
-  const openEdit = (shed: Shed) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const resetToEdit = (shed: Shed) => {
     setName(shed.name);
     setDesc(shed.desc || "");
     setEditingShedId(shed.id);
     setMode("edit");
+  };
+
+  const openCreate = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    resetToCreate();
+  };
+
+  const openEdit = (shed: Shed) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    resetToEdit(shed);
+  };
+
+  /** Leaves the current form: back to the list, or out of the modal entirely. */
+  const leaveForm = () => {
+    if (openedIntoForm) onClose();
+    else setMode("list");
+  };
+
+  const handleBack = () => {
+    if (mode === "list") onClose();
+    else leaveForm();
   };
 
   const handleSave = async () => {
@@ -96,7 +127,7 @@ export function ShedManagementModal({
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(lx({ en: "Success", ta: "வெற்றி" }), lx({ en: "Shed updated successfully!", ta: "கொட்டகை புதுப்பிக்கப்பட்டது!" }));
       }
-      setMode("list");
+      leaveForm();
     } catch (err: any) {
       Alert.alert(lx({ en: "Error", ta: "பிழை" }), err.message || "Failed to save shed");
     } finally {
@@ -147,19 +178,18 @@ export function ShedManagementModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={handleBack}>
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Pressable
-            onPress={() => {
-              if (mode !== "list") setMode("list");
-              else onClose();
-            }}
-            style={styles.headerBtn}
-            hitSlop={10}
-          >
-            <Feather name={mode !== "list" ? "arrow-left" : "x"} size={22} color={colors.foreground} />
+          <Pressable onPress={handleBack} style={styles.headerBtn} hitSlop={10}>
+            {/* Backing out of a directly-opened form dismisses the modal, so show
+                a close icon rather than implying there is a list behind it. */}
+            <Feather
+              name={mode !== "list" && !openedIntoForm ? "arrow-left" : "x"}
+              size={22}
+              color={colors.foreground}
+            />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>
             {mode === "create"
@@ -271,7 +301,7 @@ export function ShedManagementModal({
               <View style={styles.formActions}>
                 <Pressable
                   style={[styles.btnSecondary, { borderColor: colors.border }]}
-                  onPress={() => setMode("list")}
+                  onPress={leaveForm}
                   disabled={submitting}
                 >
                   <Text style={[styles.btnTextSecondary, { color: colors.foreground }]}>

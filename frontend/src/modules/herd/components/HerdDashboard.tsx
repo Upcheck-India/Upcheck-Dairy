@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView, Alert } from "react-nati
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
+import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { useLanguage } from "@/context/LanguageContext";
 import { Animal } from "../../animals/models/Animal";
 import { useSheds, Shed, DEFAULT_SHEDS, DEFAULT_SHED_CAPACITY } from "../context/ShedProvider";
@@ -33,6 +34,7 @@ export function HerdDashboard({
   onHerdReports,
 }: HerdDashboardProps) {
   const colors = useColors();
+  const tabBarHeight = useTabBarHeight();
   const { language } = useLanguage();
   const { sheds: storedSheds } = useSheds();
   const { categories: storedCategories } = useCategories();
@@ -203,7 +205,11 @@ export function HerdDashboard({
   }, [storedCategories, animals, language]);
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: tabBarHeight + 24 }}
+    >
       {activeTab === "by_shed" ? (
         <View style={styles.section}>
           {/* Header Row */}
@@ -513,9 +519,6 @@ export function HerdDashboard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  content: {
-    paddingBottom: 40,
   },
   section: {
     paddingHorizontal: 16,

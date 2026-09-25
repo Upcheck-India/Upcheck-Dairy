@@ -16,6 +16,8 @@ import {
   Platform,
 } from "react-native";
 import Svg, { Path, Rect, Circle, G } from "react-native-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANGUAGE_NAMES, type Language } from "@/context/LanguageContext";
@@ -80,6 +82,8 @@ function ProfileCardLandscape() {
 }
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight();
   const { t, language, setLanguage } = useLanguage();
   const { farmer, updateProfile, logout } = useFarmer();
   const { animals } = useAnimals();
@@ -408,7 +412,7 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       {/* Header Row */}
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: insets.top + 12 }]}>
         <Pressable style={styles.backBtn} onPress={handleBack}>
           <Feather name="arrow-left" size={24} color="#16a34a" />
         </Pressable>
@@ -416,7 +420,10 @@ export default function ProfileScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
         {currentView === "main" && (
           <>
             {/* Top Linear Gradient Profile Card */}
@@ -826,13 +833,12 @@ function DetailRow({ icon, iconType = "feather", label, value, onPress, showChev
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc" },
-  content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40, gap: 16 },
+  content: { paddingHorizontal: 16, paddingTop: 8, gap: 16 },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 56,
     paddingBottom: 16,
     backgroundColor: "#ffffff",
     borderBottomWidth: 1,

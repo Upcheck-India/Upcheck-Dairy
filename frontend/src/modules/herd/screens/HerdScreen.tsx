@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Pressable, Text, Alert } from "react-native";
+import { View, StyleSheet, Pressable, Text } from "react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 
 import { useAnimals } from "../../animals/hooks/useAnimals";
+import { useHealth } from "../../health/hooks/useHealth";
 import { useFarm } from "../../farms/hooks/useFarm";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
@@ -13,6 +14,8 @@ import { useColors } from "@/hooks/useColors";
 import { HerdHeader } from "../components/HerdHeader";
 import { HerdTabs, HerdTabType } from "../components/HerdTabs";
 import { HerdDashboard } from "../components/HerdDashboard";
+import { HerdReportModal } from "../components/HerdReportModal";
+import { HealthOverviewModal } from "../components/HealthOverviewModal";
 import { useSheds } from "../context/ShedProvider";
 import { resolveAnimalShed } from "../utils/shedAssignment";
 import { AnimalsWorkspace } from "../components/AnimalsWorkspace";
@@ -28,7 +31,12 @@ export function HerdScreen() {
   const { t, language } = useLanguage();
 
   const { animals, loading: animalsLoading, refresh: refreshAnimals } = useAnimals();
+  const { healthEvents } = useHealth();
   const { sheds } = useSheds();
+
+  // Alert count shown on the bell — the same "health events" the animals screen
+  // counts, so the two badges never disagree.
+  const alertCount = healthEvents.length;
 
   const [activeTab, setActiveTab] = useState<HerdTabType>("by_shed");
   const [selectedShed, setSelectedShed] = useState<string | null>(null);
@@ -37,6 +45,8 @@ export function HerdScreen() {
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
 
   const [milkAnimal, setMilkAnimal] = useState<Animal | null>(null);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [healthOverviewVisible, setHealthOverviewVisible] = useState(false);
   const [celebration, setCelebration] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -87,7 +97,7 @@ export function HerdScreen() {
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 6 }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 10 }]}>
       {!isDrillDown ? (
         <>
           <HerdHeader
@@ -95,9 +105,10 @@ export function HerdScreen() {
             activeFarm={activeFarm}
             farms={farms}
             onSwitchFarm={switchFarm}
+            notificationCount={alertCount}
             onNotificationPress={() => {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-              Alert.alert("Alerts", "You have 3 notifications regarding breeding cycle updates.");
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push({ pathname: "/animals" as any, params: { tab: "health" } });
             }}
           />
 
@@ -130,10 +141,12 @@ export function HerdScreen() {
                 setActiveTab("by_category");
               }}
               onHealthOverview={() => {
-                Alert.alert("Health Overview", "All animals are currently healthy. 2 under observation.");
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setHealthOverviewVisible(true);
               }}
               onHerdReports={() => {
-                Alert.alert("Herd Reports", "Generating milk yield and category split report...");
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setReportVisible(true);
               }}
             />
           </View>
@@ -181,6 +194,21 @@ export function HerdScreen() {
         animal={milkAnimal}
         onClose={() => setMilkAnimal(null)}
         onSuccess={handleMilkSuccess}
+      />
+
+      <HerdReportModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        animals={animals}
+        farmName={activeFarm?.name ?? "This farm"}
+      />
+
+      <HealthOverviewModal
+        visible={healthOverviewVisible}
+        onClose={() => setHealthOverviewVisible(false)}
+        animals={animals}
+        farmName={activeFarm?.name ?? "This farm"}
+        onAnimalPress={(id) => router.push(`/animal/${id}`)}
       />
       
       <CelebrationOverlay
