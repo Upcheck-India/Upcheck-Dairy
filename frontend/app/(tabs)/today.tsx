@@ -21,7 +21,6 @@ import {
 
 import CelebrationOverlay from "@/components/CelebrationOverlay";
 import StatCard from "@/components/StatCard";
-import TaskItem from "@/components/TaskItem";
 import { getTodayString, SmartAlert } from "@/context/AppContext";
 import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";

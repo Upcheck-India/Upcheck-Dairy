@@ -1,7 +1,6 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
-import { LinearGradient } from "expo-linear-gradient";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -38,6 +37,17 @@ const CHART_WIDTH = Math.max(280, SCREEN_WIDTH - 48);
 const CHART_HEIGHT = 130;
 
 type FinanceSection = "overview" | "passbook" | "reports" | "inventory";
+
+const FINANCE_TABS: {
+  key: FinanceSection;
+  label: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+}[] = [
+  { key: "overview", label: "Overview", icon: "view-dashboard-outline" },
+  { key: "passbook", label: "Passbook", icon: "book-open-outline" },
+  { key: "reports", label: "Reports", icon: "chart-line" },
+  { key: "inventory", label: "Inventory", icon: "package-variant-closed" },
+];
 type QuickActionId = "recordMilk" | "addExpense" | "uploadBill" | "uploadPayslip" | "recordPayment" | "transferOther";
 
 type ModalMode =
@@ -197,28 +207,6 @@ function SelectPill({ label, active, onPress }: SelectPillProps) {
   );
 }
 
-interface SectionChipProps {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}
-function SectionChip({ label, active, onPress }: SectionChipProps) {
-  const colors = useColors();
-  return (
-    <Pressable
-      style={[
-        styles.sectionChip,
-        {
-          borderColor: active ? colors.primary : colors.border,
-          backgroundColor: active ? colors.primary : colors.card,
-        },
-      ]}
-      onPress={onPress}
-    >
-      <Text style={[styles.sectionChipText, { color: active ? "#fff" : colors.mutedForeground }]}>{label}</Text>
-    </Pressable>
-  );
-}
 
 interface InfoCardProps {
   title: string;
@@ -555,88 +543,6 @@ export default function FinanceScreen() {
     }
   };
 
-  // Seed demo data matching mockup
-  const seedDemoData = async () => {
-    if (!activeFarm?.id) return;
-    try {
-      setRefreshing(true);
-      
-      // 1. Milk Sale Morning
-      await addIncome({
-        farmId: activeFarm.id,
-        date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        buyer: "Milk Sale - Morning",
-        quantitySold: 250,
-        ratePerLitre: 50,
-        totalExpected: 12500,
-        totalReceived: 12500,
-        fatPercentage: 4.2,
-        snfPercentage: 8.6,
-        notes: "Morning collection log",
-      });
-
-      // 2. Feed Purchase
-      await addExpense({
-        farmId: activeFarm.id,
-        date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-        category: "feed",
-        description: "Feed Purchase",
-        amount: 4800,
-        attachmentUrl: "/uploads/mock_bill.png",
-      });
-
-      // 3. Veterinary Expense
-      await addExpense({
-        farmId: activeFarm.id,
-        date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        category: "medicine",
-        description: "Veterinary Expense",
-        amount: 1250,
-      });
-
-      // 4. Payment Received
-      await addIncome({
-        farmId: activeFarm.id,
-        date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        buyer: "Payment Received (1 - 15 Jul)",
-        quantitySold: 2430,
-        ratePerLitre: 19.69,
-        totalExpected: 95520,
-        totalReceived: 47850,
-        notes: "Payslip received from dairy",
-        attachmentUrl: "/uploads/mock_payslip.png",
-      });
-
-      // 5. Payment Expected
-      await addIncome({
-        farmId: activeFarm.id,
-        date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-        buyer: "Payment Expected (16 - 31 Jul)",
-        quantitySold: 2615,
-        ratePerLitre: 20,
-        totalExpected: 52300,
-        totalReceived: 0,
-        notes: "Expected payment cycle log",
-      });
-
-      // 6. Labour Payment
-      await addExpense({
-        farmId: activeFarm.id,
-        date: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString(),
-        category: "labor",
-        description: "Labour Payment",
-        amount: 6000,
-      });
-
-      await refreshFinance();
-      Alert.alert("Success", "Mock passbook data seeded successfully!");
-    } catch (e) {
-      Alert.alert("Error", "Failed to seed demo data");
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   const saveMilkSale = async () => {
     const quantity = Number.parseFloat(milkQuantity);
     const rate = Number.parseFloat(milkRate);
@@ -860,38 +766,74 @@ export default function FinanceScreen() {
   const filters: Array<typeof activePassbookFilter> = ["All", "Milk", "Expense", "Payment", "Bills", "Payslip"];
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <LinearGradient
-        colors={["#f2fbf4", colors.background, colors.background]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={[styles.hero, { paddingTop: topPad + 14, borderBottomColor: colors.border }]}
+    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad + 10 }]}>
+      {/* Header and tab strip follow the Herd and Animals screens: a plain
+          title row, then an underlined icon tab bar. This screen used to have
+          its own gradient hero, all-caps branding and pill chips, which is what
+          made it read as a different app. */}
+      <View style={styles.headerRow}>
+        <Text style={[styles.title, { color: colors.foreground }]}>Money</Text>
+        <Pressable
+          style={styles.refreshBtn}
+          onPress={onRefresh}
+          hitSlop={10}
+          disabled={financeLoading || inventoryLoading}
+        >
+          <Feather
+            name="refresh-cw"
+            size={20}
+            color={financeLoading || inventoryLoading ? colors.mutedForeground : colors.foreground}
+          />
+        </Pressable>
+      </View>
+
+      {!activeFarm?.id && (
+        <View style={[styles.notice, { backgroundColor: `${colors.warning}12`, borderColor: `${colors.warning}35` }]}>
+          <Feather name="alert-triangle" size={14} color={colors.warning} />
+          <Text style={[styles.noticeText, { color: colors.warning }]}>Select a farm to save finance entries.</Text>
+        </View>
+      )}
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={[styles.tabsScroll, { borderBottomColor: colors.border }]}
+        contentContainerStyle={styles.tabsContainer}
       >
-        <View style={styles.heroTopRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: colors.foreground }]}>UPCHECK FINANCE</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Digital dairy passbook for milk, bills, expenses and payments.</Text>
-          </View>
-          <Pressable style={[styles.syncPill, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={onRefresh}>
-            <Feather name={financeLoading || inventoryLoading ? "refresh-cw" : "check-circle"} size={14} color={colors.primary} />
-            <Text style={[styles.syncText, { color: colors.primary }]}>{financeLoading || inventoryLoading ? "Refreshing" : "Synced"}</Text>
-          </Pressable>
-        </View>
-
-        {!activeFarm?.id && (
-          <View style={[styles.notice, { backgroundColor: `${colors.warning}12`, borderColor: `${colors.warning}35` }]}>
-            <Feather name="alert-triangle" size={14} color={colors.warning} />
-            <Text style={[styles.noticeText, { color: colors.warning }]}>Select a farm to save finance entries.</Text>
-          </View>
-        )}
-
-        <View style={styles.tabRow}>
-          <SectionChip label="Overview" active={section === "overview"} onPress={() => setSection("overview")} />
-          <SectionChip label="Passbook" active={section === "passbook"} onPress={() => setSection("passbook")} />
-          <SectionChip label="Reports" active={section === "reports"} onPress={() => setSection("reports")} />
-          <SectionChip label="Inventory" active={section === "inventory"} onPress={() => setSection("inventory")} />
-        </View>
-      </LinearGradient>
+        {FINANCE_TABS.map((tab) => {
+          const isActive = section === tab.key;
+          return (
+            <Pressable
+              key={tab.key}
+              style={[styles.tabButton, isActive && { borderBottomColor: colors.primary }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSection(tab.key);
+              }}
+            >
+              <View style={styles.tabContent}>
+                <MaterialCommunityIcons
+                  name={tab.icon}
+                  size={18}
+                  color={isActive ? colors.primary : colors.mutedForeground}
+                  style={{ marginRight: 5 }}
+                />
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: isActive ? colors.primary : colors.mutedForeground,
+                      fontFamily: isActive ? "Inter_700Bold" : "Inter_500Medium",
+                    },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       {!isLoaded ? (
         <View style={[styles.loadingWrap, { flex: 1 }]}>
@@ -902,13 +844,12 @@ export default function FinanceScreen() {
         <View style={[styles.emptyState, { flex: 1 }]}>
           <Feather name="book-open" size={42} color={colors.border} />
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No finance records yet</Text>
-          <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>Use the green + button or seed mockup data to see passbook in action.</Text>
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+          <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
+            Record a sale or an expense and it will appear here.
+          </Text>
+          <View style={{ marginTop: 12 }}>
             <Pressable style={[styles.primaryBtn, { backgroundColor: colors.primary }]} onPress={() => setQuickSheetVisible(true)}>
-              <Text style={styles.primaryBtnText}>Open quick actions</Text>
-            </Pressable>
-            <Pressable style={[styles.primaryBtn, { backgroundColor: colors.accent }]} onPress={seedDemoData}>
-              <Text style={styles.primaryBtnText}>Seed demo data</Text>
+              <Text style={styles.primaryBtnText}>Add an entry</Text>
             </Pressable>
           </View>
         </View>
@@ -1710,41 +1651,24 @@ function PassbookRow({ entry, onPress }: { entry: PassbookEntry; onPress: () => 
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  hero: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-  },
-  heroTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  title: {
-    fontSize: 25,
-    fontWeight: "800",
-    letterSpacing: 0.2,
-  },
-  subtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  syncPill: {
+  // Header and tabs mirror the Animals screen so the app reads as one product.
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 10,
   },
-  syncText: {
-    fontSize: 12,
-    fontWeight: "700",
+  title: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+  },
+  refreshBtn: {
+    padding: 6,
   },
   notice: {
-    marginTop: 12,
+    marginHorizontal: 16,
+    marginBottom: 4,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 14,
@@ -1754,22 +1678,31 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   noticeText: { fontSize: 12, fontWeight: "600" },
-  tabRow: {
+  tabsScroll: {
+    marginTop: 8,
+    borderBottomWidth: 1,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  tabsContainer: {
     flexDirection: "row",
-    gap: 8,
-    marginTop: 14,
+    justifyContent: "space-between",
+    flexGrow: 1,
+    paddingHorizontal: 10,
   },
-  sectionChip: {
-    flex: 1,
-    paddingVertical: 11,
+  tabButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
     alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 14,
-    borderWidth: 1,
   },
-  sectionChipText: {
-    fontSize: 13,
-    fontWeight: "700",
+  tabContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  tabText: {
+    fontSize: 12,
   },
   content: {
     paddingHorizontal: 16,

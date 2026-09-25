@@ -4,6 +4,7 @@ import * as Linking from "expo-linking";
 import * as Speech from "expo-speech";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useEffect, useRef, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
 import {
   Alert,
   Animated,
@@ -21,9 +22,12 @@ import GauGuruChat from "@/components/GauGuruChat";
 import { useAnimals } from "../../src/modules/animals/hooks/useAnimals";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { diagnoseSymptoms, type DiagnoseResponse } from "@/services/api";
 
 type HelpSubTab = "diagnose" | "gauguru" | "emergency";
+
+const HELP_SUB_TABS: HelpSubTab[] = ["diagnose", "gauguru", "emergency"];
 
 type Symptom = { id: string; icon: string; english: string; labels: Record<string, string> };
 
@@ -72,9 +76,21 @@ const FIRST_AID_MULTI: Record<string, string[]> = {
 export default function HelpTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight();
   const { animals } = useAnimals();
   const { language, t } = useLanguage();
-  const [subTab, setSubTab] = useState<HelpSubTab>("diagnose");
+  // Callers can deep-link to a sub-tab, e.g. quick actions opening the chat.
+  const params = useLocalSearchParams();
+  const requestedTab = params.tab as HelpSubTab | undefined;
+  const [subTab, setSubTab] = useState<HelpSubTab>(
+    requestedTab && HELP_SUB_TABS.includes(requestedTab) ? requestedTab : "diagnose"
+  );
+
+  useEffect(() => {
+    if (requestedTab && HELP_SUB_TABS.includes(requestedTab)) {
+      setSubTab(requestedTab);
+    }
+  }, [requestedTab]);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [selectedAnimalId, setSelectedAnimalId] = useState<string | null>(null);
   const [customNote, setCustomNote] = useState("");
@@ -206,7 +222,7 @@ export default function HelpTab() {
       {subTab === "diagnose" && (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={[styles.content, { paddingBottom: isWeb ? 120 : 100 }]}
+          contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 32 }]}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.sosContainer}>
@@ -372,7 +388,7 @@ export default function HelpTab() {
 
       {/* EMERGENCY TAB */}
       {subTab === "emergency" && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.content, { paddingBottom: 120 }]} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 32 }]} showsVerticalScrollIndicator={false}>
           <View style={styles.sosContainer}>
             <Animated.View style={[styles.sosPulse, { transform: [{ scale: pulseAnim }], opacity: pulseOpacity, backgroundColor: "#dc2626" }]} />
             <Pressable

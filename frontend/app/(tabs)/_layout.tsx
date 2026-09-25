@@ -6,7 +6,12 @@ import { Platform, Pressable, StyleSheet, Text, View, useColorScheme } from "rea
 
 import VoiceButton from "@/components/VoiceButton";
 import VoiceModal from "@/components/VoiceModal";
-import QuickActionsModal from "@/components/QuickActionsModal";
+import AddAnimalModal from "@/components/AddAnimalModal";
+import InventoryModal from "@/components/InventoryModal";
+import QuickActionsModal, { type QuickAction } from "@/components/QuickActionsModal";
+import { HerdReportModal } from "@/src/modules/herd/components/HerdReportModal";
+import { useAnimals } from "@/src/modules/animals/hooks/useAnimals";
+import { useFarm } from "@/src/modules/farms/hooks/useFarm";
 import { useColors } from "@/hooks/useColors";
 import { TAB_BAR_CONTENT_HEIGHT } from "@/hooks/useTabBarHeight";
 import { useLanguage } from "@/context/LanguageContext";
@@ -38,8 +43,55 @@ export default function TabLayout() {
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const { language, t } = useLanguage();
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [voiceVisible, setVoiceVisible] = useState(false);
+  const [addAnimalVisible, setAddAnimalVisible] = useState(false);
+  const [addFeedVisible, setAddFeedVisible] = useState(false);
+  const [herdReportVisible, setHerdReportVisible] = useState(false);
   const insets = useSafeAreaInsets();
+  const { animals } = useAnimals();
+  const { activeFarm } = useFarm();
+
+  /**
+   * Destinations for the quick-actions grid. Every one of these previously did
+   * nothing — the grid's handler was a haptic tap and a "perform no action"
+   * comment — which left the voice modal, the AI chat and the tasks screen
+   * built but unreachable.
+   */
+  const handleQuickAction = (action: QuickAction) => {
+    switch (action) {
+      case "milk-records":
+        router.push({ pathname: "/animals" as any, params: { tab: "milk" } });
+        break;
+      case "feed-stock":
+        router.push({ pathname: "/animals" as any, params: { tab: "feed" } });
+        break;
+      case "health-records":
+        router.push({ pathname: "/animals" as any, params: { tab: "health" } });
+        break;
+      case "breeding-records":
+        router.push({ pathname: "/animals" as any, params: { tab: "breeding" } });
+        break;
+      case "tasks":
+        router.push("/today" as any);
+        break;
+      case "ask-ai":
+        router.push({ pathname: "/help" as any, params: { tab: "gauguru" } });
+        break;
+      case "add-animal":
+        setAddAnimalVisible(true);
+        break;
+      case "add-feed":
+        setAddFeedVisible(true);
+        break;
+      case "herd-report":
+        setHerdReportVisible(true);
+        break;
+      case "voice":
+        setVoiceVisible(true);
+        break;
+    }
+  };
 
   const getTabLabel = (routeName: string) => {
     switch (routeName) {
@@ -133,12 +185,6 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="voice"
-          options={{
-            href: null,
-          }}
-        />
-        <Tabs.Screen
           name="money"
           options={{
             title: getTabLabel("money"),
@@ -179,11 +225,32 @@ export default function TabLayout() {
         pointerEvents="box-none"
         style={[styles.floatingActionWrap, { bottom: tabBarInset + 8 }]}
       >
-        <VoiceButton onPress={() => setVoiceVisible(true)} />
+        <VoiceButton onPress={() => setQuickActionsVisible(true)} />
       </View>
+
       <QuickActionsModal
-        visible={voiceVisible}
-        onClose={() => setVoiceVisible(false)}
+        visible={quickActionsVisible}
+        onClose={() => setQuickActionsVisible(false)}
+        onSelect={handleQuickAction}
+      />
+
+      <VoiceModal visible={voiceVisible} onClose={() => setVoiceVisible(false)} />
+
+      <AddAnimalModal
+        visible={addAnimalVisible}
+        onClose={() => setAddAnimalVisible(false)}
+      />
+
+      <InventoryModal
+        visible={addFeedVisible}
+        onClose={() => setAddFeedVisible(false)}
+      />
+
+      <HerdReportModal
+        visible={herdReportVisible}
+        onClose={() => setHerdReportVisible(false)}
+        animals={animals}
+        farmName={activeFarm?.name ?? "This farm"}
       />
     </View>
   );

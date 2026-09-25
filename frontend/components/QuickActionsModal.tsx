@@ -11,14 +11,33 @@ import {
   ScrollView,
 } from "react-native";
 
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
+
+/**
+ * Every action this grid can raise. The parent decides what each one does, so
+ * navigation and modal ownership stay in the screen that hosts them.
+ */
+export type QuickAction =
+  | "milk-records"
+  | "feed-stock"
+  | "health-records"
+  | "breeding-records"
+  | "add-animal"
+  | "add-feed"
+  | "tasks"
+  | "herd-report"
+  | "voice"
+  | "ask-ai";
 
 interface QuickActionsModalProps {
   visible: boolean;
   onClose: () => void;
+  onSelect: (action: QuickAction) => void;
 }
 
 interface ActionItem {
+  action: QuickAction;
   title: string;
   subtext: string;
   icon: any;
@@ -31,28 +50,35 @@ interface Section {
   items: ActionItem[];
 }
 
-export default function QuickActionsModal({ visible, onClose }: QuickActionsModalProps) {
+export default function QuickActionsModal({ visible, onClose, onSelect }: QuickActionsModalProps) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
 
+  // Only actions with a real destination appear here. "Reminders", "Milk
+  // Report" and "Feed Report" were removed rather than left as buttons that
+  // do nothing — there is no screen behind them yet.
   const sections: Section[] = [
     {
       title: "Records",
       items: [
         {
+          action: "milk-records",
           title: "Milk Records",
           subtext: "Daily milk collection",
-          icon: "pitcher-fluid",
+          icon: "cup-water",
           iconColor: "#0284c7",
           iconBg: "#e0f2fe",
         },
         {
-          title: "Feed Records",
-          subtext: "Feed given to animals",
+          action: "feed-stock",
+          title: "Feed Stock",
+          subtext: "What is in the store",
           icon: "barley",
           iconColor: "#b45309",
           iconBg: "#fef3c7",
         },
         {
+          action: "health-records",
           title: "Health Records",
           subtext: "Treatments & checkups",
           icon: "medical-bag",
@@ -60,6 +86,7 @@ export default function QuickActionsModal({ visible, onClose }: QuickActionsModa
           iconBg: "#dcfce7",
         },
         {
+          action: "breeding-records",
           title: "Breeding Records",
           subtext: "Mating & pregnancy",
           icon: "gender-male-female",
@@ -72,6 +99,7 @@ export default function QuickActionsModal({ visible, onClose }: QuickActionsModa
       title: "Management",
       items: [
         {
+          action: "add-animal",
           title: "Add Animal",
           subtext: "Register new animal",
           icon: "plus-circle-outline",
@@ -79,6 +107,7 @@ export default function QuickActionsModal({ visible, onClose }: QuickActionsModa
           iconBg: "#dcfce7",
         },
         {
+          action: "add-feed",
           title: "Add Feed",
           subtext: "Add new feed item",
           icon: "plus-box-outline",
@@ -86,59 +115,52 @@ export default function QuickActionsModal({ visible, onClose }: QuickActionsModa
           iconBg: "#ffedd5",
         },
         {
+          action: "tasks",
           title: "Tasks",
-          subtext: "Manage daily tasks",
+          subtext: "Today's jobs",
           icon: "clipboard-check-outline",
           iconColor: "#16a34a",
           iconBg: "#dcfce7",
         },
         {
-          title: "Reminders",
-          subtext: "Set alerts & reminders",
-          icon: "bell-outline",
-          iconColor: "#eab308",
-          iconBg: "#fef9c3",
-        },
-      ],
-    },
-    {
-      title: "Reports",
-      items: [
-        {
-          title: "Milk Report",
-          subtext: "Production reports",
-          icon: "file-chart-outline",
-          iconColor: "#0284c7",
-          iconBg: "#e0f2fe",
-        },
-        {
-          title: "Feed Report",
-          subtext: "Consumption reports",
-          icon: "file-document-edit-outline",
-          iconColor: "#f97316",
-          iconBg: "#ffedd5",
-        },
-        {
+          action: "herd-report",
           title: "Herd Report",
-          subtext: "Animal performance",
+          subtext: "Yield, composition, health",
           icon: "chart-line",
           iconColor: "#4b5563",
           iconBg: "#f3f4f6",
         },
+      ],
+    },
+    {
+      title: "Assist",
+      items: [
         {
-          title: "Inventory Report",
-          subtext: "Stock & usage",
-          icon: "package-variant-closed",
-          iconColor: "#3b82f6",
-          iconBg: "#dbeafe",
+          action: "voice",
+          title: "Voice Entry",
+          subtext: "Speak to record",
+          icon: "microphone-outline",
+          iconColor: "#dc2626",
+          iconBg: "#fee2e2",
+        },
+        {
+          action: "ask-ai",
+          title: "Ask GauGuru",
+          subtext: "Farming questions",
+          icon: "robot-outline",
+          iconColor: "#7c3aed",
+          iconBg: "#f3e8ff",
         },
       ],
     },
   ];
 
-  const handlePress = () => {
+  const handlePress = (action: QuickAction) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Placeholder click - perform no action
+    onClose();
+    // Let this sheet dismiss before the destination opens; presenting a modal
+    // while another is still on screen is dropped on iOS.
+    setTimeout(() => onSelect(action), 260);
   };
 
   return (
@@ -150,7 +172,7 @@ export default function QuickActionsModal({ visible, onClose }: QuickActionsModa
     >
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+        <View style={[styles.sheetContainer, { backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
           {/* Header */}
           <View style={styles.header}>
             <Text 
@@ -186,7 +208,7 @@ export default function QuickActionsModal({ visible, onClose }: QuickActionsModa
                           opacity: pressed ? 0.8 : 1,
                         },
                       ]}
-                      onPress={handlePress}
+                      onPress={() => handlePress(item.action)}
                     >
                       <View style={[styles.iconContainer, { backgroundColor: item.iconBg }]}>
                         <MaterialCommunityIcons name={item.icon} size={22} color={item.iconColor} />
@@ -228,7 +250,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: 16,
     paddingTop: 20,
-    paddingBottom: Platform.OS === "ios" ? 40 : 24,
     maxHeight: "85%",
     width: "100%",
     shadowColor: "#000",
