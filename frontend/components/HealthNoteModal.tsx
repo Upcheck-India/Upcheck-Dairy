@@ -12,10 +12,24 @@ import {
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 
+export type HealthNoteOption = {
+  /** Stable key — the label is translated and must never be matched on. */
+  key: string;
+  label: string;
+  /** Which kind of health event this records. */
+  eventType: "observation" | "treatment" | "vaccination";
+  /**
+   * Health status this note implies for the animal, or null when the note is
+   * routine and says nothing about how the animal is doing. Callers only ever
+   * escalate on this — recovery is an explicit action by the farmer.
+   */
+  implies: "attention" | "critical" | null;
+};
+
 interface HealthNoteModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelect: (option: string) => void;
+  onSelect: (option: HealthNoteOption) => void;
 }
 
 export default function HealthNoteModal({
@@ -26,14 +40,16 @@ export default function HealthNoteModal({
   const { t } = useLanguage();
   const colors = useColors();
 
-  const options = [
-    { label: t.healthEventFever, icon: "thermometer" },
-    { label: t.healthEventNotEating, icon: "food-off" },
-    { label: t.healthEventLimping, icon: "walk" },
-    { label: t.healthEventDiarrhea, icon: "water-off" },
-    { label: t.healthEventCoughing, icon: "weather-windy" },
-    { label: t.healthEventVetVisit, icon: "doctor" },
-    { label: t.healthEventVaccination, icon: "needle" },
+  const options: (HealthNoteOption & { icon: string })[] = [
+    { key: "fever", label: t.healthEventFever, icon: "thermometer", eventType: "observation", implies: "attention" },
+    { key: "not_eating", label: t.healthEventNotEating, icon: "food-off", eventType: "observation", implies: "attention" },
+    { key: "limping", label: t.healthEventLimping, icon: "walk", eventType: "observation", implies: "attention" },
+    { key: "diarrhea", label: t.healthEventDiarrhea, icon: "water-off", eventType: "observation", implies: "attention" },
+    { key: "coughing", label: t.healthEventCoughing, icon: "weather-windy", eventType: "observation", implies: "attention" },
+    // A vet visit and a vaccination are records of care, not symptoms, so they
+    // leave the animal's status alone.
+    { key: "vet_visit", label: t.healthEventVetVisit, icon: "doctor", eventType: "treatment", implies: null },
+    { key: "vaccination", label: t.healthEventVaccination, icon: "needle", eventType: "vaccination", implies: null },
   ];
 
   return (
@@ -65,14 +81,21 @@ export default function HealthNoteModal({
 
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
             <View style={styles.optionsGrid}>
-              {options.map((opt, index) => (
+              {options.map((opt) => (
                 <Pressable
-                  key={index}
+                  key={opt.key}
                   style={[
                     styles.optionItem,
                     { backgroundColor: colors.muted, borderColor: colors.border },
                   ]}
-                  onPress={() => onSelect(opt.label)}
+                  onPress={() =>
+                    onSelect({
+                      key: opt.key,
+                      label: opt.label,
+                      eventType: opt.eventType,
+                      implies: opt.implies,
+                    })
+                  }
                 >
                   <View style={[styles.iconContainer, { backgroundColor: colors.primary + "15" }]}>
                     <MaterialCommunityIcons

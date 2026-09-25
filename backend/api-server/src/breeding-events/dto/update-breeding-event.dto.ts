@@ -17,6 +17,10 @@ export class UpdateBreedingEventDto {
   @IsOptional()
   note?: string;
 
+  @IsNumber()
+  @IsOptional()
+  sireId?: number | null;
+
   @IsString()
   @IsOptional()
   bullName?: string;

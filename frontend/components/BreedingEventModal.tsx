@@ -9,6 +9,10 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 import { useBreeding } from "../src/modules/breeding/hooks/useBreeding";
+import {
+  animalUpdateForBreedingEvent,
+  type BreedingEventTypeValue,
+} from "../src/modules/breeding/services/breedingTransitions";
 import { scheduleHeatReminder, scheduleCalvingReminder } from "../utils/notifications";
 
 let DateTimePicker: any = null;
@@ -57,21 +61,61 @@ function addDays(dateStr: string, days: number): string {
 
 export default function BreedingEventModal({ visible, onClose, preselectedAnimalId }: Props) {
   const colors = useColors();
-  const { animals } = useAnimals();
+  const { animals, updateAnimal } = useAnimals();
   const { createBreeding } = useBreeding();
   const { t, language } = useLanguage();
 
-  const adultAnimals = animals.filter((a) => a.type !== "calf");
+  // Females only: a bull is never the subject of an insemination or a calving.
+  // Filtering on type alone let males through, since the type enum has no
+  // "bull" — the gender recorded when the animal was added is what matters.
+  const adultAnimals = animals.filter((a) => a.type !== "calf" && a.gender !== "male");
+
+  /** Bulls kept on this farm, offered as sires. */
+  const farmSires = animals.filter((a) => a.gender === "male" && a.type !== "calf");
+
   const [selectedAnimalId, setSelectedAnimalId] = useState(preselectedAnimalId ?? adultAnimals[0]?.id ?? "");
   const [eventType, setEventType] = useState<BreedingEventType>("heat");
   const [date, setDate] = useState(getTodayString());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [sireId, setSireId] = useState<string | null>(null);
   const [bullName, setBullName] = useState("");
+  const [sireFieldFocused, setSireFieldFocused] = useState(false);
   const [calvingGender, setCalvingGender] = useState<"male" | "female" | "">("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
   const animal = animals.find((a) => a.id === selectedAnimalId);
+
+  const sireDisplayName = (sire: { name: string; tagNumber: string | null }) =>
+    sire.tagNumber ? `${sire.name} (${sire.tagNumber})` : sire.name;
+
+  // Typeahead over the farm's bulls. An empty query lists them all, so focusing
+  // the field is enough to discover who is available without typing first.
+  const sireSuggestions = (() => {
+    const q = bullName.trim().toLowerCase();
+    if (!q) return farmSires;
+    return farmSires.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.tagNumber ?? "").toLowerCase().includes(q)
+    );
+  })();
+
+  // Hidden once a bull is linked — the field then shows a confirmed selection
+  // rather than more options.
+  const showSireSuggestions =
+    sireFieldFocused && sireId == null && sireSuggestions.length > 0;
+
+  const selectSire = (sire: { id: string; name: string; tagNumber: string | null }) => {
+    setSireId(sire.id);
+    setBullName(sireDisplayName(sire));
+    setSireFieldFocused(false);
+  };
+
+  const clearSire = () => {
+    setSireId(null);
+    setBullName("");
+  };
 
   const expectedCalvingDate = (eventType === "insemination" || eventType === "pregnancy_confirmed")
     ? addDays(date, animal?.type === "buffalo" ? 310 : 283)
@@ -90,15 +134,37 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
 
     setSaving(true);
     try {
+      const eventDateIso = new Date(date).toISOString();
+      const expectedCalvingIso = expectedCalvingDate
+        ? new Date(expectedCalvingDate).toISOString()
+        : undefined;
+
       await createBreeding({
         animalId: Number(selectedAnimalId),
         eventType,
-        date: new Date(date).toISOString(),
+        date: eventDateIso,
         note: note.trim() || undefined,
-        bullName: bullName.trim() || undefined,
-        expectedCalvingDate: expectedCalvingDate ? new Date(expectedCalvingDate).toISOString() : undefined,
+        // A farm bull is linked by id; an AI straw or outside bull keeps its
+        // free-text name. Never both.
+        sireId: sireId ? Number(sireId) : undefined,
+        bullName: sireId ? undefined : bullName.trim() || undefined,
+        expectedCalvingDate: expectedCalvingIso,
         calvingGender: calvingGender || undefined,
       });
+
+      // Recording the event is not enough on its own: the animal's own pregnancy
+      // and category fields drive every other screen, so they have to move too.
+      if (animal) {
+        const update = animalUpdateForBreedingEvent(
+          animal,
+          eventType as BreedingEventTypeValue,
+          eventDateIso,
+          expectedCalvingIso
+        );
+        if (update) {
+          await updateAnimal(Number(selectedAnimalId), update);
+        }
+      }
 
       // Schedule reminders in the background
       const name = animal?.name || "Animal";
@@ -121,7 +187,9 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
   const resetForm = () => {
     setEventType("heat");
     setDate(getTodayString());
+    setSireId(null);
     setBullName("");
+    setSireFieldFocused(false);
     setCalvingGender("");
     setNote("");
     setShowDatePicker(false);
@@ -219,20 +287,92 @@ export default function BreedingEventModal({ visible, onClose, preselectedAnimal
             </View>
           )}
 
-          {/* Bull name for insemination */}
+          {/* Sire for insemination — a bull from this farm, or a typed name for
+              an AI straw / outside bull. Picking one clears the other so a
+              record never claims two different sires. */}
           {eventType === "insemination" && (
             <>
               <Text style={[styles.sectionLabel, { color: colors.foreground }]}>{t.breedingBullSemenLabel}</Text>
-              <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
-                <Feather name="user" size={18} color={colors.mutedForeground} />
+
+              <View
+                style={[
+                  styles.inputRow,
+                  { borderColor: sireId ? colors.primary : colors.border, backgroundColor: colors.muted },
+                ]}
+              >
+                <Feather
+                  name={sireId ? "check-circle" : "user"}
+                  size={18}
+                  color={sireId ? colors.primary : colors.mutedForeground}
+                />
                 <TextInput
                   style={[styles.input, { color: colors.foreground }]}
                   value={bullName}
-                  onChangeText={setBullName}
-                  placeholder={t.breedingBullSemenPlaceholder}
+                  onChangeText={(text) => {
+                    setBullName(text);
+                    // Editing after picking breaks the link: the text is now a
+                    // plain label again, not that bull.
+                    if (sireId) setSireId(null);
+                  }}
+                  onFocus={() => setSireFieldFocused(true)}
+                  placeholder={
+                    farmSires.length > 0
+                      ? "Search your bulls, or type an AI straw"
+                      : t.breedingBullSemenPlaceholder
+                  }
                   placeholderTextColor={colors.mutedForeground}
                 />
+                {bullName.length > 0 && (
+                  <Pressable onPress={clearSire} hitSlop={8}>
+                    <Feather name="x" size={16} color={colors.mutedForeground} />
+                  </Pressable>
+                )}
               </View>
+
+              {/* Rendered inline rather than absolutely positioned: this sits
+                  inside a ScrollView, where an overlay gets clipped. */}
+              {showSireSuggestions && (
+                <View
+                  style={[
+                    styles.suggestionList,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                  ]}
+                >
+                  {sireSuggestions.map((sire) => (
+                    <Pressable
+                      key={sire.id}
+                      style={({ pressed }) => [
+                        styles.suggestionRow,
+                        { borderBottomColor: colors.border },
+                        pressed && { backgroundColor: colors.muted },
+                      ]}
+                      onPress={() => selectSire(sire)}
+                    >
+                      <MaterialCommunityIcons name="cow" size={16} color={colors.primary} />
+                      <Text style={[styles.suggestionText, { color: colors.foreground }]}>
+                        {sireDisplayName(sire)}
+                      </Text>
+                      <Text style={[styles.suggestionMeta, { color: colors.mutedForeground }]}>
+                        {sire.breed}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
+              {sireId != null ? (
+                <Text style={[styles.sireHint, { color: colors.primary }]}>
+                  Linked to this bull on your farm.
+                </Text>
+              ) : bullName.trim().length > 0 ? (
+                <Text style={[styles.sireHint, { color: colors.mutedForeground }]}>
+                  Saved as a name only — not linked to an animal on your farm.
+                </Text>
+              ) : farmSires.length === 0 ? (
+                <Text style={[styles.sireHint, { color: colors.mutedForeground }]}>
+                  Add a male animal to your farm to pick him as the sire here.
+                </Text>
+              ) : null}
             </>
           )}
 
@@ -307,6 +447,23 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   animalChipText: { fontSize: 14, fontWeight: "600" },
+  sireHint: { fontSize: 12, marginTop: 6, lineHeight: 16 },
+  suggestionList: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  suggestionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  suggestionText: { flex: 1, fontSize: 14, fontWeight: "600" },
+  suggestionMeta: { fontSize: 12 },
   eventGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   eventCard: {
     width: "31%", padding: 10, borderRadius: 12, alignItems: "center",

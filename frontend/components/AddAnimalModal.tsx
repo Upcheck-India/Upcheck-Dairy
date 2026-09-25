@@ -19,6 +19,7 @@ import { COW_BREEDS, BUFFALO_BREEDS } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
+import { Animal } from "../src/modules/animals/models/Animal";
 import { useSheds } from "../src/modules/herd/context/ShedProvider";
 import { defaultShedIdFor } from "../src/modules/herd/utils/shedAssignment";
 import { useCategories } from "../src/modules/herd/context/CategoryProvider";
@@ -28,6 +29,13 @@ interface AddAnimalModalProps {
   onClose: () => void;
   /** Pre-selects the shed the animal is being added to (e.g. from a shed screen). */
   initialShedId?: string | null;
+  /**
+   * When supplied the form edits this animal instead of creating a new one:
+   * the fields are prefilled and saving issues an update. Editing in place
+   * matters because re-creating an animal would orphan its milk, health and
+   * breeding history.
+   */
+  animalToEdit?: Animal | null;
 }
 
 // Custom Option Picker Component for Dropdowns
@@ -108,10 +116,16 @@ function CustomPicker({ visible, onClose, title, options, selectedValue, onSelec
   );
 }
 
-export default function AddAnimalModal({ visible, onClose, initialShedId = null }: AddAnimalModalProps) {
+export default function AddAnimalModal({
+  visible,
+  onClose,
+  initialShedId = null,
+  animalToEdit = null,
+}: AddAnimalModalProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { createAnimal } = useAnimals();
+  const { createAnimal, updateAnimal } = useAnimals();
+  const isEditing = animalToEdit != null;
   const { t, language } = useLanguage();
   const { sheds } = useSheds();
   const { categories } = useCategories();
@@ -150,31 +164,59 @@ export default function AddAnimalModal({ visible, onClose, initialShedId = null 
   const [showShedPicker, setShowShedPicker] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
-  // Reset form when modal visibility changes
+  // Reset form when modal visibility changes, or load the animal being edited.
   useEffect(() => {
-    if (visible) {
-      setStep(1);
-      setName("");
-      setTagNumber("");
-      setType("cow");
-      setBreed("");
-      setBirthDate("");
-      setGender("female");
-      setShed(resolveShedFor("cow"));
-      setStatus(defaultCategoryFor("cow"));
-      setNotes("");
-    }
-  }, [visible, initialShedId]);
+    if (!visible) return;
+    setStep(1);
 
-  // Adjust defaults when type changes
-  useEffect(() => {
-    setShed(resolveShedFor(type));
-    setStatus(defaultCategoryFor(type));
-    if (type === "calf") {
+    if (animalToEdit) {
+      setName(animalToEdit.name);
+      setTagNumber(animalToEdit.tagNumber ?? "");
+      setType(animalToEdit.type);
+      setBreed(animalToEdit.breed ?? "");
+      setBirthDate(animalToEdit.birthDate ? formatDateInput(animalToEdit.birthDate) : "");
+      setGender(animalToEdit.gender === "male" ? "male" : "female");
+      setShed(animalToEdit.shed ?? resolveShedFor(animalToEdit.type));
+      setStatus(animalToEdit.status ?? defaultCategoryFor(animalToEdit.type));
+      setNotes(animalToEdit.notes ?? "");
+      return;
+    }
+
+    setName("");
+    setTagNumber("");
+    setType("cow");
+    setBreed("");
+    setBirthDate("");
+    setGender("female");
+    setShed(resolveShedFor("cow"));
+    setStatus(defaultCategoryFor("cow"));
+    setNotes("");
+  }, [visible, initialShedId, animalToEdit]);
+
+  /**
+   * Re-derives shed and category from the species.
+   *
+   * Driven by the picker rather than an effect on `type`: an effect cannot tell
+   * the user changing species apart from the form prefilling itself, so while
+   * editing it would overwrite the animal's saved shed and category the moment
+   * the form opened.
+   */
+  const handleTypeChange = (next: "cow" | "buffalo" | "calf") => {
+    setType(next);
+    setShed(resolveShedFor(next));
+    setStatus(defaultCategoryFor(next));
+    if (next === "calf") {
       setGender("female");
       setBreed("");
     }
-  }, [type]);
+  };
+
+  // The form takes DD / MM / YYYY; stored dates come back as Date objects.
+  function formatDateInput(date: Date): string {
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    return `${dd} / ${mm} / ${date.getFullYear()}`;
+  }
 
   // Helper: Format BirthDate to DD / MM / YYYY
   const handleDateChange = (text: string) => {
@@ -259,18 +301,26 @@ export default function AddAnimalModal({ visible, onClose, initialShedId = null 
     const dobObj = birthDate ? parseDate(birthDate) : null;
 
     try {
-      await createAnimal({
+      const fields = {
         name: finalName,
         type,
         breed,
         tagNumber: tagNumber.trim(),
-        healthStatus: "healthy",
         shed,
         status: status as any,
         gender,
         birthDate: dobObj ? dobObj.toISOString() : undefined,
         notes: notes.trim() || undefined,
-      });
+      };
+
+      if (animalToEdit) {
+        // healthStatus is deliberately not sent: it is owned by the health
+        // screens, and resending "healthy" here would silently clear an alert.
+        await updateAnimal(Number(animalToEdit.id), fields);
+      } else {
+        await createAnimal({ ...fields, healthStatus: "healthy" });
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onClose();
     } catch (err: any) {
@@ -325,7 +375,11 @@ export default function AddAnimalModal({ visible, onClose, initialShedId = null 
             <Pressable onPress={onClose} style={styles.headerCloseBtn}>
               <Feather name="x" size={24} color={colors.foreground} />
             </Pressable>
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>{lx({ en: "Add Animal", ta: "மாடு சேர்க்கவும்" })}</Text>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+              {isEditing
+                ? lx({ en: "Edit Animal", ta: "மாட்டைத் திருத்து" })
+                : lx({ en: "Add Animal", ta: "மாடு சேர்க்கவும்" })}
+            </Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -622,7 +676,11 @@ export default function AddAnimalModal({ visible, onClose, initialShedId = null 
               onPress={step < 3 ? handleNext : handleSave}
             >
               <Text style={[styles.footerBtnText, { color: "#fff" }]}>
-                {step < 3 ? lx({ en: "Next >", ta: "அடுத்து >" }) : lx({ en: "Save", ta: "சேமி" })}
+                {step < 3
+                  ? lx({ en: "Next >", ta: "அடுத்து >" })
+                  : isEditing
+                  ? lx({ en: "Save Changes", ta: "மாற்றங்களைச் சேமி" })
+                  : lx({ en: "Save", ta: "சேமி" })}
               </Text>
             </Pressable>
           </View>
@@ -636,7 +694,7 @@ export default function AddAnimalModal({ visible, onClose, initialShedId = null 
         title={lx({ en: "Select Species", ta: "இனத்தை தேர்வு செய்" })}
         options={speciesOptions}
         selectedValue={type}
-        onSelect={(val) => setType(val as any)}
+        onSelect={(val) => handleTypeChange(val as "cow" | "buffalo" | "calf")}
       />
 
       {/* Breed Option Picker */}

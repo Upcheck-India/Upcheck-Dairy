@@ -5,6 +5,7 @@ import NetInfo from "@react-native-community/netinfo";
 import {
   Alert,
   Animated,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -15,6 +16,7 @@ import {
   View,
   ActivityIndicator,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Animal } from "../src/modules/animals/models/Animal";
 import { MilkEntry } from "../src/modules/milk/models/MilkEntry";
@@ -43,6 +45,7 @@ export default function MilkLogModal({
   onSuccess,
 }: MilkLogModalProps) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const { createMilk, updateMilk } = useMilk();
   const { farmer } = useFarmer();
   const { activeFarm } = useFarm();
@@ -106,6 +109,11 @@ export default function MilkLogModal({
       return null;
     }
   }, [quantity, fat, snf, farmer?.state]);
+
+  const hasValidQuantity = (() => {
+    const qty = parseFloat(quantity);
+    return !isNaN(qty) && qty > 0;
+  })();
 
   const handleSave = () => {
     if (!animal || isSaving) return;
@@ -173,7 +181,6 @@ export default function MilkLogModal({
 
   if (!animal) return null;
 
-  if (!animal) return null;
   return (
     <Modal
       visible={visible}
@@ -181,184 +188,211 @@ export default function MilkLogModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Animated.View
-          style={[
-            styles.modal,
-            {
-              backgroundColor: colors.card,
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
-        >
-          <Pressable>
-            <View style={styles.header}>
-              <MaterialCommunityIcons name={animal.type === "buffalo" ? "water" : "cow"} size={36} color={colors.foreground} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.title, { color: colors.foreground }]}>
-                  {t.milkLogTitle}
-                </Text>
-                <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-                  {animal.name}
-                </Text>
-              </View>
-              <Pressable
-                onPress={onClose}
-                style={[styles.closeBtn, { backgroundColor: colors.muted }]}
-              >
-                <Feather name="x" size={18} color={colors.mutedForeground} />
-              </Pressable>
-            </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <Pressable style={styles.overlay} onPress={onClose}>
+          <Animated.View
+            style={[
+              styles.modal,
+              {
+                backgroundColor: colors.card,
+                transform: [{ scale: scaleAnim }],
+                // Clears the OS navigation bar. A flat 24 on Android put the
+                // save button underneath the nav buttons.
+                paddingBottom: Math.max(insets.bottom, 16) + 8,
+              },
+            ]}
+          >
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View style={[styles.grabber, { backgroundColor: colors.border }]} />
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                {t.milkLogSelectSession}
-              </Text>
-              <View style={styles.sessionRow}>
-                {(["morning", "evening"] as const).map((s) => (
-                  <Pressable
-                    key={s}
-                    style={[
-                      styles.sessionBtn,
-                      {
-                        backgroundColor:
-                          session === s ? colors.primary : colors.muted,
-                        flex: 1,
-                      },
-                    ]}
-                    onPress={() => {
-                      setSession(s);
-                      Haptics.selectionAsync();
-                    }}
-                  >
-                    <Feather
-                      name={s === "morning" ? "sun" : "moon"}
-                      size={18}
-                      color={session === s ? "#fff" : colors.mutedForeground}
-                    />
-                    <Text
+              <View style={styles.header}>
+                <MaterialCommunityIcons name={animal.type === "buffalo" ? "water" : "cow"} size={36} color={colors.foreground} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.title, { color: colors.foreground }]}>
+                    {t.milkLogTitle}
+                  </Text>
+                  <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+                    {animal.name}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={onClose}
+                  style={[styles.closeBtn, { backgroundColor: colors.muted }]}
+                >
+                  <Feather name="x" size={18} color={colors.mutedForeground} />
+                </Pressable>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+                  {t.milkLogSelectSession}
+                </Text>
+                <View style={styles.sessionRow}>
+                  {(["morning", "evening"] as const).map((s) => (
+                    <Pressable
+                      key={s}
                       style={[
-                        styles.sessionLabel,
+                        styles.sessionBtn,
                         {
-                          color:
-                            session === s ? "#fff" : colors.mutedForeground,
+                          backgroundColor:
+                            session === s ? colors.primary : colors.muted,
+                          flex: 1,
                         },
                       ]}
+                      onPress={() => {
+                        setSession(s);
+                        Haptics.selectionAsync();
+                      }}
                     >
-                      {s === "morning" ? t.morning : t.evening}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                {t.milkLogQuantityLabel}
-              </Text>
-              <View
-                style={[
-                  styles.inputContainer,
-                  { borderColor: colors.border, backgroundColor: colors.muted },
-                ]}
-              >
-                <Feather name="droplet" size={20} color={colors.primary} />
-                <TextInput
-                  style={[styles.input, { color: colors.foreground }]}
-                  value={quantity}
-                  onChangeText={setQuantity}
-                  keyboardType="decimal-pad"
-                  placeholder="0.0"
-                  placeholderTextColor={colors.mutedForeground}
-                  autoFocus
-                />
-                <Text style={[styles.unit, { color: colors.mutedForeground }]}>
-                  L
-                </Text>
-              </View>
-
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                {t.milkLogFatLabel}
-              </Text>
-              <View
-                style={[
-                  styles.inputContainer,
-                  { borderColor: colors.border, backgroundColor: colors.muted },
-                ]}
-              >
-                <Feather name="percent" size={20} color={colors.primary} />
-                <TextInput
-                  style={[styles.input, { color: colors.foreground }]}
-                  value={fat}
-                  onChangeText={setFat}
-                  keyboardType="decimal-pad"
-                  placeholder="3.5"
-                  placeholderTextColor={colors.mutedForeground}
-                />
-              </View>
-
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                {t.milkLogSnfLabel}
-              </Text>
-              <View
-                style={[
-                  styles.inputContainer,
-                  { borderColor: colors.border, backgroundColor: colors.muted },
-                ]}
-              >
-                <Feather name="percent" size={20} color={colors.primary} />
-                <TextInput
-                  style={[styles.input, { color: colors.foreground }]}
-                  value={snf}
-                  onChangeText={setSnf}
-                  keyboardType="decimal-pad"
-                  placeholder="8.5"
-                  placeholderTextColor={colors.mutedForeground}
-                />
-              </View>
-
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                {t.milkLogNotesLabel}
-              </Text>
-              <View
-                style={[
-                  styles.inputContainer,
-                  { borderColor: colors.border, backgroundColor: colors.muted },
-                ]}
-              >
-                <Feather name="file-text" size={20} color={colors.primary} />
-                <TextInput
-                  style={[styles.input, { color: colors.foreground }]}
-                  value={notes}
-                  onChangeText={setNotes}
-                  placeholder="Any special remarks"
-                  placeholderTextColor={colors.mutedForeground}
-                />
-              </View>
-
-              {estimatedPayout !== null && (
-                <View style={[styles.payoutCard, { backgroundColor: colors.primary + "15", borderColor: colors.primary }]}>
-                  <Text style={[styles.payoutLabel, { color: colors.mutedForeground }]}>{t.estimatedPayout || "Estimated Payout"}</Text>
-                  <Text style={[styles.payoutValue, { color: colors.primary }]}>₹{estimatedPayout.toFixed(2)}</Text>
+                      <Feather
+                        name={s === "morning" ? "sun" : "moon"}
+                        size={18}
+                        color={session === s ? "#fff" : colors.mutedForeground}
+                      />
+                      <Text
+                        style={[
+                          styles.sessionLabel,
+                          {
+                            color:
+                              session === s ? "#fff" : colors.mutedForeground,
+                          },
+                        ]}
+                      >
+                        {s === "morning" ? t.morning : t.evening}
+                      </Text>
+                    </Pressable>
+                  ))}
                 </View>
-              )}
 
-              <Pressable
-                style={[styles.saveBtn, { backgroundColor: colors.primary, opacity: isSaving ? 0.7 : 1 }]}
-                onPress={handleSave}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Feather name="check" size={20} color="#fff" />
-                    <Text style={styles.saveBtnText}>{t.save}</Text>
-                  </>
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+                  {t.milkLogQuantityLabel}
+                </Text>
+                <View
+                  style={[
+                    styles.inputContainer,
+                    { borderColor: colors.border, backgroundColor: colors.muted },
+                  ]}
+                >
+                  <Feather name="droplet" size={20} color={colors.primary} />
+                  <TextInput
+                    style={[styles.input, { color: colors.foreground }]}
+                    value={quantity}
+                    onChangeText={setQuantity}
+                    keyboardType="decimal-pad"
+                    placeholder="0.0"
+                    placeholderTextColor={colors.mutedForeground}
+                    autoFocus
+                  />
+                  <Text style={[styles.unit, { color: colors.mutedForeground }]}>
+                    L
+                  </Text>
+                </View>
+
+                {/* Fat and SNF sit side by side: both are short optional
+                    percentages, and stacking them pushed the save button off
+                    screen once the keyboard opened. */}
+                <View style={styles.qualityRow}>
+                  <View style={styles.qualityCol}>
+                    <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+                      {t.milkLogFatLabel}
+                    </Text>
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        { borderColor: colors.border, backgroundColor: colors.muted },
+                      ]}
+                    >
+                      <TextInput
+                        style={[styles.input, styles.inputSmall, { color: colors.foreground }]}
+                        value={fat}
+                        onChangeText={setFat}
+                        keyboardType="decimal-pad"
+                        placeholder="3.5"
+                        placeholderTextColor={colors.mutedForeground}
+                      />
+                      <Text style={[styles.unit, { color: colors.mutedForeground }]}>%</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.qualityCol}>
+                    <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+                      {t.milkLogSnfLabel}
+                    </Text>
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        { borderColor: colors.border, backgroundColor: colors.muted },
+                      ]}
+                    >
+                      <TextInput
+                        style={[styles.input, styles.inputSmall, { color: colors.foreground }]}
+                        value={snf}
+                        onChangeText={setSnf}
+                        keyboardType="decimal-pad"
+                        placeholder="8.5"
+                        placeholderTextColor={colors.mutedForeground}
+                      />
+                      <Text style={[styles.unit, { color: colors.mutedForeground }]}>%</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+                  {t.milkLogNotesLabel}
+                </Text>
+                <View
+                  style={[
+                    styles.inputContainer,
+                    { borderColor: colors.border, backgroundColor: colors.muted },
+                  ]}
+                >
+                  <Feather name="file-text" size={20} color={colors.primary} />
+                  <TextInput
+                    style={[styles.input, { color: colors.foreground }]}
+                    value={notes}
+                    onChangeText={setNotes}
+                    placeholder="Any special remarks"
+                    placeholderTextColor={colors.mutedForeground}
+                  />
+                </View>
+
+                {estimatedPayout !== null && (
+                  <View style={[styles.payoutCard, { backgroundColor: colors.primary + "15", borderColor: colors.primary }]}>
+                    <Text style={[styles.payoutLabel, { color: colors.mutedForeground }]}>{t.estimatedPayout || "Estimated Payout"}</Text>
+                    <Text style={[styles.payoutValue, { color: colors.primary }]}>₹{estimatedPayout.toFixed(2)}</Text>
+                  </View>
                 )}
-              </Pressable>
-            </ScrollView>
-          </Pressable>
-        </Animated.View>
-      </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.saveBtn,
+                    {
+                      backgroundColor: colors.primary,
+                      // Disabled until the quantity is usable, so the primary
+                      // action never looks available only to reject the tap.
+                      opacity: isSaving || !hasValidQuantity ? 0.5 : 1,
+                    },
+                  ]}
+                  onPress={handleSave}
+                  disabled={isSaving || !hasValidQuantity}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Feather name="check" size={20} color="#fff" />
+                      <Text style={styles.saveBtnText}>{t.save}</Text>
+                    </>
+                  )}
+                </Pressable>
+              </ScrollView>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -372,9 +406,16 @@ const styles = StyleSheet.create({
   modal: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: Platform.OS === "ios" ? 40 : 24,
-    maxHeight: "90%",
+    paddingHorizontal: 24,
+    paddingTop: 10,
+    maxHeight: "92%",
+  },
+  grabber: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 14,
   },
   header: {
     flexDirection: "row",
@@ -434,6 +475,16 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 22,
     fontFamily: "Inter_600SemiBold",
+  },
+  inputSmall: {
+    fontSize: 18,
+  },
+  qualityRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  qualityCol: {
+    flex: 1,
   },
   unit: {
     fontSize: 16,

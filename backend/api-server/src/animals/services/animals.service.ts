@@ -66,13 +66,20 @@ export class AnimalsService {
       }
     }
 
+    // Distinguishes "key absent" (leave the stored value alone) from an
+    // explicit null (clear the column). Without this a date could only ever be
+    // set, never removed — a cow that has calved would keep her old expected
+    // calving date forever.
+    const toDate = (value: string | null | undefined) =>
+      value === undefined ? undefined : value === null ? null : new Date(value);
+
     const updates: Partial<Animal> = {
       ...dto,
-      birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
-      nextVaccinationDate: dto.nextVaccinationDate ? new Date(dto.nextVaccinationDate) : undefined,
-      nextDeliveryDate: dto.nextDeliveryDate ? new Date(dto.nextDeliveryDate) : undefined,
-      lastCalvingDate: dto.lastCalvingDate ? new Date(dto.lastCalvingDate) : undefined,
-      expectedCalvingDate: dto.expectedCalvingDate ? new Date(dto.expectedCalvingDate) : undefined,
+      birthDate: toDate(dto.birthDate),
+      nextVaccinationDate: toDate(dto.nextVaccinationDate),
+      nextDeliveryDate: toDate(dto.nextDeliveryDate),
+      lastCalvingDate: toDate(dto.lastCalvingDate),
+      expectedCalvingDate: toDate(dto.expectedCalvingDate),
       bodyConditionScore: dto.bodyConditionScore ? dto.bodyConditionScore.toString() : undefined,
       weightKg: dto.weightKg ? dto.weightKg.toString() : undefined,
     } as any;

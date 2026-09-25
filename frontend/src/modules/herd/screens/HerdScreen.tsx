@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 
 import { useAnimals } from "../../animals/hooks/useAnimals";
-import { useHealth } from "../../health/hooks/useHealth";
 import { useFarm } from "../../farms/hooks/useFarm";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
@@ -31,12 +30,12 @@ export function HerdScreen() {
   const { t, language } = useLanguage();
 
   const { animals, loading: animalsLoading, refresh: refreshAnimals } = useAnimals();
-  const { healthEvents } = useHealth();
   const { sheds } = useSheds();
 
-  // Alert count shown on the bell — the same "health events" the animals screen
-  // counts, so the two badges never disagree.
-  const alertCount = healthEvents.length;
+  // Animals currently needing care. Deliberately not a count of health records:
+  // records are permanent history and can never be "resolved", so a badge built
+  // on them only ever grows. This clears as animals are marked recovered.
+  const alertCount = animals.filter((a) => a.healthStatus !== "healthy").length;
 
   const [activeTab, setActiveTab] = useState<HerdTabType>("by_shed");
   const [selectedShed, setSelectedShed] = useState<string | null>(null);

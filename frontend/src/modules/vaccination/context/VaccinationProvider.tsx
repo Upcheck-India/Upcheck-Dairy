@@ -45,49 +45,31 @@ export function VaccinationProvider({ children }: { children: React.ReactNode })
   }, [activeFarm?.id, fetchVaccinations]);
 
   const createVaccination = async (dto: CreateVaccinationRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const newVax = await vaccinationRepository.createVaccination(dto);
       setVaccinations(prev => [newVax, ...prev]);
       return newVax;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to create vaccination");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to create vaccination");
     }
   };
 
   const updateVaccination = async (id: number, dto: UpdateVaccinationRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const updated = await vaccinationRepository.updateVaccination(id, dto);
       setVaccinations(prev => prev.map(v => (Number(v.id) === id ? updated : v)));
       return updated;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to update vaccination");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to update vaccination");
     }
   };
 
   const removeVaccination = async (id: number) => {
-    setError(null);
-    setLoading(true);
     try {
       await vaccinationRepository.deleteVaccination(id);
       setVaccinations(prev => prev.filter(v => Number(v.id) !== id));
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to delete vaccination");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to delete vaccination");
     }
   };
 

@@ -54,4 +54,21 @@ export interface CreateAnimalRequestDto {
   gender?: string;
 }
 
-export interface UpdateAnimalRequestDto extends Partial<Omit<CreateAnimalRequestDto, "farmId">> {}
+/**
+ * Date fields are nullable on update so a date can be cleared, not just set — a
+ * cow that has calved must be able to lose her expected calving date. Omit the
+ * key to leave the stored value untouched; pass null to clear it.
+ */
+type NullableDateFields =
+  | "expectedCalvingDate"
+  | "lastCalvingDate"
+  | "nextDeliveryDate"
+  | "nextVaccinationDate";
+
+export interface UpdateAnimalRequestDto
+  extends Partial<Omit<CreateAnimalRequestDto, "farmId" | NullableDateFields>> {
+  expectedCalvingDate?: string | null;
+  lastCalvingDate?: string | null;
+  nextDeliveryDate?: string | null;
+  nextVaccinationDate?: string | null;
+}

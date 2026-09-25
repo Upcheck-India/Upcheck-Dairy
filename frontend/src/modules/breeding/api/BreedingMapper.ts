@@ -9,6 +9,7 @@ export class BreedingMapper {
       eventType: dto.eventType,
       date: new Date(dto.date),
       note: dto.note,
+      sireId: dto.sireId != null ? dto.sireId.toString() : null,
       bullName: dto.bullName,
       expectedCalvingDate: dto.expectedCalvingDate ? new Date(dto.expectedCalvingDate) : null,
       calvingGender: dto.calvingGender,

@@ -52,52 +52,40 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [activeFarm?.id, fetchAll]);
 
   const addIncome = async (dto: CreateIncomeEntryRequestDto) => {
-    setError(null);
     try {
       const entry = await financeRepository.createIncomeEntry(dto);
       setIncomeEntries(prev => [...prev, entry]);
       return entry;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to add income entry");
-      setError(err);
-      throw err;
+      throw e instanceof Error ? e : new Error(e.message || "Failed to add income entry");
     }
   };
 
   const removeIncome = async (id: number) => {
-    setError(null);
     try {
       await financeRepository.deleteIncomeEntry(id);
       setIncomeEntries(prev => prev.filter(e => e.id !== id));
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to delete income entry");
-      setError(err);
-      throw err;
+      throw e instanceof Error ? e : new Error(e.message || "Failed to delete income entry");
     }
   };
 
   const addExpense = async (dto: CreateExpenseEntryRequestDto) => {
-    setError(null);
     try {
       const entry = await financeRepository.createExpenseEntry(dto);
       setExpenseEntries(prev => [...prev, entry]);
       return entry;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to add expense entry");
-      setError(err);
-      throw err;
+      throw e instanceof Error ? e : new Error(e.message || "Failed to add expense entry");
     }
   };
 
   const removeExpense = async (id: number) => {
-    setError(null);
     try {
       await financeRepository.deleteExpenseEntry(id);
       setExpenseEntries(prev => prev.filter(e => e.id !== id));
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to delete expense entry");
-      setError(err);
-      throw err;
+      throw e instanceof Error ? e : new Error(e.message || "Failed to delete expense entry");
     }
   };
 

@@ -33,13 +33,16 @@ export class UpdateAnimalDto {
   @IsOptional()
   birthDate?: string;
 
+  // The date fields below accept an explicit null to clear the stored value —
+  // @IsOptional() skips validation for null as well as undefined, and the
+  // service distinguishes the two. Omit the key to leave the value untouched.
   @IsDateString()
   @IsOptional()
-  nextVaccinationDate?: string;
+  nextVaccinationDate?: string | null;
 
   @IsDateString()
   @IsOptional()
-  nextDeliveryDate?: string;
+  nextDeliveryDate?: string | null;
 
   @IsNumber()
   @IsOptional()
@@ -47,11 +50,11 @@ export class UpdateAnimalDto {
 
   @IsDateString()
   @IsOptional()
-  lastCalvingDate?: string;
+  lastCalvingDate?: string | null;
 
   @IsDateString()
   @IsOptional()
-  expectedCalvingDate?: string;
+  expectedCalvingDate?: string | null;
 
   @IsBoolean()
   @IsOptional()

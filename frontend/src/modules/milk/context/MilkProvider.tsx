@@ -101,8 +101,6 @@ export function MilkProvider({ children }: { children: React.ReactNode }) {
   }, [activeFarm?.id, syncOfflineQueue]);
 
   const createMilk = async (dto: CreateMilkEntryRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const farmId = activeFarm?.id || "";
       const newEntry = await milkRepository.createMilkEntry(dto, farmId);
@@ -113,44 +111,28 @@ export function MilkProvider({ children }: { children: React.ReactNode }) {
       });
       return newEntry;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to create milk entry");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to create milk entry");
     }
   };
 
   const updateMilk = async (id: number, dto: UpdateMilkEntryRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const farmId = activeFarm?.id || "";
       const updated = await milkRepository.updateMilkEntry(id, dto, farmId);
       setMilkEntries(prev => prev.map(m => (Number(m.id) === id ? updated : m)));
       return updated;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to update milk entry");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to update milk entry");
     }
   };
 
   const removeMilk = async (id: number) => {
-    setError(null);
-    setLoading(true);
     try {
       const farmId = activeFarm?.id || "";
       await milkRepository.deleteMilkEntry(id, farmId);
       setMilkEntries(prev => prev.filter(m => Number(m.id) !== id));
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to delete milk entry");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to delete milk entry");
     }
   };
 

@@ -20,6 +20,12 @@ export function AnimalProvider({ children }: { children: React.ReactNode }) {
   const { activeFarm } = useFarm();
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  // `loading` and `error` describe the state of loading the list, and nothing
+  // else. Mutations below deliberately leave them alone: they reject to their
+  // caller, which is the only place that knows how to report the failure.
+  // Sharing this state meant one rejected create — a duplicate tag, say — put
+  // the whole screen into "Failed to load animals" while the list sat intact
+  // in memory, and it stayed there until the next fetch.
   const [error, setError] = useState<Error | null>(null);
 
   const fetchAnimals = useCallback(async (farmId: string) => {
@@ -47,8 +53,6 @@ export function AnimalProvider({ children }: { children: React.ReactNode }) {
     if (!activeFarm?.id) {
       throw new Error("No active farm selected");
     }
-    setError(null);
-    setLoading(true);
     try {
       const newAnimal = await animalRepository.createAnimal({
         ...dto,
@@ -57,42 +61,26 @@ export function AnimalProvider({ children }: { children: React.ReactNode }) {
       setAnimals(prev => [...prev, newAnimal]);
       return newAnimal;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to create animal");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to create animal");
     }
   }, [activeFarm?.id]);
 
   const updateAnimal = useCallback(async (id: number, dto: UpdateAnimalRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const updated = await animalRepository.updateAnimal(id, dto);
       setAnimals(prev => prev.map(a => (Number(a.id) === id ? updated : a)));
       return updated;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to update animal");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to update animal");
     }
   }, []);
 
   const removeAnimal = useCallback(async (id: number) => {
-    setError(null);
-    setLoading(true);
     try {
       await animalRepository.deleteAnimal(id);
       setAnimals(prev => prev.filter(a => Number(a.id) !== id));
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to delete animal");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to delete animal");
     }
   }, []);
 

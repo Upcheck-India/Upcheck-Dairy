@@ -17,6 +17,12 @@ export class CreateBreedingEventDto {
   @IsOptional()
   note?: string;
 
+  /** Sire kept on this farm. Mutually complementary with bullName. */
+  @IsNumber()
+  @IsOptional()
+  sireId?: number | null;
+
+  /** Sire label for AI straws or an outside bull. */
   @IsString()
   @IsOptional()
   bullName?: string;

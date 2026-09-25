@@ -46,49 +46,31 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }, [activeFarm?.id, fetchTasks]);
 
   const createTask = async (dto: CreateTaskRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const newTask = await taskRepository.createTask(dto);
       setTasks(prev => [...prev, newTask]);
       return newTask;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to create task");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to create task");
     }
   };
 
   const updateTask = async (id: number, dto: UpdateTaskRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const updated = await taskRepository.updateTask(id, dto);
       setTasks(prev => prev.map(t => (Number(t.id) === id ? updated : t)));
       return updated;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to update task");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to update task");
     }
   };
 
   const removeTask = async (id: number) => {
-    setError(null);
-    setLoading(true);
     try {
       await taskRepository.deleteTask(id);
       setTasks(prev => prev.filter(t => Number(t.id) !== id));
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to delete task");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to delete task");
     }
   };
 
@@ -99,8 +81,6 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   };
 
   const generateDailyTasks = async (dateStr: string) => {
-    setError(null);
-    setLoading(true);
     try {
       const newTasks = await taskRepository.generateDailyTasks(dateStr);
       // Merge generated tasks with state tasks, avoiding duplicates
@@ -110,11 +90,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       });
       return newTasks;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to generate daily tasks");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to generate daily tasks");
     }
   };
 

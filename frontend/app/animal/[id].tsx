@@ -17,7 +17,10 @@ import {
 } from "react-native";
 
 import MilkLogModal from "@/components/MilkLogModal";
-import HealthNoteModal from "@/components/HealthNoteModal";
+import HealthNoteModal, { HealthNoteOption } from "@/components/HealthNoteModal";
+import BreedingEventModal from "@/components/BreedingEventModal";
+import AddAnimalModal from "@/components/AddAnimalModal";
+import { escalatedHealthStatus } from "../../src/modules/health/utils/healthStatus";
 import { generateId, getTodayString, HealthStatus, getISTDateString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
@@ -32,6 +35,9 @@ import Svg, { Circle, G } from "react-native-svg";
 const LOCALE_MAP: Record<string, string> = {
   ta: "ta-IN", te: "te-IN", kn: "kn-IN", ml: "ml-IN", hi: "hi-IN", en: "en-IN",
 };
+
+/** Shown wherever a field has never been filled in for this animal. */
+const NOT_RECORDED = "—";
 
 const GROUP_NAMES: Record<string, { en: string; ta: string }> = {
   lactating: { en: "Lactating Cows", ta: "பால் கறப்பவை" },
@@ -136,11 +142,13 @@ export default function AnimalDetail() {
   const { t, language } = useLanguage();
   const [milkLogVisible, setMilkLogVisible] = useState(false);
   const [healthNoteVisible, setHealthNoteVisible] = useState(false);
+  const [breedingModalVisible, setBreedingModalVisible] = useState(false);
+  const [editVisible, setEditVisible] = useState(false);
+  const isTa = language === "ta";
   const [entryToEdit, setEntryToEdit] = useState<MilkEntry | null>(null);
 
   // Tabs and segment states
   const [activeTab, setActiveTab] = useState<"Overview" | "Feed" | "Health" | "Breeding" | "History" | "Milk logs">("Overview");
-  const [feedPeriod, setFeedPeriod] = useState<"Morning" | "Evening" | "Total" | "Cost">("Morning");
   const [groupModalVisible, setGroupModalVisible] = useState(false);
 
   const isWeb = Platform.OS === "web";
@@ -159,14 +167,11 @@ export default function AnimalDetail() {
   // Strings helper
   const ls = LOCALIZED_STRINGS[language] || LOCALIZED_STRINGS["en"];
 
-  // Fallback images
-  const COW_PLACEHOLDER = "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?q=80&w=600&auto=format&fit=crop";
-  const BUFFALO_PLACEHOLDER = "https://images.unsplash.com/photo-1596733430284-f7437764b1a9?q=80&w=600&auto=format&fit=crop";
-  const defaultPhoto = animal?.type === "buffalo" ? BUFFALO_PLACEHOLDER : COW_PLACEHOLDER;
-
-  // Calculators
+  // Calculators. Every one of these returns NOT_RECORDED rather than a stand-in
+  // figure — a farmer reading "470 kg" has no way to tell a real weight from a
+  // placeholder, and acting on an invented number is worse than seeing a dash.
   const getAge = (birthDate?: string | Date | null) => {
-    if (!birthDate) return "5 Years";
+    if (!birthDate) return NOT_RECORDED;
     const birth = new Date(birthDate);
     const now = new Date();
     let years = now.getFullYear() - birth.getFullYear();
@@ -182,7 +187,7 @@ export default function AnimalDetail() {
   };
 
   const getDaysInMilk = (lastCalvingDate?: string | Date | null) => {
-    if (!lastCalvingDate) return "110 Days";
+    if (!lastCalvingDate) return NOT_RECORDED;
     const calving = new Date(lastCalvingDate);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - calving.getTime());
@@ -191,7 +196,7 @@ export default function AnimalDetail() {
   };
 
   const getLactationStr = (lactationNumber?: number | null) => {
-    if (lactationNumber === undefined || lactationNumber === null) return "2nd";
+    if (lactationNumber === undefined || lactationNumber === null) return NOT_RECORDED;
     const num = Number(lactationNumber);
     if (num === 1) return "1st";
     if (num === 2) return "2nd";
@@ -225,6 +230,26 @@ export default function AnimalDetail() {
   const milkTodayQty = animalMilk
     .filter((e) => getISTDateString(e.date) === todayStr)
     .reduce((sum, e) => sum + e.quantity, 0);
+
+  // Week-on-week change in yield. Null whenever the previous week has nothing
+  // to compare against, so the badge stays hidden instead of inventing a trend.
+  const weekOverWeek = useMemo(() => {
+    const dayMs = 86400000;
+    const now = Date.now();
+    const sumBetween = (fromDaysAgo: number, toDaysAgo: number) =>
+      animalMilk
+        .filter((e) => {
+          const age = now - new Date(e.date).getTime();
+          return age >= toDaysAgo * dayMs && age < fromDaysAgo * dayMs;
+        })
+        .reduce((sum, e) => sum + e.quantity, 0);
+
+    const thisWeek = sumBetween(7, 0);
+    const priorWeek = sumBetween(14, 7);
+    if (priorWeek <= 0) return null;
+
+    return Math.round(((thisWeek - priorWeek) / priorWeek) * 100);
+  }, [animalMilk]);
 
   // Get top 5 recent activities (milk entries and health events combined)
   const recentActivities = useMemo(() => {
@@ -532,20 +557,50 @@ export default function AnimalDetail() {
     setHealthNoteVisible(true);
   };
 
-  const handleSelectHealthNote = (description: string) => {
-    createEvent({
-      animalId: Number(animal.id),
-      date: new Date().toISOString(),
-      type: "observation",
-      description,
-    }).catch(err => {
-      console.error("[AnimalDetail] Failed to create health event:", err);
-    });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const handleSelectHealthNote = async (option: HealthNoteOption) => {
     setHealthNoteVisible(false);
+    try {
+      await createEvent({
+        animalId: Number(animal.id),
+        date: new Date().toISOString(),
+        type: option.eventType,
+        description: option.label,
+      });
+
+      // Without this the header badge still reads "Healthy" immediately after
+      // the farmer records a fever.
+      const next = escalatedHealthStatus(animal.healthStatus, option.implies);
+      if (next) {
+        await updateAnimal(Number(animal.id), { healthStatus: next });
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      console.error("[AnimalDetail] Failed to save health note:", err);
+      Alert.alert(t.error || "Error", "Could not save the health note. Please try again.");
+    }
   };
 
-  const isTa = language === "ta";
+  /**
+   * Clears the animal's alert state once the farmer says it has recovered.
+   * Recovery is appended to the health history rather than erasing what came
+   * before, so the illness and its outcome both survive.
+   */
+  const handleMarkRecovered = async () => {
+    try {
+      await updateAnimal(Number(animal.id), { healthStatus: "healthy" });
+      await createEvent({
+        animalId: Number(animal.id),
+        date: new Date().toISOString(),
+        type: "observation",
+        description: isTa ? "குணமானது எனக் குறிக்கப்பட்டது" : "Marked recovered",
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      console.error("[AnimalDetail] Failed to mark recovered:", err);
+      Alert.alert(t.error || "Error", "Could not update this animal. Please try again.");
+    }
+  };
 
   const handleDeleteMilkEntry = (entry: MilkEntry) => {
     Alert.alert(
@@ -574,6 +629,13 @@ export default function AnimalDetail() {
   const handleHeaderOptions = () => {
     Alert.alert(animal.name, isTa ? "விருப்பங்கள்" : "Options", [
       { text: t.cancel || "Cancel", style: "cancel" },
+      {
+        text: isTa ? "விவரங்களைத் திருத்து" : "Edit Details",
+        onPress: () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setEditVisible(true);
+        }
+      },
       {
         text: isTa ? "பால் பதிவு செய்க" : "Log Milk",
         onPress: () => {
@@ -630,17 +692,33 @@ export default function AnimalDetail() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.scroll, { paddingBottom: isWeb ? 120 : 100 }]}
+        // This screen sits outside the tab navigator, so it only has to clear
+        // the OS navigation inset — not a tab bar.
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 48 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* SUMMARY CARD (TOP INFO SECTION) */}
         <View style={[styles.summaryCard, { borderColor: colors.border }]}>
           {/* Large Square Image on Left */}
           <Pressable style={styles.squarePhotoContainer} onPress={handleCamera}>
-            <Image
-              source={{ uri: animal.photoUri || defaultPhoto }}
-              style={styles.squarePhoto}
-            />
+            {animal.photoUri ? (
+              <Image source={{ uri: animal.photoUri }} style={styles.squarePhoto} />
+            ) : (
+              /* Deliberately not a stock photo of some other animal — an empty
+                 frame that invites a real one is honest and works offline. */
+              <View
+                style={[
+                  styles.squarePhoto,
+                  styles.photoPlaceholder,
+                  { backgroundColor: colors.muted, borderColor: colors.border },
+                ]}
+              >
+                <MaterialCommunityIcons name="cow" size={36} color={colors.mutedForeground} />
+                <Text style={[styles.photoPlaceholderText, { color: colors.mutedForeground }]}>
+                  {isTa ? "படம் சேர்" : "Add photo"}
+                </Text>
+              </View>
+            )}
             {/* Tag indicator overlay on image */}
             <View style={styles.tagIconOverlay}>
               <MaterialCommunityIcons name="tag-outline" size={12} color="#fff" />
@@ -666,7 +744,7 @@ export default function AnimalDetail() {
             <View style={styles.detailsGrid}>
               <View style={styles.detailRow}>
                 <Text style={[styles.detailKey, { color: colors.mutedForeground }]}>{ls.id}</Text>
-                <Text style={[styles.detailValue, { color: colors.foreground }]}>{animal.tagNumber}</Text>
+                <Text style={[styles.detailValue, { color: colors.foreground }]}>{animal.tagNumber || NOT_RECORDED}</Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={[styles.detailKey, { color: colors.mutedForeground }]}>{ls.age}</Text>
@@ -678,7 +756,9 @@ export default function AnimalDetail() {
               </View>
               <View style={styles.detailRow}>
                 <Text style={[styles.detailKey, { color: colors.mutedForeground }]}>{ls.weight}</Text>
-                <Text style={[styles.detailValue, { color: colors.foreground }]}>{animal.weightKg ?? 470} kg</Text>
+                <Text style={[styles.detailValue, { color: colors.foreground }]}>
+                  {animal.weightKg != null ? `${Number(animal.weightKg).toFixed(0)} kg` : NOT_RECORDED}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={[styles.detailKey, { color: colors.mutedForeground }]}>{ls.lactation}</Text>
@@ -739,54 +819,33 @@ export default function AnimalDetail() {
         {/* TAB RENDERING */}
         {activeTab === "Overview" && (
           <View style={{ gap: 16 }}>
-            {/* TODAY'S FEED HEADER SECTION */}
-            <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionHeading, { color: colors.foreground }]}>{ls.todaysFeed}</Text>
-              <Pressable style={styles.planLink} onPress={() => Alert.alert(ls.planVsActual, "Comparing current nutrition targets vs actual distribution details.")}>
-                <Text style={[styles.planLinkText, { color: colors.primary }]}>{ls.planVsActual}</Text>
-              </Pressable>
-            </View>
-
-            {/* Segmented feed periods tab bar */}
-            <View style={[styles.feedSegmentBar, { backgroundColor: colors.muted }]}>
-              {(["Morning", "Evening", "Total", "Cost"] as const).map((period) => {
-                const isPeriodActive = feedPeriod === period;
-                return (
-                  <Pressable
-                    key={period}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setFeedPeriod(period);
-                    }}
-                    style={[
-                      styles.feedSegmentBtn,
-                      isPeriodActive && [styles.feedSegmentBtnActive, { backgroundColor: colors.card }],
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.feedSegmentText,
-                        isPeriodActive
-                          ? { color: colors.primary, fontWeight: "700" }
-                          : { color: colors.mutedForeground, fontWeight: "500" },
-                      ]}
-                    >
-                      {ls[period.toLowerCase()] || period}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
             {/* MILK PRODUCTION (DAILY) CARD */}
             <View style={[styles.cardContainer, { borderColor: colors.border, backgroundColor: colors.card }]}>
               <View style={styles.cardHeaderRow}>
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>{ls.milkProductionDaily}</Text>
-                {/* 8% vs last week badge */}
-                <View style={[styles.percentageBadge, { backgroundColor: "#eafaf1" }]}>
-                  <Feather name="arrow-up" size={12} color="#16a34a" />
-                  <Text style={styles.percentageText}>8% vs last week</Text>
-                </View>
+                {/* Only shown once there is a prior week to compare against. */}
+                {weekOverWeek !== null && (
+                  <View
+                    style={[
+                      styles.percentageBadge,
+                      { backgroundColor: weekOverWeek >= 0 ? "#eafaf1" : "#fef2f2" },
+                    ]}
+                  >
+                    <Feather
+                      name={weekOverWeek >= 0 ? "arrow-up" : "arrow-down"}
+                      size={12}
+                      color={weekOverWeek >= 0 ? "#16a34a" : "#dc2626"}
+                    />
+                    <Text
+                      style={[
+                        styles.percentageText,
+                        { color: weekOverWeek >= 0 ? "#16a34a" : "#dc2626" },
+                      ]}
+                    >
+                      {Math.abs(weekOverWeek)}% vs last week
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* Weekly Average */}
@@ -846,45 +905,6 @@ export default function AnimalDetail() {
               </View>
             </View>
 
-            {/* FEED DETAILS TABLE */}
-            <View style={[styles.cardContainer, { borderColor: colors.border, backgroundColor: colors.card }]}>
-              {/* Table Headers */}
-              <View style={[styles.tableHeaderRow, { borderBottomColor: colors.border }]}>
-                <Text style={[styles.colHeader, styles.colFlex2, { color: colors.mutedForeground }]}>{ls.feedType}</Text>
-                <Text style={[styles.colHeader, styles.colFlex1, styles.textRight, { color: colors.mutedForeground }]}>{ls.planned}</Text>
-                <Text style={[styles.colHeader, styles.colFlex1, styles.textRight, { color: colors.mutedForeground }]}>{ls.given}</Text>
-                <Text style={[styles.colHeader, styles.colFlex1, styles.textRight, { color: colors.mutedForeground }]}>{ls.balance}</Text>
-              </View>
-
-              {/* Row 1: Green Fodder */}
-              <View style={[styles.tableBodyRow, { borderBottomColor: colors.border }]}>
-                <Text style={[styles.colBodyText, styles.colFlex2, { color: colors.foreground, fontWeight: "600" }]}>{ls.greenFodder}</Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.foreground }]}>
-                  {feedPeriod === "Morning" ? "18 kg" : feedPeriod === "Evening" ? "12 kg" : feedPeriod === "Total" ? "30 kg" : "₹180"}
-                </Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.primary, fontWeight: "700" }]}>
-                  {feedPeriod === "Morning" ? "18 kg" : feedPeriod === "Evening" ? "12 kg" : feedPeriod === "Total" ? "30 kg" : "₹180"}
-                </Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.foreground }]}>
-                  {feedPeriod === "Cost" ? "₹0" : "0 kg"}
-                </Text>
-              </View>
-
-              {/* Row 2: Concentrate */}
-              <View style={styles.tableBodyRow}>
-                <Text style={[styles.colBodyText, styles.colFlex2, { color: colors.foreground, fontWeight: "600" }]}>{ls.concentrate}</Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.foreground }]}>
-                  {feedPeriod === "Morning" ? "6 kg" : feedPeriod === "Evening" ? "4 kg" : feedPeriod === "Total" ? "10 kg" : "₹150"}
-                </Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.primary, fontWeight: "700" }]}>
-                  {feedPeriod === "Morning" ? "6 kg" : feedPeriod === "Evening" ? "4 kg" : feedPeriod === "Total" ? "10 kg" : "₹150"}
-                </Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.foreground }]}>
-                  {feedPeriod === "Cost" ? "₹0" : "0 kg"}
-                </Text>
-              </View>
-            </View>
-
             {/* HERD GROUP CARD */}
             <View style={[styles.sectionHeaderRow, { marginTop: 4 }]}>
               <Text style={[styles.sectionHeading, { color: colors.foreground }]}>{ls.herdGroup}</Text>
@@ -905,7 +925,8 @@ export default function AnimalDetail() {
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={[styles.herdGroupName, { color: colors.foreground }]}>{groupName}</Text>
                 <Text style={[styles.herdCount, { color: colors.mutedForeground }]}>
-                  {animalsInGroupCount} {ls.animalsCount}
+                  {animalsInGroupCount}{" "}
+                  {isTa || animalsInGroupCount !== 1 ? ls.animalsCount : "Animal"}
                 </Text>
               </View>
               <Pressable
@@ -961,82 +982,36 @@ export default function AnimalDetail() {
           </View>
         )}
 
-        {/* FEED TAB CONTENT */}
+        {/* FEED TAB CONTENT
+            Per-animal feed rations are not modelled anywhere in the app or the
+            API, so there is nothing truthful to show here yet. Feed is tracked
+            as farm-level stock instead, which is where this points. */}
         {activeTab === "Feed" && (
           <View style={{ gap: 16 }}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionHeading, { color: colors.foreground }]}>{ls.todaysFeed}</Text>
-            </View>
-            <View style={[styles.feedSegmentBar, { backgroundColor: colors.muted }]}>
-              {(["Morning", "Evening", "Total", "Cost"] as const).map((period) => {
-                const isPeriodActive = feedPeriod === period;
-                return (
-                  <Pressable
-                    key={period}
-                    onPress={() => setFeedPeriod(period)}
-                    style={[
-                      styles.feedSegmentBtn,
-                      isPeriodActive && [styles.feedSegmentBtnActive, { backgroundColor: colors.card }],
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.feedSegmentText,
-                        isPeriodActive
-                          ? { color: colors.primary, fontWeight: "700" }
-                          : { color: colors.mutedForeground, fontWeight: "500" },
-                      ]}
-                    >
-                      {ls[period.toLowerCase()] || period}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
             <View style={[styles.cardContainer, { borderColor: colors.border, backgroundColor: colors.card }]}>
-              <View style={[styles.tableHeaderRow, { borderBottomColor: colors.border }]}>
-                <Text style={[styles.colHeader, styles.colFlex2, { color: colors.mutedForeground }]}>{ls.feedType}</Text>
-                <Text style={[styles.colHeader, styles.colFlex1, styles.textRight, { color: colors.mutedForeground }]}>{ls.planned}</Text>
-                <Text style={[styles.colHeader, styles.colFlex1, styles.textRight, { color: colors.mutedForeground }]}>{ls.given}</Text>
-                <Text style={[styles.colHeader, styles.colFlex1, styles.textRight, { color: colors.mutedForeground }]}>{ls.balance}</Text>
-              </View>
-
-              <View style={[styles.tableBodyRow, { borderBottomColor: colors.border }]}>
-                <Text style={[styles.colBodyText, styles.colFlex2, { color: colors.foreground, fontWeight: "600" }]}>{ls.greenFodder}</Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.foreground }]}>
-                  {feedPeriod === "Morning" ? "18 kg" : feedPeriod === "Evening" ? "12 kg" : feedPeriod === "Total" ? "30 kg" : "₹180"}
+              <View style={styles.emptyStateBlock}>
+                <MaterialCommunityIcons name="sprout" size={44} color={colors.border} />
+                <Text style={[styles.emptyStateTitle, { color: colors.foreground }]}>
+                  {isTa ? "தீவனப் பதிவு இன்னும் இல்லை" : "Per-animal feed tracking isn't available yet"}
                 </Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.primary, fontWeight: "700" }]}>
-                  {feedPeriod === "Morning" ? "18 kg" : feedPeriod === "Evening" ? "12 kg" : feedPeriod === "Total" ? "30 kg" : "₹180"}
+                <Text style={[styles.emptyStateBody, { color: colors.mutedForeground }]}>
+                  {isTa
+                    ? "தீவனம் தற்போது பண்ணை அளவில் மட்டுமே கண்காணிக்கப்படுகிறது."
+                    : "Feed is currently tracked as farm-level stock rather than per animal."}
                 </Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.foreground }]}>
-                  {feedPeriod === "Cost" ? "₹0" : "0 kg"}
-                </Text>
-              </View>
-
-              <View style={styles.tableBodyRow}>
-                <Text style={[styles.colBodyText, styles.colFlex2, { color: colors.foreground, fontWeight: "600" }]}>{ls.concentrate}</Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.foreground }]}>
-                  {feedPeriod === "Morning" ? "6 kg" : feedPeriod === "Evening" ? "4 kg" : feedPeriod === "Total" ? "10 kg" : "₹150"}
-                </Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.primary, fontWeight: "700" }]}>
-                  {feedPeriod === "Morning" ? "6 kg" : feedPeriod === "Evening" ? "4 kg" : feedPeriod === "Total" ? "10 kg" : "₹150"}
-                </Text>
-                <Text style={[styles.colBodyText, styles.colFlex1, styles.textRight, { color: colors.foreground }]}>
-                  {feedPeriod === "Cost" ? "₹0" : "0 kg"}
-                </Text>
+                <Pressable
+                  style={[styles.outlineBtn, { borderColor: colors.primary, marginTop: 14 }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push({ pathname: "/animals" as any, params: { tab: "feed" } });
+                  }}
+                >
+                  <Text style={{ color: colors.primary, fontWeight: "700" }}>
+                    {isTa ? "பண்ணை தீவன இருப்பு" : "View farm feed stock"}
+                  </Text>
+                </Pressable>
               </View>
             </View>
-
-            <Pressable
-              style={[styles.outlineBtn, { borderColor: colors.primary, paddingVertical: 14, borderRadius: 10, width: "100%", justifyContent: "center" }]}
-              onPress={() => Alert.alert(isTa ? "தீவனம் பதிவிடவும்" : "Log Feed Distribution", isTa ? "இன்றைய தீவனம் விநியோகம் வெற்றிகரமாக பதிவு செய்யப்பட்டது." : "Feed distribution for today has been logged.")}
-            >
-              <Text style={{ color: colors.primary, fontWeight: "700", textAlign: "center" }}>
-                {isTa ? "+ புதிய தீவனம் பதிவு செய்க" : "+ Log Distribution"}
-              </Text>
-            </Pressable>
           </View>
         )}
 
@@ -1080,6 +1055,38 @@ export default function AnimalDetail() {
                   <Text style={[styles.outlineBtnText, { color: colors.primary, fontWeight: "700" }]}>{isTa ? "குறிப்பு சேர்க்க" : "Add Note"}</Text>
                 </Pressable>
               </View>
+
+              {/* The way out of an alert state. Symptom notes escalate this
+                  animal automatically; only the farmer can clear it. */}
+              {animal.healthStatus !== "healthy" && (
+                <View
+                  style={[
+                    styles.cardContainer,
+                    styles.recoverBanner,
+                    { borderColor: activeHealthConfig.color, backgroundColor: activeHealthConfig.color + "0f" },
+                  ]}
+                >
+                  <Feather
+                    name={animal.healthStatus === "critical" ? "alert-octagon" : "alert-triangle"}
+                    size={18}
+                    color={activeHealthConfig.color}
+                  />
+                  <Text style={[styles.recoverBannerText, { color: colors.foreground }]}>
+                    {isTa
+                      ? "இந்த மாடு கவனிப்பு தேவை என குறிக்கப்பட்டுள்ளது."
+                      : `Flagged as ${activeHealthConfig.label.toLowerCase()}.`}
+                  </Text>
+                  <Pressable
+                    style={[styles.outlineBtn, { borderColor: "#22c55e" }]}
+                    onPress={handleMarkRecovered}
+                    hitSlop={6}
+                  >
+                    <Text style={{ color: "#22c55e", fontWeight: "700", fontSize: 12 }}>
+                      {isTa ? "குணமானது" : "Recovered"}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
 
               {/* Top Row Cards Scroll */}
               <ScrollView
@@ -1466,13 +1473,15 @@ export default function AnimalDetail() {
                   </View>
                 </View>
 
-                {/* Health Score */}
+                {/* Condition. There is no scoring model behind this, so it
+                    reports the recorded status rather than dressing those three
+                    states up as a spurious percentage. */}
                 <View style={[styles.cardContainer, { flex: 1, minWidth: 140, borderColor: colors.border, backgroundColor: colors.card, padding: 12, flexDirection: "row", alignItems: "center", gap: 8 }]}>
-                  <Feather name="heart" size={14} color="#e11d48" />
+                  <Feather name="heart" size={14} color={activeHealthConfig.color} />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 9, color: colors.mutedForeground }} numberOfLines={1}>{isTa ? "மதிப்பெண்" : "Health Score"}</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: colors.foreground, marginTop: 2 }}>
-                      {animal.healthStatus === "healthy" ? "98%" : animal.healthStatus === "attention" ? "70%" : "30%"}
+                    <Text style={{ fontSize: 9, color: colors.mutedForeground }} numberOfLines={1}>{isTa ? "நிலை" : "Condition"}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: activeHealthConfig.color, marginTop: 2 }} numberOfLines={1}>
+                      {activeHealthConfig.label}
                     </Text>
                   </View>
                 </View>
@@ -1507,13 +1516,20 @@ export default function AnimalDetail() {
               </View>
               <View style={styles.detailRow}>
                 <Text style={[styles.detailKey, { color: colors.mutedForeground }]}>{isTa ? "உடல் நிலை மதிப்பீடு" : "Body Condition Score"}</Text>
-                <Text style={[styles.detailValue, { color: colors.foreground }]}>{animal.bodyConditionScore ?? "3.5 / 5.0"}</Text>
+                <Text style={[styles.detailValue, { color: colors.foreground }]}>
+                  {animal.bodyConditionScore != null
+                    ? `${Number(animal.bodyConditionScore).toFixed(1)} / 5.0`
+                    : NOT_RECORDED}
+                </Text>
               </View>
             </View>
 
             <Pressable
               style={[styles.outlineBtn, { borderColor: colors.primary, paddingVertical: 14, borderRadius: 10, width: "100%", justifyContent: "center" }]}
-              onPress={() => Alert.alert(isTa ? "ஈட்டு நிகழ்வு" : "Record Breeding Event", isTa ? "AI கலப்பு அல்லது கன்று ஈனுதலை பதிவு செய்யவும்." : "Record AI insemination, heat check or calving.")}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setBreedingModalVisible(true);
+              }}
             >
               <Text style={{ color: colors.primary, fontWeight: "700", textAlign: "center" }}>
                 {isTa ? "+ புதிய இனப்பெருக்க நிகழ்வு" : "+ Record Insemination / Calving"}
@@ -1661,6 +1677,16 @@ export default function AnimalDetail() {
         onClose={() => setHealthNoteVisible(false)}
         onSelect={handleSelectHealthNote}
       />
+      <BreedingEventModal
+        visible={breedingModalVisible}
+        onClose={() => setBreedingModalVisible(false)}
+        preselectedAnimalId={String(animal.id)}
+      />
+      <AddAnimalModal
+        visible={editVisible}
+        onClose={() => setEditVisible(false)}
+        animalToEdit={animal}
+      />
 
       {/* Herd Group Selection Bottom Sheet Modal */}
       <Modal
@@ -1772,6 +1798,46 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     borderRadius: 12,
+  },
+  photoPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderStyle: "dashed",
+    gap: 4,
+  },
+  photoPlaceholderText: {
+    fontSize: 10,
+    fontFamily: "Inter_500Medium",
+  },
+  recoverBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+  },
+  recoverBannerText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  emptyStateBlock: {
+    alignItems: "center",
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  emptyStateTitle: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  emptyStateBody: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 17,
   },
   tagIconOverlay: {
     position: "absolute",
