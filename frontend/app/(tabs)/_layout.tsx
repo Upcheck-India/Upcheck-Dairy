@@ -10,7 +10,7 @@ import QuickActionsModal from "@/components/QuickActionsModal";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 import { useFarmer } from "@/context/FarmerContext";
-import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function ProfileAvatar() {
   const { farmer } = useFarmer();
@@ -70,7 +70,11 @@ export default function TabLayout() {
     }
   };
 
-  const TAB_BAR_HEIGHT = isWeb ? 84 : 68 + insets.bottom;
+  // The bar is a fixed-height strip of tab content sitting on top of the OS
+  // navigation inset, so anything docked to the bar must clear that inset too.
+  const tabBarInset = isWeb ? 0 : insets.bottom;
+  const TAB_BAR_CONTENT_HEIGHT = isWeb ? 84 : 68;
+  const TAB_BAR_HEIGHT = TAB_BAR_CONTENT_HEIGHT + tabBarInset;
 
   return (
     <View style={styles.container}>
@@ -85,8 +89,11 @@ export default function TabLayout() {
             borderTopColor: colors.border,
             elevation: 0,
             height: TAB_BAR_HEIGHT,
-            paddingTop: 4,
-            paddingBottom: insets.bottom,
+            paddingTop: 8,
+            paddingBottom: tabBarInset,
+          },
+          tabBarIconStyle: {
+            marginBottom: 2,
           },
           tabBarLabelStyle: {
             fontSize: 11,
@@ -168,7 +175,10 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-      <View pointerEvents="box-none" style={styles.floatingActionWrap}>
+      <View
+        pointerEvents="box-none"
+        style={[styles.floatingActionWrap, { bottom: tabBarInset + 8 }]}
+      >
         <VoiceButton onPress={() => setVoiceVisible(true)} />
       </View>
       <QuickActionsModal
@@ -196,7 +206,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 6,
     alignItems: "center",
   },
 });

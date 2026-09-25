@@ -233,7 +233,7 @@ export default function AnimalsScreen() {
   }, [shedHealthEvents, searchQuery]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 6 }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 10 }]}>
       {/* Header */}
       <View style={styles.header}>
         <Pressable
@@ -445,7 +445,15 @@ export default function AnimalsScreen() {
       </ScrollView>
 
       {/* Scrollable Content */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          // Clear the tab bar (68pt of content) plus the OS navigation inset,
+          // with room to spare for the docked action button.
+          { paddingBottom: insets.bottom + 96 },
+        ]}
+      >
         {/* Animal Summary Section */}
         <View style={styles.summaryHeader}>
           <Text style={[styles.summaryTitle, { color: colors.foreground }]}>Animal Summary</Text>
@@ -1292,7 +1300,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginTop: 18,
+    marginTop: 20,
   },
   summaryTitle: {
     fontSize: 15,
