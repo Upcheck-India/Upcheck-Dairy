@@ -20,6 +20,7 @@ import MilkLogModal from "@/components/MilkLogModal";
 import HealthNoteModal, { HealthNoteOption } from "@/components/HealthNoteModal";
 import BreedingEventModal from "@/components/BreedingEventModal";
 import AddAnimalModal from "@/components/AddAnimalModal";
+import { ActionSheet, type ActionSheetItem } from "@/components/ActionSheet";
 import { escalatedHealthStatus } from "../../src/modules/health/utils/healthStatus";
 import { generateId, getTodayString, HealthStatus, getISTDateString } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -144,6 +145,9 @@ export default function AnimalDetail() {
   const [healthNoteVisible, setHealthNoteVisible] = useState(false);
   const [breedingModalVisible, setBreedingModalVisible] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
+  const [optionsSheetVisible, setOptionsSheetVisible] = useState(false);
+  const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
+  const [healthSheetVisible, setHealthSheetVisible] = useState(false);
   const isTa = language === "ta";
   const [entryToEdit, setEntryToEdit] = useState<MilkEntry | null>(null);
 
@@ -501,57 +505,41 @@ export default function AnimalDetail() {
     }
   };
 
-  const handleCamera = () => {
-    Alert.alert(t.animalDetailPhotoTitle, t.animalDetailPhotoBody, [
-      { text: t.cancel, style: "cancel" },
-      {
-        text: t.animalDetailCamera,
-        onPress: async () => {
-          const { status } = await ImagePicker.requestCameraPermissionsAsync();
-          if (status !== "granted") {
-            Alert.alert(t.animalDetailPermissionNeeded, t.animalDetailCameraPermission);
-            return;
-          }
-          const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ["images"],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.7,
-          });
-          if (!result.canceled && result.assets[0]) {
-            const uploadedUrl = await uploadPhoto(result.assets[0].uri);
-            if (uploadedUrl) {
-              await updateAnimal(Number(animal.id), { photoUri: uploadedUrl });
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            }
-          }
-        },
-      },
-      {
-        text: t.animalDetailGallery,
-        onPress: async () => {
-          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (status !== "granted") {
-            Alert.alert(t.animalDetailPermissionNeeded, t.animalDetailGalleryPermission);
-            return;
-          }
-          const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ["images"],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.7,
-          });
-          if (!result.canceled && result.assets[0]) {
-            const uploadedUrl = await uploadPhoto(result.assets[0].uri);
-            if (uploadedUrl) {
-              await updateAnimal(Number(animal.id), { photoUri: uploadedUrl });
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            }
-          }
-        },
-      },
-    ]);
+  const PICKER_OPTIONS = {
+    mediaTypes: ["images"] as ImagePicker.MediaType[],
+    allowsEditing: true,
+    aspect: [1, 1] as [number, number],
+    quality: 0.7,
   };
+
+  /** Uploads the chosen image and attaches it to the animal. */
+  const applyPickedPhoto = async (result: ImagePicker.ImagePickerResult) => {
+    if (result.canceled || !result.assets[0]) return;
+    const uploadedUrl = await uploadPhoto(result.assets[0].uri);
+    if (!uploadedUrl) return;
+    await updateAnimal(Number(animal.id), { photoUri: uploadedUrl });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(t.animalDetailPermissionNeeded, t.animalDetailCameraPermission);
+      return;
+    }
+    await applyPickedPhoto(await ImagePicker.launchCameraAsync(PICKER_OPTIONS));
+  };
+
+  const pickPhotoFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(t.animalDetailPermissionNeeded, t.animalDetailGalleryPermission);
+      return;
+    }
+    await applyPickedPhoto(await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS));
+  };
+
+  const handleCamera = () => setPhotoSheetVisible(true);
 
   const addHealthNote = () => {
     setHealthNoteVisible(true);
@@ -626,42 +614,67 @@ export default function AnimalDetail() {
   };
 
   // Header options popup (...)
-  const handleHeaderOptions = () => {
-    Alert.alert(animal.name, isTa ? "விருப்பங்கள்" : "Options", [
-      { text: t.cancel || "Cancel", style: "cancel" },
-      {
-        text: isTa ? "விவரங்களைத் திருத்து" : "Edit Details",
-        onPress: () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setEditVisible(true);
-        }
+  const handleHeaderOptions = () => setOptionsSheetVisible(true);
+
+  const headerOptions: ActionSheetItem[] = [
+    {
+      key: "edit",
+      label: isTa ? "விவரங்களைத் திருத்து" : "Edit details",
+      description: isTa ? undefined : "Name, tag, breed, shed and more",
+      icon: "edit-2",
+      color: "#6366f1",
+      onPress: () => setEditVisible(true),
+    },
+    {
+      key: "milk",
+      label: isTa ? "பால் பதிவு செய்க" : "Log milk",
+      icon: "droplet",
+      color: "#0ea5e9",
+      onPress: () => {
+        setEntryToEdit(null);
+        setMilkLogVisible(true);
       },
-      {
-        text: isTa ? "பால் பதிவு செய்க" : "Log Milk",
-        onPress: () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setEntryToEdit(null);
-          setMilkLogVisible(true);
-        }
-      },
-      {
-        text: isTa ? "உடல்நிலை குறிப்பு" : "Add Health Note",
-        onPress: () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          addHealthNote();
-        }
-      },
-      {
-        text: isTa ? "புகைப்படம் எடு" : "Take/Upload Photo",
-        onPress: handleCamera
-      },
-      {
-        text: isTa ? "மாட்டை நீக்கு" : "Delete Animal",
-        style: "destructive",
-        onPress: handleDeleteAnimal
-      }
-    ]);
-  };
+    },
+    {
+      key: "health",
+      label: isTa ? "உடல்நிலை குறிப்பு" : "Add health note",
+      icon: "heart",
+      color: "#ef4444",
+      onPress: addHealthNote,
+    },
+    {
+      key: "photo",
+      label: isTa ? "புகைப்படம்" : "Change photo",
+      icon: "camera",
+      color: "#16a34a",
+      onPress: () => setPhotoSheetVisible(true),
+    },
+    {
+      key: "delete",
+      label: isTa ? "மாட்டை நீக்கு" : "Delete animal",
+      description: isTa ? undefined : "Removes its milk and health history too",
+      icon: "trash-2",
+      destructive: true,
+      onPress: handleDeleteAnimal,
+    },
+  ];
+
+  const photoOptions: ActionSheetItem[] = [
+    {
+      key: "camera",
+      label: t.animalDetailCamera,
+      icon: "camera",
+      color: "#16a34a",
+      onPress: takePhoto,
+    },
+    {
+      key: "gallery",
+      label: t.animalDetailGallery,
+      icon: "image",
+      color: "#6366f1",
+      onPress: pickPhotoFromGallery,
+    },
+  ];
 
   // Active Health Option Config
   const activeHealthConfig = HEALTH_OPTIONS.find((h) => h.status === animal.healthStatus) || HEALTH_OPTIONS[0];
@@ -1096,16 +1109,7 @@ export default function AnimalDetail() {
               >
                 {/* Health Status Card */}
                 <Pressable
-                  onPress={() => {
-                    Alert.alert(
-                      isTa ? "உடல்நிலையை மாற்றவும்" : "Change Health Status",
-                      isTa ? "மாட்டின் தற்போதைய உடல்நிலையை தேர்ந்தெடுக்கவும்:" : "Select the current health status of the animal:",
-                      HEALTH_OPTIONS.map((opt) => ({
-                        text: opt.label,
-                        onPress: () => setHealthStatus(opt.status),
-                      })).concat([{ text: t.cancel || "Cancel", style: "cancel" } as any])
-                    );
-                  }}
+                  onPress={() => setHealthSheetVisible(true)}
                   style={[
                     styles.cardContainer,
                     {
@@ -1686,6 +1690,45 @@ export default function AnimalDetail() {
         visible={editVisible}
         onClose={() => setEditVisible(false)}
         animalToEdit={animal}
+      />
+
+      <ActionSheet
+        visible={optionsSheetVisible}
+        onClose={() => setOptionsSheetVisible(false)}
+        title={animal.name}
+        subtitle={animal.tagNumber ? `${animal.breed} • ${animal.tagNumber}` : animal.breed}
+        items={headerOptions}
+      />
+
+      <ActionSheet
+        visible={photoSheetVisible}
+        onClose={() => setPhotoSheetVisible(false)}
+        title={t.animalDetailPhotoTitle}
+        subtitle={t.animalDetailPhotoBody}
+        items={photoOptions}
+      />
+
+      <ActionSheet
+        visible={healthSheetVisible}
+        onClose={() => setHealthSheetVisible(false)}
+        title={isTa ? "உடல்நிலையை மாற்றவும்" : "Change health status"}
+        subtitle={
+          isTa
+            ? "மாட்டின் தற்போதைய உடல்நிலையை தேர்ந்தெடுக்கவும்:"
+            : "Select the current health status of this animal."
+        }
+        items={HEALTH_OPTIONS.map((opt) => ({
+          key: opt.status,
+          label: opt.label,
+          icon:
+            opt.status === "healthy"
+              ? ("check-circle" as const)
+              : opt.status === "attention"
+              ? ("alert-triangle" as const)
+              : ("alert-octagon" as const),
+          color: opt.color,
+          onPress: () => setHealthStatus(opt.status),
+        }))}
       />
 
       {/* Herd Group Selection Bottom Sheet Modal */}

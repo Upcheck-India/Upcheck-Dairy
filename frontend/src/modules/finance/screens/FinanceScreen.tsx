@@ -132,11 +132,11 @@ function FinancialChart({ data }: { data: DayData[] }) {
 }
 
 const EXPENSE_CAT_LABELS: Record<string, Record<string, string>> = {
-  feed: { ta: "🌾 தீவனம்", te: "🌾 மேత", kn: "🌾 ಮೇವು", ml: "🌾 തീറ്റ", hi: "🌾 चारा", en: "🌾 Feed" },
+  feed: { ta: "தீவனம்", te: "மேత", kn: "ಮೇವು", ml: "തീറ്റ", hi: "चारा", en: "Feed" },
   medicine: { ta: "மருந்து", te: "మందు", kn: "ಔಷಧ", ml: "മരുന്ന്", hi: "दवाई", en: "Medicine" },
-  labor: { ta: "👷 தொழிலாளர்", te: "👷 கூలీ", kn: "👷 ಕಾರ್ಮಿಕ", ml: "👷 തൊഴിലാളി", hi: "👷 मजदूरी", en: "👷 Labor" },
-  equipment: { ta: "🔧 உபகரணம்", te: "🔧 పరికరాలు", kn: "🔧 ಸಾಧನ", ml: "🔧 உபකරணம்", hi: "🔧 उपकरण", en: "🔧 Equipment" },
-  other: { ta: "📦 மற்றவை", te: "📦 ఇతరాలు", kn: "📦 ಇತರ", ml: "📦 മറ്റുള്ളവ", hi: "📦 अन्य", en: "📦 Other" },
+  labor: { ta: "தொழிலாளர்", te: "கூలీ", kn: "ಕಾರ್ಮಿಕ", ml: "തൊഴിലാളി", hi: "मजदूरी", en: "Labor" },
+  equipment: { ta: "உபகரணம்", te: "పరికరాలు", kn: "ಸಾಧನ", ml: "உபකරணம்", hi: "उपकरण", en: "Equipment" },
+  other: { ta: "மற்றவை", te: "ఇతరాలు", kn: "ಇತರ", ml: "മറ്റുള്ളവ", hi: "अन्य", en: "Other" },
 };
 
 const CATEGORY_COLORS: Record<string, string> = {

@@ -31,8 +31,9 @@ export function DashboardHeader({
       <View style={styles.headerRow}>
         <View style={styles.farmContainer}>
           <Pressable style={styles.farmSelector} onPress={onFarmPress}>
+            <Feather name="home" size={16} color={colors.foreground} />
             <Text style={[styles.headerTitle, { color: colors.foreground }]} numberOfLines={1}>
-              🏡 {farmName}
+              {farmName}
             </Text>
             <Feather name="chevron-down" size={16} color={colors.foreground} style={{ marginTop: 2 }} />
           </Pressable>

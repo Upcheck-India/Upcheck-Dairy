@@ -345,7 +345,14 @@ export default function HelpTab() {
                   <Text style={[styles.medicineText, { color: colors.foreground }]}>{diagnosis.homeRemedy}</Text>
                 </View>
               )}
-              {diagnosis.nextSteps && <Text style={[styles.nextSteps, { color: colors.mutedForeground }]}>🕐 {diagnosis.nextSteps}</Text>}
+              {diagnosis.nextSteps && (
+                <View style={styles.nextStepsRow}>
+                  <Feather name="clock" size={13} color={colors.mutedForeground} style={{ marginTop: 2 }} />
+                  <Text style={[styles.nextSteps, { color: colors.mutedForeground }]}>
+                    {diagnosis.nextSteps}
+                  </Text>
+                </View>
+              )}
               {diagnosis.callVetImmediately && (
                 <Pressable
                   style={[styles.callVetBtn, { backgroundColor: colors.destructive }]}
@@ -468,7 +475,8 @@ const styles = StyleSheet.create({
   causeItem: { fontSize: 14, lineHeight: 22 },
   medicineRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 10, borderRadius: 10, borderWidth: 1 },
   medicineText: { flex: 1, fontSize: 13, lineHeight: 20 },
-  nextSteps: { fontSize: 12, lineHeight: 18, fontStyle: "italic" },
+  nextStepsRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+  nextSteps: { flex: 1, fontSize: 12, lineHeight: 18, fontStyle: "italic" },
   callVetBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, borderRadius: 12 },
   callVetText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   contactRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 14, borderWidth: 1, marginBottom: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },

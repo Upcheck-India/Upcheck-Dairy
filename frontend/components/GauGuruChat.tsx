@@ -163,7 +163,10 @@ export default function GauGuruChat() {
 
         {messages.length === 0 && (
           <View style={styles.quickQSection}>
-            <Text style={styles.quickQLabel}>{t.quickQuestions}</Text>
+            <View style={styles.quickQLabelRow}>
+              <Feather name="zap" size={12} color="#9ca3af" />
+              <Text style={styles.quickQLabel}>{t.quickQuestions}</Text>
+            </View>
             {quickQs.map((q, i) => (
               <Pressable
                 key={i}
@@ -266,7 +269,8 @@ const styles = StyleSheet.create({
   loadingBubble: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 14 },
   loadingText: { color: "#9ca3af", fontSize: 13 },
   quickQSection: { marginTop: 8, gap: 8 },
-  quickQLabel: { fontSize: 12, fontWeight: "700", color: "#9ca3af", marginBottom: 4 },
+  quickQLabelRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 4 },
+  quickQLabel: { fontSize: 12, fontWeight: "700", color: "#9ca3af" },
   quickQChip: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     backgroundColor: "#f0fdf4", borderWidth: 1, borderColor: "#d1fae5",

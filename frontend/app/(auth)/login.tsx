@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -106,7 +106,7 @@ export default function LoginScreen() {
         {/* Header */}
         <View style={styles.hero}>
           <View style={styles.logoCircle}>
-            <Text style={styles.logoEmoji}>🌱</Text>
+            <MaterialCommunityIcons name="sprout" size={36} color="#16a34a" />
           </View>
           <Text style={styles.appName}>Upcheck</Text>
           <Text style={styles.appTagline}>Smart Dairy Management</Text>

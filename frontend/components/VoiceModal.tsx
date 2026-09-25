@@ -237,7 +237,7 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
           quantity: params.quantity,
           date: new Date().toISOString(),
         }).then(() => {
-          setResultMsg(`✅ ${confirmation}`);
+          setResultMsg(confirmation);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }).catch(() => {
           setResultMsg(t.errorMsg);
@@ -249,7 +249,7 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
           type: "observation",
           description: params.symptom ?? text,
         }).then(() => {
-          setResultMsg(`✅ ${confirmation}`);
+          setResultMsg(confirmation);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         }).catch(() => {
           setResultMsg(t.errorMsg);
@@ -265,7 +265,7 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
             description: params.expenseDescription ?? text,
             amount: params.expenseAmount,
           }).then(() => {
-            setResultMsg(`✅ ${confirmation}`);
+            setResultMsg(confirmation);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }).catch(() => {
             setResultMsg(t.errorMsg);
@@ -273,10 +273,10 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
         }
       } else if (result.action === "navigate" && params.tab) {
         router.push(`/(tabs)/${params.tab === "animals" ? "" : params.tab}` as any);
-        setResultMsg(`✅ ${confirmation}`);
+        setResultMsg(confirmation);
         setTimeout(onClose, 800);
       } else {
-        setResultMsg(`✅ ${confirmation}`);
+        setResultMsg(confirmation);
       }
 
       setStatus("result");
@@ -314,7 +314,7 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
             <Feather name="x" size={22} color={colors.mutedForeground} />
           </Pressable>
 
-          <Text style={[styles.title, { color: colors.foreground }]}>{t.voiceTitle}🎙</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t.voiceTitle}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
             {t.voiceSub}
           </Text>
@@ -358,7 +358,10 @@ export default function VoiceModal({ visible, onClose }: VoiceModalProps) {
                   ""{transcript}""
                 </Text>
               ) : null}
-              <Text style={[styles.resultText, { color: colors.primary }]}>{resultMsg}</Text>
+              <View style={styles.resultRow}>
+                <Feather name="check-circle" size={16} color={colors.primary} />
+                <Text style={[styles.resultText, { color: colors.primary }]}>{resultMsg}</Text>
+              </View>
               <Pressable style={[styles.againBtn, { backgroundColor: colors.primary }]} onPress={reset}>
                 <Text style={styles.againBtnText}>{t.speakAgain}</Text>
               </Pressable>
@@ -439,7 +442,8 @@ const styles = StyleSheet.create({
   transcriptBox: { borderRadius: 12, padding: 14, width: "100%", marginBottom: 14, gap: 8 },
   transcriptText: { fontSize: 13, textAlign: "center", fontStyle: "italic" },
   hintText: { fontSize: 14, textAlign: "center" },
-  resultText: { fontSize: 15, fontWeight: "700", textAlign: "center" },
+  resultRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  resultText: { fontSize: 15, fontWeight: "700", textAlign: "center", flexShrink: 1 },
   againBtn: { alignSelf: "center", paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, marginTop: 4 },
   againBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
   hint: { fontSize: 14, marginBottom: 14 },

@@ -67,10 +67,12 @@ export function DashboardScreen() {
   const syncDot =
     syncStatus === "synced" ? colors.success : syncStatus === "pending" ? colors.warning : colors.destructive;
   const syncLabel =
+    // The coloured dot beside this label already carries the state, so the
+    // text stays plain.
     syncStatus === "synced"
-      ? `✓ ${t.savedLabel}`
+      ? t.savedLabel
       : syncStatus === "pending"
-      ? `⏳ ${t.savingLabel}`
+      ? t.savingLabel
       : "offline";
 
   // Prepare UI States

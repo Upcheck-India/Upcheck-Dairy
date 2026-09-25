@@ -126,7 +126,8 @@ export default function BreedingSection() {
                 <View style={styles.animalRightSection}>
                   {animal.isPregnant && (
                     <View style={styles.pregnantBadge}>
-                      <Text style={styles.pregnantText}>🤰 {t.pregnantLabel}</Text>
+                      <Feather name="heart" size={11} color="#7c3aed" />
+                      <Text style={styles.pregnantText}>{t.pregnantLabel}</Text>
                     </View>
                   )}
                   {animal.lactationNumber != null && (
@@ -140,8 +141,9 @@ export default function BreedingSection() {
 
               {animal.expectedCalvingDate && (
                 <View style={styles.calvingAlert}>
+                  <Feather name="calendar" size={12} color="#92400e" style={{ marginRight: 5, marginTop: 1 }} />
                   <Text style={styles.calvingAlertText}>
-                    🐣 {t.calvingExpected} {new Date(animal.expectedCalvingDate).toLocaleDateString(language === "ta" ? "ta-IN" : "en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {t.calvingExpected} {new Date(animal.expectedCalvingDate).toLocaleDateString(language === "ta" ? "ta-IN" : "en-US", { month: "short", day: "numeric", year: "numeric" })}
                     {daysUntil(animal.expectedCalvingDate) >= 0
                       ? ` (${daysUntil(animal.expectedCalvingDate)} ${t.daysLabel})`
                       : ` (${t.overdueLabel})`}
@@ -221,7 +223,15 @@ const styles = StyleSheet.create({
   animalName: { fontSize: 16, fontWeight: "700" },
   animalBreed: { fontSize: 12 },
   animalRightSection: { flexDirection: "row", alignItems: "center", gap: 8 },
-  pregnantBadge: { backgroundColor: "#ede9fe", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
+  pregnantBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#ede9fe",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
   pregnantText: { fontSize: 11, color: "#7c3aed", fontWeight: "600" },
   lactationText: { fontSize: 12, color: "#0284c7", fontWeight: "700" },
   addEventBtn: {
@@ -229,6 +239,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#dcfce7", alignItems: "center", justifyContent: "center",
   },
   calvingAlert: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     backgroundColor: "#fef3c7", borderRadius: 10, padding: 8, marginBottom: 8,
   },
   calvingAlertText: { fontSize: 13, color: "#92400e", fontWeight: "600" },

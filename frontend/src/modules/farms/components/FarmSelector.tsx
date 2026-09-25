@@ -1,6 +1,17 @@
-import React from "react";
-import { Modal, StyleSheet, Text, View, Pressable, ScrollView, Platform } from "react-native";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  StyleSheet,
+  Text,
+  View,
+  Pressable,
+  ScrollView,
+} from "react-native";
 import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFarm } from "../hooks/useFarm";
 import { useColors } from "@/hooks/useColors";
 import { router } from "expo-router";
@@ -12,11 +23,30 @@ interface FarmSelectorProps {
 
 export function FarmSelector({ visible, onClose }: FarmSelectorProps) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const { farms, activeFarm, switchFarm } = useFarm();
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
 
   const handleSelect = async (id: string) => {
-    await switchFarm(id);
-    onClose();
+    if (switchingId) return;
+    if (id === activeFarm?.id) {
+      onClose();
+      return;
+    }
+
+    Haptics.selectionAsync();
+    setSwitchingId(id);
+    try {
+      await switchFarm(id);
+      onClose();
+    } catch (err) {
+      // Previously unhandled: a failed switch left the sheet open with no
+      // feedback and the old farm silently still active.
+      console.error("[FarmSelector] Failed to switch farm:", err);
+      Alert.alert("Error", "Could not switch to that farm. Please try again.");
+    } finally {
+      setSwitchingId(null);
+    }
   };
 
   const handleManage = () => {
@@ -32,7 +62,22 @@ export function FarmSelector({ visible, onClose }: FarmSelectorProps) {
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+        {/* Stops taps on the sheet's own padding from reaching the backdrop
+            and dismissing it. */}
+        <Pressable
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: colors.card,
+              // Clears the OS navigation bar; a flat 24 on Android left the
+              // Manage Farms button underneath the nav buttons.
+              paddingBottom: Math.max(insets.bottom, 16) + 8,
+            },
+          ]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={[styles.grabber, { backgroundColor: colors.border }]} />
+
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.foreground }]}>Select Farm</Text>
             <Pressable onPress={onClose} hitSlop={8}>
@@ -40,27 +85,50 @@ export function FarmSelector({ visible, onClose }: FarmSelectorProps) {
             </Pressable>
           </View>
 
-          <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+          <ScrollView
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {farms.length === 0 && (
+              <View style={styles.empty}>
+                <Feather name="home" size={40} color={colors.border} />
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                  No farms yet. Create one to start recording your herd.
+                </Text>
+              </View>
+            )}
+
             {farms.map((farm) => {
               const isActive = activeFarm?.id === farm.id;
+              const isSwitching = switchingId === farm.id;
               return (
                 <Pressable
                   key={farm.id}
-                  style={[
+                  style={({ pressed }) => [
                     styles.item,
                     {
                       backgroundColor: isActive ? colors.primary + "10" : "transparent",
                       borderColor: isActive ? colors.primary : colors.border,
+                      opacity: pressed || (switchingId && !isSwitching) ? 0.6 : 1,
                     },
                   ]}
                   onPress={() => handleSelect(farm.id)}
+                  disabled={switchingId !== null}
                 >
                   <View style={styles.itemInfo}>
-                    <Feather
-                      name="home"
-                      size={18}
-                      color={isActive ? colors.primary : colors.mutedForeground}
-                    />
+                    <View
+                      style={[
+                        styles.itemIcon,
+                        { backgroundColor: isActive ? colors.primary + "18" : colors.muted },
+                      ]}
+                    >
+                      <Feather
+                        name="home"
+                        size={17}
+                        color={isActive ? colors.primary : colors.mutedForeground}
+                      />
+                    </View>
                     <View style={styles.itemTextWrap}>
                       <Text
                         style={[
@@ -70,19 +138,25 @@ export function FarmSelector({ visible, onClose }: FarmSelectorProps) {
                             fontWeight: isActive ? "700" : "500",
                           },
                         ]}
+                        numberOfLines={1}
                       >
                         {farm.getDisplayName()}
                       </Text>
                       {farm.location ? (
-                        <Text style={[styles.itemSub, { color: colors.mutedForeground }]}>
+                        <Text
+                          style={[styles.itemSub, { color: colors.mutedForeground }]}
+                          numberOfLines={1}
+                        >
                           {farm.getDisplayLocation()}
                         </Text>
                       ) : null}
                     </View>
                   </View>
-                  {isActive && (
+                  {isSwitching ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : isActive ? (
                     <Feather name="check-circle" size={18} color={colors.primary} />
-                  )}
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -95,11 +169,11 @@ export function FarmSelector({ visible, onClose }: FarmSelectorProps) {
             >
               <Feather name="settings" size={16} color={colors.primary} />
               <Text style={[styles.manageBtnText, { color: colors.primary }]}>
-                Manage Farms
+                {farms.length === 0 ? "Create a farm" : "Manage farms"}
               </Text>
             </Pressable>
           </View>
-        </View>
+        </Pressable>
       </Pressable>
     </Modal>
   );
@@ -115,14 +189,20 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "80%",
-    paddingBottom: Platform.OS === "ios" ? 34 : 24,
+    paddingTop: 10,
+  },
+  grabber: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 12,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 20,
     paddingBottom: 15,
   },
   title: {
@@ -140,7 +220,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
     borderWidth: 1,
   },
@@ -149,6 +229,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     flex: 1,
+  },
+  itemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  empty: {
+    alignItems: "center",
+    paddingVertical: 32,
+    gap: 10,
+  },
+  emptyText: {
+    fontSize: 13,
+    textAlign: "center",
+    lineHeight: 18,
+    paddingHorizontal: 20,
   },
   itemTextWrap: {
     flex: 1,

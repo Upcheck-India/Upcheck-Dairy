@@ -270,11 +270,12 @@ export default function TodayTab() {
   const needsAttention = animals.filter((a) => a.healthStatus !== "healthy").length;
 
   const syncDot = syncStatus === "synced" ? colors.success : syncStatus === "pending" ? colors.warning : colors.destructive;
+  // The coloured dot beside this label already carries the state.
   const syncLabel = syncStatus === "synced"
-    ? `✓ ${t.savedLabel}`
+    ? t.savedLabel
     : syncStatus === "pending"
-      ? `⏳ ${t.savingLabel}`
-      : "⚠ offline";
+      ? t.savingLabel
+      : "offline";
 
   const criticalAlerts = smartAlerts.filter((a) => a.priority === "critical");
   const highAlerts = smartAlerts.filter((a) => a.priority === "high");
