@@ -174,6 +174,26 @@ export default function ProfileScreen() {
         hi: "संस्करण 1.0.0 • नियम और गोपनीयता",
         en: "Version 1.0.0 • Terms & Privacy",
       },
+      devicePermissions: {
+        ta: "சாதன அனுமதிகள்",
+        hi: "डिवाइस अनुमतियाँ",
+        en: "Device Permissions",
+      },
+      devicePermissionsDesc: {
+        ta: "கேமரா, மைக்ரோஃபோன் & அறிவிப்புகள்",
+        hi: "कैमरा, माइक्रोफ़ोन और सूचनाएं",
+        en: "Camera, microphone, location & notifications",
+      },
+      legalTerms: {
+        ta: "சட்ட தகவல் & தனியுரிமை",
+        hi: "कानूनी और नीतियां",
+        en: "Legal & Policies",
+      },
+      legalTermsDesc: {
+        ta: "விதிமுறைகள், தனியுரிமை & உரிமங்கள்",
+        hi: "नियम, गोपनीयता और लाइसेंस",
+        en: "Terms of service, privacy & licenses",
+      },
       logoutDesc: {
         ta: "உங்கள் கணக்கிலிருந்து வெளியேறவும்",
         hi: "अपने खाते से साइन आउट करें",
@@ -559,10 +579,24 @@ export default function ProfileScreen() {
               />
 
               <ProfileOption
+                icon="shield"
+                title={getLabel("devicePermissions")}
+                subtitle={getLabel("devicePermissionsDesc")}
+                onPress={() => router.push("/permission" as any)}
+              />
+
+              <ProfileOption
+                icon="file-text"
+                title={getLabel("legalTerms")}
+                subtitle={getLabel("legalTermsDesc")}
+                onPress={() => router.push("/legal" as any)}
+              />
+
+              <ProfileOption
                 icon="info"
                 title={getLabel("appInfo")}
                 subtitle={getLabel("appInfoDesc")}
-                onPress={() => Alert.alert("Upcheck Dairy", "Version 1.0.0")}
+                onPress={() => router.push("/legal" as any)}
               />
 
               {farmer && (

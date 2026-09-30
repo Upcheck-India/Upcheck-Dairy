@@ -40,20 +40,21 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const firstSegment = segments[0] as string | undefined;
   const inAuth = firstSegment === "(auth)";
+  const isPublicUtility = firstSegment === "legal" || firstSegment === "permission";
 
   // Only redirect authenticated users to tabs if they have completed their profile details
   const hasProfile = !!(farmer && farmer.village && farmer.district);
   const onOnboarding = firstSegment === "(auth)" && segments[1] === "onboarding";
 
   if (!isAuthenticated) {
-    if (!inAuth) {
+    if (!inAuth && !isPublicUtility) {
       return <Redirect href="/(auth)/login" />;
     }
     return <>{children}</>;
   }
 
   if (!hasProfile) {
-    if (!onOnboarding) {
+    if (!onOnboarding && !isPublicUtility) {
       return <Redirect href="/(auth)/onboarding" />;
     }
     return <>{children}</>;
@@ -65,10 +66,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   const onFarmsScreen = firstSegment === "farms";
+  const isUtilityScreen = isPublicUtility || firstSegment === "profile-screen" || firstSegment === "animal";
 
   // Enforce active farm if not on onboarding/farms screen
   if (farms.length === 0) {
-    if (!onFarmsScreen) {
+    if (!onFarmsScreen && !isUtilityScreen) {
       return <Redirect href="/farms" />;
     }
   } else {
@@ -95,6 +97,14 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="farms"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="legal"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="permission"
         options={{ headerShown: false, presentation: "card" }}
       />
     </Stack>

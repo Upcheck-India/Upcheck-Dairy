@@ -214,8 +214,19 @@ export default function RegisterScreen() {
 
         <Text style={styles.terms}>
           By creating an account, you agree to our{" "}
-          <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
-          <Text style={styles.termsLink}>Privacy Policy</Text>.
+          <Text
+            style={styles.termsLink}
+            onPress={() => router.push("/legal" as any)}
+          >
+            Terms of Service
+          </Text>{" "}
+          and{" "}
+          <Text
+            style={styles.termsLink}
+            onPress={() => router.push({ pathname: "/legal" as any, params: { tab: "privacy" } })}
+          >
+            Privacy Policy
+          </Text>.
         </Text>
 
         {/* Sign In Link */}
