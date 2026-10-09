@@ -2,7 +2,7 @@ const getApiBase = (): string => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
-  return "http://localhost:3000/api";
+  return "http://192.168.0.8:3000/api";
 };
 
 class ApiClient {
@@ -100,12 +100,14 @@ class ApiClient {
       return {} as T;
     }
     const text = await response.text();
-    const isHtml = text.trim().startsWith("<");
+    const trimmed = text.trim();
+    const isHtml = trimmed.startsWith("<") || trimmed.toLowerCase().startsWith("<!doctype");
+
+    if (isHtml) {
+      throw new Error(`Unable to connect to backend server. Received HTML response from ${this.apiBase}. Ensure your backend server is running.`);
+    }
 
     if (!response.ok) {
-      if (isHtml) {
-        throw new Error(`Server error (${response.status} ${response.statusText}): Server returned HTML instead of JSON. Check backend URL (${this.apiBase}).`);
-      }
       try {
         const data = JSON.parse(text);
         throw new Error(data?.message || data?.error || `Request failed with status ${response.status}`);
@@ -115,10 +117,6 @@ class ApiClient {
       }
     }
 
-    if (isHtml) {
-      throw new Error(`Expected JSON but received HTML response from ${this.apiBase}. Check API route configuration.`);
-    }
-
     if (!text) {
       return {} as T;
     }
@@ -126,7 +124,7 @@ class ApiClient {
     try {
       return JSON.parse(text) as T;
     } catch {
-      throw new Error(`Failed to parse server response as JSON.`);
+      throw new Error(`Failed to parse server response as JSON. Ensure backend server is running on ${this.apiBase}.`);
     }
   }
 }

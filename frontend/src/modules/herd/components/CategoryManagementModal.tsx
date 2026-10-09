@@ -9,6 +9,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Platform,
+  StatusBar,
 } from "react-native";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -186,12 +188,14 @@ export function CategoryManagementModal({
     );
   };
 
+  const topInset = Math.max(insets.top, Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0);
+
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={handleBack}>
+    <Modal visible={visible} animationType="slide" transparent={false} statusBarTranslucent onRequestClose={handleBack}>
       <View
         style={[
           styles.container,
-          { backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom },
+          { backgroundColor: colors.background, paddingTop: topInset, paddingBottom: insets.bottom },
         ]}
       >
         {/* Header */}

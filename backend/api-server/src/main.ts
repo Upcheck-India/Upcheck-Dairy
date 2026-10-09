@@ -103,7 +103,7 @@ async function bootstrap() {
   // Serve static files from the uploads directory
   app.use("/uploads", express.static(uploadsDir));
 
-  await app.listen(port);
+  await app.listen(port, "0.0.0.0");
   logger.info({ port }, "NestJS Server listening");
 }
 

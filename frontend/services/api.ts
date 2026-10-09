@@ -2,7 +2,7 @@ const getApiBase = (): string => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
-  return "http://localhost:3000/api";
+  return "http://192.168.0.8:3000/api";
 };
 
 async function safeFetchJson<T>(
@@ -10,17 +10,25 @@ async function safeFetchJson<T>(
   options?: RequestInit,
   fallbackMsg = "Request failed"
 ): Promise<T> {
-  const response = await fetch(url, options);
+  let response: Response;
+  try {
+    response = await fetch(url, options);
+  } catch (netErr: any) {
+    throw new Error(`${fallbackMsg}: Network request failed. Cannot connect to ${url}`);
+  }
+
   if (response.status === 204) {
     return {} as T;
   }
   const text = await response.text();
-  const isHtml = text.trim().startsWith("<");
+  const trimmed = text.trim();
+  const isHtml = trimmed.startsWith("<") || trimmed.toLowerCase().startsWith("<!doctype");
+
+  if (isHtml) {
+    throw new Error(`${fallbackMsg}: Unable to connect to backend API server. Received HTML response instead of JSON. Ensure your backend server is running on ${getApiBase()}.`);
+  }
 
   if (!response.ok) {
-    if (isHtml) {
-      throw new Error(`${fallbackMsg} (${response.status} ${response.statusText}): Server returned HTML instead of JSON.`);
-    }
     try {
       const data = JSON.parse(text);
       throw new Error(data?.error ?? data?.message ?? `${fallbackMsg} (${response.status})`);
@@ -32,18 +40,14 @@ async function safeFetchJson<T>(
     }
   }
 
-  if (isHtml) {
-    throw new Error(`${fallbackMsg}: Expected JSON response but received HTML.`);
-  }
-
   if (!text) {
     return {} as T;
   }
 
   try {
     return JSON.parse(text) as T;
-  } catch {
-    throw new Error(`${fallbackMsg}: Invalid JSON response from server.`);
+  } catch (parseErr: any) {
+    throw new Error(`${fallbackMsg}: Received invalid response from server. Ensure backend API is running on ${getApiBase()}.`);
   }
 }
 

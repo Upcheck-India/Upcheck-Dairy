@@ -11,6 +11,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -36,19 +37,17 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 const CHART_WIDTH = Math.max(280, SCREEN_WIDTH - 48);
 const CHART_HEIGHT = 130;
 
-type FinanceSection = "overview" | "passbook" | "reports" | "inventory";
+type FinanceSection = "overview" | "passbook";
 
 const FINANCE_TABS: {
   key: FinanceSection;
   label: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
 }[] = [
-  { key: "overview", label: "Overview", icon: "view-dashboard-outline" },
+  { key: "overview", label: "Overview & Analytics", icon: "view-dashboard-outline" },
   { key: "passbook", label: "Passbook", icon: "book-open-outline" },
-  { key: "reports", label: "Reports", icon: "chart-line" },
-  { key: "inventory", label: "Inventory", icon: "package-variant-closed" },
 ];
-type QuickActionId = "recordMilk" | "addExpense" | "uploadBill" | "uploadPayslip" | "recordPayment" | "transferOther";
+type QuickActionId = "recordMilk" | "addExpense" | "uploadBill" | "uploadPayslip" | "recordPayment" | "transferOther" | "manageInventory";
 
 type ModalMode =
   | { kind: "closed" }
@@ -249,12 +248,15 @@ interface ModalShellProps {
 }
 function ModalShell({ title, visible, onClose, children }: ModalShellProps) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0);
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
+      <View style={[styles.modalRoot, { backgroundColor: colors.background, paddingTop: topInset }]}>
         <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
           <Text style={[styles.modalTitle, { color: colors.foreground }]}>{title}</Text>
-          <Pressable onPress={onClose} style={{ padding: 6 }}>
+          <Pressable onPress={onClose} style={{ padding: 6 }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Feather name="x" size={22} color={colors.mutedForeground} />
           </Pressable>
         </View>
@@ -403,6 +405,34 @@ export default function FinanceScreen() {
     return passbookEntries.filter((entry) => entry.kind === activePassbookFilter);
   }, [activePassbookFilter, passbookEntries]);
 
+  const groupedPassbookEntries = useMemo(() => {
+    const today = startOfDay(new Date());
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const todayEntries: PassbookEntry[] = [];
+    const thisWeekEntries: PassbookEntry[] = [];
+    const earlierEntries: PassbookEntry[] = [];
+
+    for (const entry of visiblePassbookEntries) {
+      const entryDay = startOfDay(entry.date);
+      if (entryDay.getTime() === today.getTime()) {
+        todayEntries.push(entry);
+      } else if (entryDay.getTime() >= sevenDaysAgo.getTime()) {
+        thisWeekEntries.push(entry);
+      } else {
+        earlierEntries.push(entry);
+      }
+    }
+
+    const groups: { title: string; entries: PassbookEntry[] }[] = [];
+    if (todayEntries.length > 0) groups.push({ title: "Today", entries: todayEntries });
+    if (thisWeekEntries.length > 0) groups.push({ title: "This Week", entries: thisWeekEntries });
+    if (earlierEntries.length > 0) groups.push({ title: "Earlier", entries: earlierEntries });
+
+    return groups;
+  }, [visiblePassbookEntries]);
+
   const lastPayment = incomeEntries[incomeEntries.length - 1];
   const lastExpense = expenseEntries[expenseEntries.length - 1];
   const netToday = todayIncome - todayExpenses;
@@ -413,6 +443,7 @@ export default function FinanceScreen() {
     { id: "uploadBill", title: "Upload Bill", description: "Attach a bill image or PDF", icon: "file-plus", color: "#3b82f6" },
     { id: "uploadPayslip", title: "Upload Payslip", description: "Save payment proof with record", icon: "file-text", color: "#7c3aed" },
     { id: "recordPayment", title: "Record Payment", description: "Mark an incoming payment", icon: "credit-card", color: "#0f766e" },
+    { id: "manageInventory", title: "Manage Stock", description: "Add or update feed & medicine stock", icon: "package", color: "#d97706" },
     { id: "transferOther", title: "Transfer / Other", description: "Create a custom finance record", icon: "shuffle", color: "#6b7280" },
   ];
 
@@ -442,6 +473,10 @@ export default function FinanceScreen() {
         break;
       case "recordPayment":
         setModalMode({ kind: "payment" });
+        break;
+      case "manageInventory":
+        setEditInventoryItem(undefined);
+        setInventoryModal(true);
         break;
       case "transferOther":
         setModalMode({ kind: "transfer" });
@@ -862,7 +897,7 @@ export default function FinanceScreen() {
         >
           {section === "overview" && (
             <>
-              {/* Stats Grid */}
+              {/* Financial Pulse Hero Grid */}
               <View style={styles.statsGrid}>
                 <StatCard label={t.totalIncome} value={formatRupee(totalIncome)} accent="#16a34a" icon="trending-up" />
                 <StatCard label={t.totalExpense} value={formatRupee(totalExpenses)} accent="#ef4444" icon="trending-down" />
@@ -888,8 +923,23 @@ export default function FinanceScreen() {
                 </View>
               </View>
 
-              {/* Payment Status (Mockup Cards) */}
-              <InfoCard title="Payment Status">
+              {/* Cashflow Trend Chart */}
+              <InfoCard title="Cashflow Trend (7-Day)">
+                <View style={styles.legendRow}>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: "#16a34a" }]} />
+                    <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{t.income}</Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: "#ef4444" }]} />
+                    <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{t.expense}</Text>
+                  </View>
+                </View>
+                <FinancialChart data={chartData} />
+              </InfoCard>
+
+              {/* Upcoming & Pending Payouts */}
+              <InfoCard title="Upcoming & Pending Payouts">
                 <View style={styles.paymentStatusBlock}>
                   {/* Last Payment Card */}
                   <View style={[styles.paymentCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -983,20 +1033,69 @@ export default function FinanceScreen() {
                 </View>
               </InfoCard>
 
-              {/* 7-Day Financials Chart */}
-              <InfoCard title="7-Day Financials">
-                <View style={styles.legendRow}>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: "#16a34a" }]} />
-                    <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{t.income}</Text>
+              {/* Expense Breakdown Card */}
+              <InfoCard title="Expense Breakdown">
+                <View style={styles.breakdownList}>
+                  {Object.keys(expenseSummary).length === 0 ? (
+                    <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>No expense data yet.</Text>
+                  ) : (
+                    Object.entries(expenseSummary).map(([category, amount]) => {
+                      const percent = totalExpenses > 0 ? Math.round((amount / totalExpenses) * 100) : 0;
+                      return (
+                        <View key={category} style={styles.breakdownRow}>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                            <Text style={[styles.breakdownLabel, { color: colors.foreground }]}>{getExpCatLabel(category)}</Text>
+                            <Text style={[styles.breakdownValue, { color: colors.primary }]}>{formatRupee(amount)} ({percent}%)</Text>
+                          </View>
+                          <View style={[styles.breakdownTrack, { backgroundColor: colors.muted }]}>
+                            <View style={[styles.breakdownFill, { width: `${percent}%`, backgroundColor: CATEGORY_COLORS[category] || colors.primary }]} />
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+              </InfoCard>
+
+              {/* Farm Asset Valuation Widget */}
+              <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={[styles.circleIcon, { backgroundColor: `${colors.primary}15` }]}>
+                      <Feather name="package" size={14} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>Farm Asset Valuation</Text>
                   </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: "#ef4444" }]} />
-                    <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{t.expense}</Text>
+                  <Pressable
+                    style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                    onPress={() => {
+                      setEditInventoryItem(undefined);
+                      setInventoryModal(true);
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>Manage Stock →</Text>
+                  </Pressable>
+                </View>
+
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                  <View>
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground, fontWeight: "600" }}>Stock Valuation</Text>
+                    <Text style={{ fontSize: 22, fontWeight: "800", color: colors.foreground, marginTop: 2 }}>
+                      {formatRupeeFull(inventoryValue)}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <View style={[styles.badge, { backgroundColor: lowStockItems.length > 0 ? "#fee2e2" : "#dcfce7" }]}>
+                      <Text style={[styles.badgeText, { color: lowStockItems.length > 0 ? "#dc2626" : "#16a34a" }]}>
+                        {lowStockItems.length > 0 ? `${lowStockItems.length} Low Stock Alerts` : "Stock Healthy"}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 4 }}>
+                      {inventoryItems.length} items tracked
+                    </Text>
                   </View>
                 </View>
-                <FinancialChart data={chartData} />
-              </InfoCard>
+              </View>
 
               {/* Smart Insights */}
               <InfoCard title="Smart Insights">
@@ -1011,7 +1110,7 @@ export default function FinanceScreen() {
                     icon="alert-triangle"
                     color="#d97706"
                     title="Expense pressure visible"
-                    detail={`${Object.keys(expenseSummary).length} expense categories active this week.`}
+                    detail={`${Object.keys(expenseSummary).length} expense categories active.`}
                   />
                   <InsightRow
                     icon="clock"
@@ -1033,166 +1132,21 @@ export default function FinanceScreen() {
                 ))}
               </View>
 
-              {/* Passbook Timeline */}
-              <InfoCard title="Passbook Timeline">
-                <View style={styles.timelineList}>
-                  {visiblePassbookEntries.length === 0 ? (
-                    <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>No entries in this filter.</Text>
-                  ) : (
-                    visiblePassbookEntries.map((entry) => (
-                      <PassbookRow key={entry.key} entry={entry} onPress={() => setSelectedEntry(entry)} />
-                    ))
-                  )}
-                </View>
-              </InfoCard>
-            </>
-          )}
-
-          {section === "reports" && (
-            <>
-              <View style={styles.statsGrid}>
-                <StatCard label="Cash in" value={formatRupee(totalIncome)} accent="#16a34a" icon="download" />
-                <StatCard label="Cash out" value={formatRupee(totalExpenses)} accent="#ef4444" icon="upload" />
-                <StatCard label="Net payable" value={formatRupee(profit)} accent="#0f766e" icon="layers" />
-                <StatCard label="Bills attached" value={expenseEntries.filter((entry) => entry.attachmentUrl).length.toString()} accent="#3b82f6" icon="paperclip" />
-              </View>
-
-              <InfoCard title="Expense Breakdown">
-                <View style={styles.breakdownList}>
-                  {Object.keys(expenseSummary).length === 0 ? (
-                    <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>No expense data yet.</Text>
-                  ) : (
-                    Object.entries(expenseSummary).map(([category, amount]) => {
-                      const percent = totalExpenses > 0 ? Math.round((amount / totalExpenses) * 100) : 0;
-                      return (
-                        <View key={category} style={styles.breakdownRow}>
-                          <Text style={[styles.breakdownLabel, { color: colors.foreground }]}>{category}</Text>
-                          <View style={[styles.breakdownTrack, { backgroundColor: colors.muted }]}>
-                            <View style={[styles.breakdownFill, { width: `${percent}%`, backgroundColor: colors.primary }]} />
-                          </View>
-                          <Text style={[styles.breakdownValue, { color: colors.primary }]}>{formatRupee(amount)}</Text>
-                        </View>
-                      );
-                    })
-                  )}
-                </View>
-              </InfoCard>
-
-              <InfoCard title="Report Notes">
-                <View style={styles.insightList}>
-                  <InsightRow icon="file-text" color="#3b82f6" title="Upload-ready reports" detail="Bills and payslips are captured as finance entries so the passbook stays in one timeline." />
-                  <InsightRow icon="activity" color="#16a34a" title="Daily cashflow" detail={`Today net is ${formatRupeeFull(netToday)} across ${formatShortDate(new Date())}.`} />
-                </View>
-              </InfoCard>
-            </>
-          )}
-
-          {section === "inventory" && (
-            <>
-              {inventoryValue > 0 && (
-                <View style={[styles.inventoryValueCard, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
-                  <Text style={[styles.inventoryValueLabel, { color: colors.primary }]}>{t.totalInventoryValue}</Text>
-                  <Text style={[styles.inventoryValueAmount, { color: colors.primary }]}>{formatRupeeFull(inventoryValue)}</Text>
-                </View>
-              )}
-
-              {/* Low stock banner */}
-              {lowStockItems.length > 0 && (
-                <View style={[styles.lowStockBanner, { backgroundColor: colors.warning + "12", borderColor: colors.warning + "40" }]}>
-                  <Feather name="alert-triangle" size={16} color={colors.warning} />
-                  <Text style={[styles.lowStockText, { color: colors.warning }]}>
-                    {lowStockItems.length} {t.lowStockItems}: {lowStockItems.map((i) => i.name).join(", ")}
-                  </Text>
-                </View>
-              )}
-
-              {inventoryItems.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Feather name="package" size={48} color={colors.border} />
-                  <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>{t.noInventory}</Text>
-                  <Pressable style={[styles.primaryBtn, { backgroundColor: colors.primary + "15", marginTop: 8 }]} onPress={() => { setEditInventoryItem(undefined); setInventoryModal(true); }}>
-                    <Text style={[styles.primaryBtnText, { color: colors.primary }]}>{t.addFirstItem}</Text>
-                  </Pressable>
-                </View>
+              {/* Passbook Timeline Grouped by Date */}
+              {groupedPassbookEntries.length === 0 ? (
+                <InfoCard title="Passbook Timeline">
+                  <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>No entries in this filter.</Text>
+                </InfoCard>
               ) : (
-                inventoryItems.map((item) => {
-                  const isLow = item.quantity <= item.minQuantity && item.minQuantity > 0;
-                  const catColor = CATEGORY_COLORS[item.category] || colors.primary;
-                  const catIcon = CATEGORY_ICONS[item.category] || "package";
-                  const stockPct = item.minQuantity > 0 ? Math.min(item.quantity / (item.minQuantity * 2), 1) : 0.5;
-
-                  return (
-                    <View
-                      key={item.id}
-                      style={[styles.inventoryCard, { backgroundColor: colors.card, borderColor: isLow ? colors.destructive : colors.border, borderLeftColor: catColor, borderLeftWidth: 4 }]}
-                    >
-                      <View style={styles.inventoryCardTop}>
-                        <View style={styles.inventoryCardLeft}>
-                          <Feather name={catIcon} size={20} color={catColor} style={{ marginRight: 8 }} />
-                          <View>
-                            <Text style={[styles.inventoryItemName, { color: colors.foreground }]}>{item.name}</Text>
-                            <Text style={[styles.inventoryItemCat, { color: colors.mutedForeground }]}>{item.category}</Text>
-                          </View>
-                        </View>
-                        <View style={styles.inventoryActions}>
-                          <Pressable
-                            style={styles.inventoryEditBtn}
-                            onPress={() => { setEditInventoryItem(item); setInventoryModal(true); }}
-                          >
-                            <Feather name="edit-2" size={14} color="#0284c7" />
-                          </Pressable>
-                          <Pressable style={styles.inventoryDeleteBtn} onPress={() => {
-                            Alert.alert(
-                              t.deleteConfirmTitle,
-                              `${t.deleteItemBodyPrefix} ${item.name}?`,
-                              [{ text: t.cancel, style: "cancel" }, { text: t.deleteConfirmBtn, style: "destructive", onPress: () => {
-                                deleteInventoryItem(Number(item.id)).catch(err => console.error(err));
-                              } }]
-                            );
-                          }}>
-                            <Feather name="trash-2" size={14} color="#dc2626" />
-                          </Pressable>
-                        </View>
-                      </View>
-
-                      <View style={styles.stockRow}>
-                        <View style={styles.stockQtyRow}>
-                          <Pressable style={[styles.qtyBtn, { backgroundColor: colors.muted }]} onPress={() => {
-                            adjustInventoryQuantity(Number(item.id), -1).catch(err => console.error(err));
-                          }}>
-                            <Feather name="minus" size={14} color={colors.foreground} />
-                          </Pressable>
-                          <Text style={[styles.stockQty, { color: isLow ? colors.destructive : colors.foreground }]}>
-                            {item.quantity} {item.unit}
-                          </Text>
-                          <Pressable style={[styles.qtyBtn, { backgroundColor: colors.muted }]} onPress={() => {
-                            adjustInventoryQuantity(Number(item.id), 1).catch(err => console.error(err));
-                          }}>
-                            <Feather name="plus" size={14} color={colors.foreground} />
-                          </Pressable>
-                        </View>
-                        {item.pricePerUnit != null && (
-                          <Text style={[styles.priceTag, { color: colors.mutedForeground }]}>₹{item.pricePerUnit}/{item.unit}</Text>
-                        )}
-                      </View>
-
-                      {item.minQuantity > 0 && (
-                        <View style={[styles.stockBarBg, { backgroundColor: colors.muted }]}>
-                          <View style={[styles.stockBarFill, { width: `${Math.round(stockPct * 100)}%`, backgroundColor: isLow ? colors.destructive : colors.primary }]} />
-                        </View>
-                      )}
-
-                      {isLow && (
-                        <View style={[styles.lowStockTag, { backgroundColor: colors.destructive + "15" }]}>
-                          <Feather name="alert-triangle" size={12} color={colors.destructive} />
-                          <Text style={[styles.lowStockTagText, { color: colors.destructive }]}>
-                            Low stock! Min: {item.minQuantity} {item.unit}
-                          </Text>
-                        </View>
-                      )}
+                groupedPassbookEntries.map((group) => (
+                  <InfoCard key={group.title} title={group.title}>
+                    <View style={styles.timelineList}>
+                      {group.entries.map((entry) => (
+                        <PassbookRow key={entry.key} entry={entry} onPress={() => setSelectedEntry(entry)} />
+                      ))}
                     </View>
-                  );
-                })
+                  </InfoCard>
+                ))
               )}
             </>
           )}
@@ -1204,24 +1158,19 @@ export default function FinanceScreen() {
         style={[styles.fab, { backgroundColor: colors.primary, bottom: tabBarHeight + 16 }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          if (section === "inventory") {
-            setEditInventoryItem(undefined);
-            setInventoryModal(true);
-          } else {
-            setQuickSheetVisible(true);
-          }
+          setQuickSheetVisible(true);
         }}
       >
         <Feather name="plus" size={24} color="#fff" />
       </Pressable>
 
       {/* Quick Actions Drawer Modal */}
-      <Modal visible={quickSheetVisible} transparent animationType="fade" onRequestClose={() => setQuickSheetVisible(false)}>
+      <Modal visible={quickSheetVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setQuickSheetVisible(false)}>
         <Pressable style={styles.sheetBackdrop} onPress={() => setQuickSheetVisible(false)}>
           <Pressable style={[styles.sheetCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => null}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Quick Actions</Text>
-              <Pressable onPress={() => setQuickSheetVisible(false)}>
+              <Pressable onPress={() => setQuickSheetVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
               </Pressable>
             </View>
@@ -1575,9 +1524,16 @@ export default function FinanceScreen() {
       </ModalShell>
 
       {/* Fullscreen Image/Document Attachment Viewer Modal */}
-      <Modal visible={viewerUrl !== null} transparent animationType="fade" onRequestClose={() => setViewerUrl(null)}>
+      <Modal visible={viewerUrl !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setViewerUrl(null)}>
         <View style={styles.viewerContainer}>
-          <Pressable style={styles.viewerClose} onPress={() => setViewerUrl(null)}>
+          <Pressable
+            style={[
+              styles.viewerClose,
+              { top: Math.max(insets.top + 12, Platform.OS === "android" ? (StatusBar.currentHeight || 24) + 12 : 40) },
+            ]}
+            onPress={() => setViewerUrl(null)}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
             <Feather name="x" size={24} color="#fff" />
           </Pressable>
           {viewerUrl && (
@@ -1686,16 +1642,16 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    flexGrow: 1,
-    paddingHorizontal: 10,
+    flex: 1,
+    paddingHorizontal: 16,
   },
   tabButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    flex: 1,
+    paddingVertical: 12,
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
     alignItems: "center",
+    justifyContent: "center",
   },
   tabContent: {
     flexDirection: "row",

@@ -2,8 +2,9 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
-  ActivityIndicator
+  ActivityIndicator, Platform, StatusBar
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useInventory } from "../src/modules/inventory/hooks/useInventory";
@@ -125,14 +126,17 @@ export default function InventoryModal({ visible, onClose, editItem }: Props) {
     setPricePerUnit("");
   };
 
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, Platform.OS === "android" ? (StatusBar.currentHeight || 24) : 0);
+
   const suggestions = COMMON_ITEMS[category] ?? [];
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topInset }]}>
         <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <Text style={[styles.title, { color: colors.foreground }]}>{editItem ? t.inventoryEditTitle : t.inventoryAddTitle}</Text>
-          <Pressable onPress={onClose} style={styles.closeBtn}>
+          <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Feather name="x" size={22} color={colors.mutedForeground} />
           </Pressable>
         </View>

@@ -467,7 +467,7 @@ export default function AnimalDetail() {
 
   const uploadPhoto = async (localUri: string): Promise<string | null> => {
     console.log("[uploadPhoto] Uploading photo to NestJS api server...");
-    const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api";
+    const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.8:3000/api";
     const formData = new FormData();
     formData.append("file", {
       uri: localUri,
