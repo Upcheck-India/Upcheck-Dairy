@@ -2,7 +2,7 @@ const getApiBase = (): string => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
-  return "http://192.168.0.8:3000/api";
+  return "http://localhost:3000/api";
 };
 
 async function safeFetchJson<T>(
