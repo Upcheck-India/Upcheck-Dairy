@@ -11,7 +11,7 @@ export class AnimalMapper {
       breed: dto.breed,
       tagNumber: dto.tagNumber,
       photoUri: dto.photoUri && dto.photoUri.startsWith("/uploads")
-        ? (process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.8:3000/api").replace(/\/api$/, "") + dto.photoUri
+        ? (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api").replace(/\/api$/, "") + dto.photoUri
         : dto.photoUri,
       healthStatus: dto.healthStatus,
       notes: dto.notes,
