@@ -21,6 +21,7 @@ import {
 import Svg, { Line, Rect, Text as SvgText } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useRouter } from "expo-router";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
@@ -269,6 +270,7 @@ function ModalShell({ title, visible, onClose, children }: ModalShellProps) {
 }
 
 export default function FinanceScreen() {
+  const router = useRouter();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useTabBarHeight();
@@ -475,8 +477,8 @@ export default function FinanceScreen() {
         setModalMode({ kind: "payment" });
         break;
       case "manageInventory":
-        setEditInventoryItem(undefined);
-        setInventoryModal(true);
+        setQuickSheetVisible(false);
+        router.push("/inventory");
         break;
       case "transferOther":
         setModalMode({ kind: "transfer" });
@@ -1057,43 +1059,83 @@ export default function FinanceScreen() {
                 </View>
               </InfoCard>
 
-              {/* Farm Asset Valuation Widget */}
+              {/* Farm Asset Valuation / Inventory & Supplies Widget */}
               <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <View style={[styles.circleIcon, { backgroundColor: `${colors.primary}15` }]}>
-                      <Feather name="package" size={14} color={colors.primary} />
-                    </View>
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>Farm Asset Valuation</Text>
-                  </View>
-                  <Pressable
-                    style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-                    onPress={() => {
-                      setEditInventoryItem(undefined);
-                      setInventoryModal(true);
+                {/* Header */}
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 12,
+                      backgroundColor: `${colors.primary}18`,
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>Manage Stock →</Text>
-                  </Pressable>
+                    <MaterialCommunityIcons name="cube-outline" size={22} color={colors.primary} />
+                  </View>
+                  <View style={{ marginLeft: 12 }}>
+                    <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground }}>
+                      Inventory & Supplies
+                    </Text>
+                    <Text style={{ fontSize: 12.5, color: colors.mutedForeground, marginTop: 2 }}>
+                      Track farm stock and supplies
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
-                  <View>
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground, fontWeight: "600" }}>Stock Valuation</Text>
-                    <Text style={{ fontSize: 22, fontWeight: "800", color: colors.foreground, marginTop: 2 }}>
+                {/* Divider */}
+                <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 2 }} />
+
+                {/* Stock Stats */}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12.5, color: colors.mutedForeground, fontWeight: "500" }}>
+                      Total Stock Value
+                    </Text>
+                    <Text style={{ fontSize: 22, fontWeight: "800", color: colors.foreground, marginTop: 4 }}>
                       {formatRupeeFull(inventoryValue)}
                     </Text>
                   </View>
-                  <View style={{ alignItems: "flex-end" }}>
-                    <View style={[styles.badge, { backgroundColor: lowStockItems.length > 0 ? "#fee2e2" : "#dcfce7" }]}>
-                      <Text style={[styles.badgeText, { color: lowStockItems.length > 0 ? "#dc2626" : "#16a34a" }]}>
-                        {lowStockItems.length > 0 ? `${lowStockItems.length} Low Stock Alerts` : "Stock Healthy"}
-                      </Text>
-                    </View>
-                    <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 4 }}>
-                      {inventoryItems.length} items tracked
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12.5, color: colors.mutedForeground, fontWeight: "500" }}>
+                      Items Tracked
+                    </Text>
+                    <Text style={{ fontSize: 22, fontWeight: "800", color: colors.foreground, marginTop: 4 }}>
+                      {inventoryItems.length}
                     </Text>
                   </View>
+                </View>
+
+                {/* Status & View Inventory Action */}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                  {lowStockItems.length > 0 ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Feather name="alert-triangle" size={14} color="#dc2626" />
+                      <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#dc2626" }}>
+                        {lowStockItems.length} {lowStockItems.length === 1 ? "item" : "items"} low on stock
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Feather name="check-circle" size={14} color="#16a34a" />
+                      <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#16a34a" }}>
+                        Stock healthy
+                      </Text>
+                    </View>
+                  )}
+
+                  <Pressable
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    onPress={() => {
+                      router.push("/inventory");
+                    }}
+                  >
+                    <Text style={{ fontSize: 13.5, fontWeight: "700", color: colors.primary }}>
+                      View Inventory
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
 

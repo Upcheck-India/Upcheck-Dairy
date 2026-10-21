@@ -66,7 +66,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   const onFarmsScreen = firstSegment === "farms";
-  const isUtilityScreen = isPublicUtility || firstSegment === "profile-screen" || firstSegment === "animal";
+  const isUtilityScreen =
+    isPublicUtility ||
+    firstSegment === "profile-screen" ||
+    firstSegment === "animal" ||
+    firstSegment === "inventory";
 
   // Enforce active farm if not on onboarding/farms screen
   if (farms.length === 0) {
@@ -97,6 +101,10 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="farms"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="inventory"
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
