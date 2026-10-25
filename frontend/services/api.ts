@@ -82,6 +82,12 @@ export interface AuthResult {
   refreshToken: string;
 }
 
+/** An AuthResult that may instead be a 2FA challenge. */
+export interface GoogleAuthResult extends AuthResult {
+  requires2fa?: boolean;
+  tempToken?: string;
+}
+
 export interface DiagnoseRequest {
   symptoms: string[];
   customNote?: string;
@@ -184,6 +190,27 @@ export async function loginUser(
       body: JSON.stringify({ email, password }),
     },
     "Login failed"
+  );
+}
+
+/**
+ * Exchange a Google ID token for an Upcheck session.
+ *
+ * The backend verifies the token's signature and audience against its own
+ * client IDs, then signs in (or auto-registers) the matching farmer. When the
+ * account has 2FA enabled no tokens come back — `requires2fa` and `tempToken`
+ * are set instead and the caller must finish on the 2FA screen.
+ */
+export async function googleLogin(idToken: string): Promise<GoogleAuthResult> {
+  const base = getApiBase();
+  return safeFetchJson<GoogleAuthResult>(
+    `${base}/auth/google`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    },
+    "Google sign in failed"
   );
 }
 

@@ -15,10 +15,13 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GoogleLoginButton } from "@/components/GoogleLoginButton";
+import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 import { registerUser } from "@/services/api";
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
+  const { signInWithGoogle, loading: googleLoading, isAvailable: googleAvailable } = useGoogleAuth();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -212,6 +215,22 @@ export default function RegisterScreen() {
           </LinearGradient>
         </Pressable>
 
+        {/* Google — signs up and signs in through the same flow */}
+        {googleAvailable && (
+          <>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>Or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+            <GoogleLoginButton
+              onPress={signInWithGoogle}
+              loading={googleLoading}
+              label="Sign up with Google"
+            />
+          </>
+        )}
+
         <Text style={styles.terms}>
           By creating an account, you agree to our{" "}
           <Text
@@ -245,6 +264,10 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: "#f8fafc" },
   container: { flex: 1 },
   content: { paddingHorizontal: 20 },
+
+  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 16 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#e2e8f0" },
+  dividerText: { fontSize: 12, color: "#94a3b8", fontWeight: "500" },
 
   backBtn: { padding: 8, alignSelf: "flex-start", marginBottom: 8 },
   header: { marginBottom: 24 },

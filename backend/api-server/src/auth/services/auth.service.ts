@@ -2,6 +2,7 @@ import { Injectable, Inject, ConflictException, UnauthorizedException, BadReques
 import { UserRepository } from "../repositories/user.repository";
 import { OtpService } from "./otp.service";
 import { TokenService } from "./token.service";
+import { GoogleAuthService } from "./google-auth.service";
 import { RedisService } from "../../redis/redis.service";
 import { JwtService } from "@nestjs/jwt";
 import { authenticator } from "otplib";
@@ -15,6 +16,7 @@ export class AuthService {
     @Inject(UserRepository) private userRepository: UserRepository,
     @Inject(OtpService) private otpService: OtpService,
     @Inject(TokenService) private tokenService: TokenService,
+    @Inject(GoogleAuthService) private googleAuthService: GoogleAuthService,
     @Inject(RedisService) private redisService: RedisService,
     @Inject(JwtService) private jwtService: JwtService
   ) {}
@@ -80,6 +82,46 @@ export class AuthService {
     }
 
     await this.clearFailedAttempts(email);
+
+    if (user.is2faEnabled) {
+      const tempToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email, is2faTemp: true }, { expiresIn: "5m" });
+      return { user, accessToken: "", refreshToken: "", requires2fa: true, tempToken };
+    }
+
+    const accessToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email });
+    const refreshToken = await this.tokenService.generateRefreshToken(user.id);
+
+    return { user, accessToken, refreshToken };
+  }
+
+  /**
+   * Sign in (or auto-register) with a Google ID token from the mobile app.
+   *
+   * Accounts are linked by email. That is only safe because we refuse tokens
+   * whose `email_verified` claim is false — Google has proven the user owns
+   * the address, so adopting an existing email account is not a takeover.
+   * An existing password login keeps working; this just adds a second door.
+   */
+  async googleLogin(idToken: string): Promise<{ user: Farmer; accessToken: string; refreshToken: string; requires2fa?: boolean; tempToken?: string }> {
+    const profile = await this.googleAuthService.verifyIdToken(idToken);
+    if (!profile.emailVerified) {
+      throw new UnauthorizedException("Google account email is not verified");
+    }
+
+    let user = await this.userRepository.findByEmail(profile.email);
+    if (!user) {
+      user = await this.userRepository.create({
+        id: crypto.randomUUID(),
+        email: profile.email,
+        name: profile.name,
+        authProvider: "google",
+        emailVerified: true,
+        phoneVerified: false,
+        is2faEnabled: false,
+      });
+    } else if (!user.emailVerified) {
+      user = await this.userRepository.update(user.id, { emailVerified: true });
+    }
 
     if (user.is2faEnabled) {
       const tempToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email, is2faTemp: true }, { expiresIn: "5m" });

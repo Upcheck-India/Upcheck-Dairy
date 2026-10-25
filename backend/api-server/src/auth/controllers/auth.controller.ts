@@ -11,6 +11,7 @@ import {
   RefreshDto,
   ResetPasswordDto,
   Login2faDto,
+  GoogleLoginDto,
 } from "../dto";
 
 @Controller("auth")
@@ -55,6 +56,14 @@ export class AuthController {
   @Post("login")
   async login(@Body() body: LoginDto) {
     return this.authService.login(body.email.trim().toLowerCase(), body.password);
+  }
+
+  /** Sign in (or auto-register) with a Google ID token from the mobile app */
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post("google")
+  async googleLogin(@Body() body: GoogleLoginDto) {
+    return this.authService.googleLogin(body.idToken);
   }
 
   /** Exchange a refresh token for a new access token */

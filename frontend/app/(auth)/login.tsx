@@ -15,12 +15,15 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { useFarmer } from "@/context/FarmerContext";
+import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 import { loginUser, sendOtpCode } from "@/services/api";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { loginWithJwt } = useFarmer();
+  const { signInWithGoogle, loading: googleLoading, isAvailable: googleAvailable } = useGoogleAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -186,8 +189,17 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
+          {/* Google */}
+          {googleAvailable && (
+            <GoogleLoginButton onPress={signInWithGoogle} loading={googleLoading} />
+          )}
+
           {/* Sign in with email code (OTP) */}
-          <Pressable onPress={handleEmailOtp} disabled={otpLoading} style={styles.otpBtn}>
+          <Pressable
+            onPress={handleEmailOtp}
+            disabled={otpLoading}
+            style={[styles.otpBtn, googleAvailable && styles.otpBtnSpaced]}
+          >
             {otpLoading ? (
               <ActivityIndicator color="#16a34a" size="small" />
             ) : (
@@ -293,6 +305,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: "#f0fdf4",
   },
+  otpBtnSpaced: { marginTop: 10 },
   otpBtnText: { fontSize: 15, fontWeight: "600", color: "#0f766e" },
 
   outlineBtn: {
