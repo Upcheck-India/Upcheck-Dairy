@@ -6,6 +6,7 @@ import { GetUser } from "../../common/decorators/auth.decorators";
 import type { PublicFarmer } from "../../common/public-farmer";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+import { randomBytes } from "node:crypto";
 import { extname } from "path";
 
 @Controller("financials")
@@ -28,7 +29,9 @@ export class FinancialsController {
       storage: diskStorage({
         destination: "./uploads",
         filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+          // crypto, not Math.random: /uploads is served statically with no auth,
+          // so a guessable filename exposes another farm's photos.
+          const uniqueSuffix = Date.now() + "-" + randomBytes(8).toString("hex");
           cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
         },
       }),
