@@ -66,6 +66,19 @@ export function useGoogleAuth() {
     setLoading(true);
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+      // Drop any cached Google session first, otherwise signIn() silently
+      // reuses the last account and the picker never appears — so a user with
+      // several Google accounts can never switch, and anyone who signed out of
+      // Upcheck gets put straight back into the same account.
+      //
+      // This only clears the local session; app authorisation is untouched, so
+      // it costs a tap rather than a fresh consent screen. revokeAccess()
+      // would force re-consent, which is not what we want here.
+      await GoogleSignin.signOut().catch(() => {
+        /* nothing cached — carry on to the picker */
+      });
+
       const response = await GoogleSignin.signIn();
 
       if (!isSuccessResponse(response)) {
