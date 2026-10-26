@@ -9,6 +9,7 @@ import { authenticator } from "otplib";
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
 import type { Farmer } from "@workspace/db";
+import { toPublicFarmer, type PublicFarmer } from "../../common/public-farmer";
 
 @Injectable()
 export class AuthService {
@@ -55,7 +56,7 @@ export class AuthService {
     return { message: "A login code has been sent to your email." };
   }
 
-  async verifyOtpAndLogin(email: string, code: string): Promise<{ user: Farmer; accessToken: string; refreshToken: string; requires2fa?: boolean; tempToken?: string }> {
+  async verifyOtpAndLogin(email: string, code: string): Promise<{ user: PublicFarmer; accessToken: string; refreshToken: string; requires2fa?: boolean; tempToken?: string }> {
     await this.checkLockout(email);
 
     const isValid = await this.otpService.verifyOtp(email, code);
@@ -85,13 +86,13 @@ export class AuthService {
 
     if (user.is2faEnabled) {
       const tempToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email, is2faTemp: true }, { expiresIn: "5m" });
-      return { user, accessToken: "", refreshToken: "", requires2fa: true, tempToken };
+      return { user: toPublicFarmer(user), accessToken: "", refreshToken: "", requires2fa: true, tempToken };
     }
 
     const accessToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email });
     const refreshToken = await this.tokenService.generateRefreshToken(user.id);
 
-    return { user, accessToken, refreshToken };
+    return { user: toPublicFarmer(user), accessToken, refreshToken };
   }
 
   /**
@@ -107,7 +108,7 @@ export class AuthService {
    *
    * An existing password login keeps working; this just adds a second door.
    */
-  async googleLogin(idToken: string): Promise<{ user: Farmer; accessToken: string; refreshToken: string; requires2fa?: boolean; tempToken?: string }> {
+  async googleLogin(idToken: string): Promise<{ user: PublicFarmer; accessToken: string; refreshToken: string; requires2fa?: boolean; tempToken?: string }> {
     const profile = await this.googleAuthService.verifyIdToken(idToken);
     if (!profile.emailVerified) {
       throw new UnauthorizedException("Google account email is not verified");
@@ -149,13 +150,13 @@ export class AuthService {
 
     if (user.is2faEnabled) {
       const tempToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email, is2faTemp: true }, { expiresIn: "5m" });
-      return { user, accessToken: "", refreshToken: "", requires2fa: true, tempToken };
+      return { user: toPublicFarmer(user), accessToken: "", refreshToken: "", requires2fa: true, tempToken };
     }
 
     const accessToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email });
     const refreshToken = await this.tokenService.generateRefreshToken(user.id);
 
-    return { user, accessToken, refreshToken };
+    return { user: toPublicFarmer(user), accessToken, refreshToken };
   }
 
   async register(email: string, password: string, name: string): Promise<{ message: string }> {
@@ -191,7 +192,7 @@ export class AuthService {
     return { message: "Account created. Please check your email for a verification code." };
   }
 
-  async login(email: string, password: string): Promise<{ user: Farmer; accessToken: string; refreshToken: string; requires2fa?: boolean; tempToken?: string }> {
+  async login(email: string, password: string): Promise<{ user: PublicFarmer; accessToken: string; refreshToken: string; requires2fa?: boolean; tempToken?: string }> {
     await this.checkLockout(email);
 
     const user = await this.userRepository.findByEmail(email);
@@ -214,16 +215,16 @@ export class AuthService {
 
     if (user.is2faEnabled) {
       const tempToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email, is2faTemp: true }, { expiresIn: "5m" });
-      return { user, accessToken: "", refreshToken: "", requires2fa: true, tempToken };
+      return { user: toPublicFarmer(user), accessToken: "", refreshToken: "", requires2fa: true, tempToken };
     }
 
     const accessToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email });
     const refreshToken = await this.tokenService.generateRefreshToken(user.id);
 
-    return { user, accessToken, refreshToken };
+    return { user: toPublicFarmer(user), accessToken, refreshToken };
   }
 
-  async verify2fa(tempToken: string, token: string): Promise<{ user: Farmer; accessToken: string; refreshToken: string }> {
+  async verify2fa(tempToken: string, token: string): Promise<{ user: PublicFarmer; accessToken: string; refreshToken: string }> {
     try {
       const decoded = this.jwtService.verify(tempToken);
       if (!decoded.is2faTemp) {
@@ -253,7 +254,7 @@ export class AuthService {
       const accessToken = this.tokenService.generateAccessToken({ sub: user.id, email: user.email });
       const refreshToken = await this.tokenService.generateRefreshToken(user.id);
 
-      return { user, accessToken, refreshToken };
+      return { user: toPublicFarmer(user), accessToken, refreshToken };
     } catch (err: any) {
       if (err instanceof UnauthorizedException || err instanceof BadRequestException) {
         throw err;

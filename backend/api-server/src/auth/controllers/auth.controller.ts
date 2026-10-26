@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Body, Inject } from "@nestjs/common";
 import { AuthService } from "../services/auth.service";
 import { Public, GetUser } from "../../common/decorators/auth.decorators";
+import { toPublicFarmer } from "../../common/public-farmer";
 import type { Farmer } from "@workspace/db";
 import { Throttle } from "@nestjs/throttler";
 import {
@@ -76,7 +77,7 @@ export class AuthController {
   /** Return the currently authenticated farmer (requires Bearer token) */
   @Get("me")
   async getMe(@GetUser() user: Farmer) {
-    return user;
+    return toPublicFarmer(user);
   }
 
   /** Reset password using email, OTP, and new password */

@@ -6,6 +6,7 @@ import { Public, GetUser } from "../../common/decorators/auth.decorators";
 import { CreateFarmDto } from "../dto/create-farm.dto";
 import { UpdateFarmDto } from "../dto/update-farm.dto";
 import { UserRepository } from "../../auth/repositories/user.repository";
+import { toPublicFarmer } from "../../common/public-farmer";
 import type { Farmer } from "@workspace/db";
 
 @Controller("farms")
@@ -48,7 +49,7 @@ export class LegacyFarmController {
 
   @Get("profile")
   async getProfile(@GetUser() user: Farmer) {
-    return user;
+    return toPublicFarmer(user);
   }
 
   @Post("profile")
@@ -71,7 +72,7 @@ export class LegacyFarmController {
     if (body.notificationsEnabled !== undefined) updates.notificationPermission = body.notificationsEnabled;
     if (body.notificationPermission !== undefined) updates.notificationPermission = body.notificationPermission;
 
-    return this.userRepository.update(user.id, updates);
+    return toPublicFarmer(await this.userRepository.update(user.id, updates));
   }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
