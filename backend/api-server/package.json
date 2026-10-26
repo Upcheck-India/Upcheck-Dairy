@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "cross-env NODE_ENV=development tsx watch src/main.ts",
+    "dev": "cross-env NODE_ENV=development node --watch --import @swc-node/register/esm-register src/main.ts",
     "build": "tsc --build",
-    "start": "tsx src/main.ts",
+    "start": "node --import @swc-node/register/esm-register src/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:security": "tsx test/security.ts",
     "test:auth": "tsx test/auth.ts",
@@ -51,6 +51,8 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@swc-node/register": "^1.12.1",
+    "@swc/core": "^1.16.20",
     "@types/bcrypt": "^6.0.0",
     "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",

@@ -5,6 +5,7 @@ packages:
 allowBuilds:
   bcrypt: true
   esbuild: true
+  '@swc/core': true
 
 catalog:
   drizzle-orm: ^0.39.0
