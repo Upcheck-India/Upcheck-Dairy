@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, Inject, Headers, ParseIntPipe, UseInterceptors, UploadedFile, BadRequestException } from "@nestjs/common";
+import { Controller, Get, Post, Delete, Body, Param, Inject, Headers, ParseIntPipe, UseInterceptors, UploadedFile, BadRequestException , UseFilters } from "@nestjs/common";
 import { FinancialsService } from "../services/financials.service";
 import { CreateIncomeEntryDto } from "../dto/create-income-entry.dto";
 import { CreateExpenseEntryDto } from "../dto/create-expense-entry.dto";
@@ -6,6 +6,7 @@ import { GetUser } from "../../common/decorators/auth.decorators";
 import type { PublicFarmer } from "../../common/public-farmer";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+import { MulterExceptionFilter } from "../../common/multer-exception.filter";
 import { randomBytes } from "node:crypto";
 import { extname } from "path";
 
@@ -24,13 +25,15 @@ export class FinancialsController {
   }
 
   @Post("upload")
+  @UseFilters(MulterExceptionFilter)
   @UseInterceptors(
     FileInterceptor("file", {
       storage: diskStorage({
         destination: "./uploads",
         filename: (req, file, cb) => {
-          // crypto, not Math.random: /uploads is served statically with no auth,
-          // so a guessable filename exposes another farm's photos.
+          // crypto, not Math.random: the filename is part of the file's URL,
+          // so a predictable one is worth avoiding even behind the ownership
+          // check in FilesService.
           const uniqueSuffix = Date.now() + "-" + randomBytes(8).toString("hex");
           cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
         },

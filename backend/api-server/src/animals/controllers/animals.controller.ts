@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers, UseInterceptors, UploadedFile, BadRequestException, ParseIntPipe } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Inject, Headers, UseInterceptors, UseFilters, UploadedFile, BadRequestException, ParseIntPipe } from "@nestjs/common";
 import { AnimalsService } from "../services/animals.service";
 import { CreateAnimalDto } from "../dto/create-animal.dto";
 import { UpdateAnimalDto } from "../dto/update-animal.dto";
@@ -6,6 +6,7 @@ import { GetUser } from "../../common/decorators/auth.decorators";
 import type { PublicFarmer } from "../../common/public-farmer";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+import { MulterExceptionFilter } from "../../common/multer-exception.filter";
 import { randomBytes } from "node:crypto";
 import { extname } from "path";
 
@@ -19,13 +20,19 @@ export class AnimalsController {
   }
 
   @Post("upload")
+  @UseFilters(MulterExceptionFilter)
   @UseInterceptors(
     FileInterceptor("file", {
+      // Without a cap any authenticated user could fill the disk. Phone photos
+      // arrive compressed (the picker uses quality 0.7), so 10 MB is far above
+      // a real upload while still bounding the damage.
+      limits: { fileSize: 10 * 1024 * 1024, files: 1 },
       storage: diskStorage({
         destination: "./uploads",
         filename: (req, file, cb) => {
-          // crypto, not Math.random: /uploads is served statically with no auth,
-          // so a guessable filename exposes another farm's photos.
+          // crypto, not Math.random: the filename is part of the file's URL,
+          // so a predictable one is worth avoiding even behind the ownership
+          // check in FilesService.
           const uniqueSuffix = Date.now() + "-" + randomBytes(8).toString("hex");
           cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
         },
