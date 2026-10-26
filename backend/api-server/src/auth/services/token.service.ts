@@ -11,7 +11,7 @@ export class TokenService {
     @Inject(RefreshTokenRepository) private refreshTokenRepository: RefreshTokenRepository
   ) {}
 
-  generateAccessToken(payload: { sub: string; email: string | null; is2faTemp?: boolean }, options?: { expiresIn?: any }): string {
+  generateAccessToken(payload: { sub: string; email: string | null }, options?: { expiresIn?: any }): string {
     return this.jwtService.sign(payload, { expiresIn: (options?.expiresIn ?? "15m") as any });
   }
 

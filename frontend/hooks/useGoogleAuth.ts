@@ -1,5 +1,4 @@
 import Constants from "expo-constants";
-import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Platform } from "react-native";
 
@@ -93,12 +92,6 @@ export function useGoogleAuth() {
       }
 
       const result = await googleLogin(idToken);
-
-      if (result.requires2fa && result.tempToken) {
-        router.push({ pathname: "/(auth)/2fa", params: { tempToken: result.tempToken } });
-        return;
-      }
-
       await loginWithJwt(result);
     } catch (err: any) {
       if (isErrorWithCode(err)) {

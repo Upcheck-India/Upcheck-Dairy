@@ -131,12 +131,6 @@ export interface AuthResult {
   refreshToken: string;
 }
 
-/** An AuthResult that may instead be a 2FA challenge. */
-export interface GoogleAuthResult extends AuthResult {
-  requires2fa?: boolean;
-  tempToken?: string;
-}
-
 export interface DiagnoseRequest {
   symptoms: string[];
   customNote?: string;
@@ -247,12 +241,10 @@ export async function loginUser(
  *
  * The backend verifies the token's signature and audience against its own
  * client IDs, then signs in (or auto-registers) the matching farmer. When the
- * account has 2FA enabled no tokens come back — `requires2fa` and `tempToken`
- * are set instead and the caller must finish on the 2FA screen.
  */
-export async function googleLogin(idToken: string): Promise<GoogleAuthResult> {
+export async function googleLogin(idToken: string): Promise<AuthResult> {
   const base = getApiBase();
-  return safeFetchJson<GoogleAuthResult>(
+  return safeFetchJson<AuthResult>(
     `${base}/auth/google`,
     {
       method: "POST",
@@ -501,18 +493,6 @@ export async function resetPassword(
   return { message: data.message ?? "Password reset successfully" };
 }
 
-export async function verify2fa(tempToken: string, token: string): Promise<{ user: any; accessToken: string; refreshToken: string }> {
-  const base = getApiBase();
-  return safeFetchJson<{ user: any; accessToken: string; refreshToken: string }>(
-    `${base}/auth/verify-2fa`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tempToken, token }),
-    },
-    "2FA verification failed"
-  );
-}
 
 // ==================== Legacy aliases ====================
 // Kept so existing screens that haven't migrated yet don't break

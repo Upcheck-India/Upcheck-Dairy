@@ -11,7 +11,6 @@ import {
   LoginDto,
   RefreshDto,
   ResetPasswordDto,
-  Login2faDto,
   GoogleLoginDto,
 } from "../dto";
 
@@ -103,13 +102,5 @@ export class AuthController {
       body.otp.trim(),
       body.newPassword
     );
-  }
-
-  /** Verify TOTP code (2FA) */
-  @Public()
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
-  @Post("verify-2fa")
-  async verify2fa(@Body() body: Login2faDto) {
-    return this.authService.verify2fa(body.tempToken, body.token);
   }
 }
