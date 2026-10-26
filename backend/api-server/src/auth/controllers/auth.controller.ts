@@ -74,6 +74,19 @@ export class AuthController {
     return this.authService.refresh(body.userId, body.refreshToken);
   }
 
+  /**
+   * Revoke every refresh token for the caller.
+   *
+   * Clearing tokens on the device alone is not a logout: the refresh token
+   * stays valid for 30 days, so anyone who recovered it could keep minting
+   * access tokens long after the user believed they had signed out.
+   */
+  @Post("logout")
+  async logout(@GetUser() user: Farmer) {
+    await this.authService.logout(user.id);
+    return { message: "Signed out" };
+  }
+
   /** Return the currently authenticated farmer (requires Bearer token) */
   @Get("me")
   async getMe(@GetUser() user: Farmer) {

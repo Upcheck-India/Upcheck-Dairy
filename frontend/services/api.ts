@@ -1,3 +1,5 @@
+import { tokenStore } from "../src/core/auth/TokenStore";
+
 const getApiBase = (): string => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
@@ -17,6 +19,10 @@ async function safeFetchJson<T>(
     throw new Error(`${fallbackMsg}: Network request failed. Cannot connect to ${url}`);
   }
 
+  return parseJsonResponse<T>(response, fallbackMsg);
+}
+
+async function parseJsonResponse<T>(response: Response, fallbackMsg: string): Promise<T> {
   if (response.status === 204) {
     return {} as T;
   }
@@ -51,6 +57,43 @@ async function safeFetchJson<T>(
   }
 }
 
+
+/**
+ * safeFetchJson plus the access token and a refresh-and-replay on 401.
+ *
+ * The token is read from tokenStore at send time rather than passed in, so a
+ * caller holding a token from before a refresh still sends the current one.
+ */
+async function authedFetchJson<T>(
+  url: string,
+  options: RequestInit = {},
+  fallbackMsg = "Request failed"
+): Promise<T> {
+  const send = async (token: string | null): Promise<Response> => {
+    try {
+      return await fetch(url, {
+        ...options,
+        headers: {
+          ...(options.headers as Record<string, string> | undefined),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+    } catch {
+      throw new Error(`${fallbackMsg}: Network request failed. Cannot connect to ${url}`);
+    }
+  };
+
+  let response = await send(tokenStore.getAccessToken());
+
+  if (response.status === 401 && tokenStore.getSession()) {
+    const refreshed = await tokenStore.refresh();
+    if (refreshed) {
+      response = await send(refreshed);
+    }
+  }
+
+  return parseJsonResponse<T>(response, fallbackMsg);
+}
 
 // ==================== Types ====================
 
@@ -221,6 +264,21 @@ export async function googleLogin(idToken: string): Promise<GoogleAuthResult> {
 }
 
 /**
+ * End the session server-side by revoking every refresh token for this user.
+ *
+ * Without this, signing out only forgets the tokens locally — the refresh
+ * token stays valid for its full 30 days.
+ */
+export async function logoutUser(): Promise<void> {
+  const base = getApiBase();
+  await authedFetchJson<{ message: string }>(
+    `${base}/auth/logout`,
+    { method: "POST", headers: { "Content-Type": "application/json" } },
+    "Sign out failed"
+  );
+}
+
+/**
  * Send an OTP to the given email (passwordless login step 1, or resend).
  */
 export async function sendOtpCode(email: string): Promise<{ message: string }> {
@@ -276,15 +334,9 @@ export async function refreshAccessToken(
 /**
  * Get the currently authenticated user profile.
  */
-export async function getMyProfile(accessToken: string): Promise<AuthUser> {
+export async function getMyProfile(_accessToken?: string): Promise<AuthUser> {
   const base = getApiBase();
-  return safeFetchJson<AuthUser>(
-    `${base}/auth/me`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    },
-    "Failed to fetch profile"
-  );
+  return authedFetchJson<AuthUser>(`${base}/auth/me`, {}, "Failed to fetch profile");
 }
 
 // ==================== Farm / Profile API ====================
@@ -311,14 +363,9 @@ export interface FarmerProfile {
 export async function fetchProfile(accessToken: string): Promise<FarmerProfile | null> {
   const base = getApiBase();
   try {
-    return await safeFetchJson<FarmerProfile>(
+    return await authedFetchJson<FarmerProfile>(
       `${base}/farm/profile`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      },
+      { headers: { "Content-Type": "application/json" } },
       "Failed to fetch profile"
     );
   } catch (err: any) {
@@ -332,14 +379,11 @@ export async function createOrUpdateProfile(
   profile: Partial<FarmerProfile>
 ): Promise<FarmerProfile> {
   const base = getApiBase();
-  return safeFetchJson<FarmerProfile>(
+  return authedFetchJson<FarmerProfile>(
     `${base}/farm/profile`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(profile),
     },
     "Failed to save profile"
@@ -487,6 +531,5 @@ export const requestEmailOtp = sendOtpCode;
 /** @deprecated Use verifyOtpCode instead */
 export const verifyEmailOtp = verifyOtpCode;
 /** @deprecated No-op; logout is client-side now */
-export const signOut = async (_accessToken: string) => {};
 /** @deprecated Use getMyProfile instead */
 export const getMe = getMyProfile;

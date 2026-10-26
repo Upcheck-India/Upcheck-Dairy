@@ -263,6 +263,11 @@ export class AuthService {
     }
   }
 
+  /** Revoke every refresh token for a user, ending all their sessions. */
+  async logout(userId: string): Promise<void> {
+    await this.tokenService.revokeAllUserTokens(userId);
+  }
+
   async refresh(userId: string, refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
