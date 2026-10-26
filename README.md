@@ -1,30 +1,72 @@
 # Upcheck Dairy
 
-Dairy farm management platform with a React Native mobile app and Express API backend.
+Dairy farm management for Indian smallholders — an Expo React Native app backed
+by a NestJS API. Farmers track their herd, milk yields, health and breeding
+events, inventory, daily tasks and finances, with Tamil as the default language.
 
-## Project Structure
+## Layout
 
 ```
-├── frontend/    Expo React Native mobile app (ThulirFarm)
-└── backend/     Express API server + shared libraries
+frontend/        Expo app (SDK 54, React Native 0.81, expo-router)
+backend/         pnpm workspace
+  api-server/    NestJS 11 API, served under /api
+  lib/db/        Drizzle schema + Postgres client (@workspace/db)
+  lib/api-zod/   Generated zod schemas
+  lib/api-spec/  Orval codegen config
+  lib/openai-*/  GauGuru AI helpers (chat, audio, images)
 ```
 
-## Getting Started
+## Running it
 
-### Frontend (Mobile App)
+Both halves use **pnpm**. The backend is a workspace; install from `backend/`.
+
+```bash
+# API — needs DATABASE_URL, JWT_SECRET (32+ chars) and PORT in api-server/.env
+cd backend && pnpm install
+pnpm --filter @workspace/api-server dev        # http://localhost:3000/api
+
+# App
+cd frontend && pnpm install
+pnpm dev                                       # Expo dev server
+```
+
+Copy `.env.example` to `.env` on both sides first. The app reads
+`EXPO_PUBLIC_API_URL`, which must include the `/api` suffix and must be
+reachable from the device — a LAN address, not `localhost`, for a real phone.
+
+### Native builds
+
+Google Sign-In is a native module, so **Expo Go will not work**. Use a
+dev-client or standalone build:
 
 ```bash
 cd frontend
-pnpm install
-pnpm run dev        # Start Expo dev server
-pnpm run typecheck  # TypeScript check
+npx expo prebuild --clean
+npx expo run:android          # or: eas build --profile development
 ```
 
-### Backend (API Server)
+`frontend/android/` is generated and untracked, so prebuild is required after
+cloning or after any config-plugin change.
+
+## Checks
 
 ```bash
-cd backend
-pnpm install
-pnpm run dev        # Build & start Express server
-pnpm run typecheck  # TypeScript check
+cd backend/api-server && pnpm typecheck
+cd frontend && pnpm typecheck && pnpm test
 ```
+
+Schema changes go through `pnpm --filter @workspace/db push`. Read
+`backend/lib/db/migrations/README` conventions first: `push` offers to
+**truncate tables** when adding a unique constraint, so changes of that shape
+are hand-written SQL instead.
+
+## Documentation
+
+| Doc | What it covers |
+| --- | --- |
+| `ARCHITECTURE.md` | Layering rules, module boundaries, data flow |
+| `FEATURES.md` | What the platform does today |
+| `ROADMAP.md` | Build order and what remains |
+| `AUTHENTICATION.md` | Auth flows, tokens, and the security model |
+| `GOOGLE_AUTH.md` | Google Sign-In setup and OAuth client IDs |
+| `frontend/DATA_LAYER.md` | How the app stores and caches data |

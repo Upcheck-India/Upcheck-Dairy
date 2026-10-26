@@ -1,80 +1,76 @@
-# UpCheck Dairy Development Roadmap
+# Roadmap
 
-This roadmap defines the implementation order for UpCheck Dairy feature modules.
+Build order for Upcheck Dairy. Phases 1–11 migrated the app onto the layered
+architecture in `ARCHITECTURE.md`, one feature module at a time; the remainder
+are new capability.
 
----
+## Done
 
-## Completed Phases
+**1 — Core and farms.** `ApiClient` singleton, namespaced storage, event bus,
+farm domain model with repository and mapper, `FarmProvider`, farm selector
+sheet, and the guard chain in `app/_layout.tsx`.
 
-### ✅ Phase 1: Core Foundation & Farms Module
-- [x] Class-based `ApiClient` singleton (in-memory configure/reset)
-- [x] Type-safe namespace partition storage
-- [x] Core EventBus emitter
-- [x] Farms domain model, repository layer, and mapper
-- [x] React `FarmProvider` and `useFarm` custom hook
-- [x] Reusable bottom-sheet `FarmSelector`
-- [x] Standalone `/farms` setup and guard redirection in `_layout.tsx`
+**2 — Animals.** Domain model with derived properties, DTOs, mapper,
+repository, provider and `useAnimals`.
 
-### ✅ Phase 2: Animals Module
-- [x] Expose NestJS backend `GET /animals` header-scoped endpoint
-- [x] Create domain model `Animal.ts` with UI derived properties
-- [x] Create `AnimalDto.ts` requests and responses
-- [x] Create mapper `AnimalMapper.ts`
-- [x] Create singleton repository `AnimalRepository.ts`
-- [x] Create `AnimalProvider.tsx` context & `useAnimals.ts` custom hook
-- [x] Wrap `_layout.tsx` with `AnimalProvider`
-- [x] Migrate dashboard screen `index.tsx`
-- [x] Integrate `AddAnimalModal.tsx` and update `AnimalCard.tsx`
+**3 — Milk.** `MilkEntry` model, repository with offline cache, provider and
+hook, IST date bucketing, and the logging UI.
 
----
+**4 — Health.** Treatments, vaccinations and diagnoses behind
+`HealthRepository`.
 
-## Upcoming Phases
+**5 — Breeding.** Heat, insemination, pregnancy checks and calving, with the
+state transitions between them.
 
-### ✅ Phase 3: Milk Logging
-- [x] Migrate `MilkEntry` to custom Domain Model class (`modules/milk/models/MilkEntry.ts`)
-- [x] Create DTO types (`CreateMilkEntryRequestDto`, `MilkEntryResponseDto`)
-- [x] Implement `MilkRepository` fetching from header-scoped backend (`GET /milk`) and caching offline
-- [x] Implement `MilkProvider` and custom `useMilk` hook (re-fetches scoped by `activeFarm.id`)
-- [x] Integrate Milk UI components: `MilkCard`, `MilkChart`, `AddMilkModal`
+**6 — Inventory.** Feed, medicine, equipment and supplies, farm-scoped.
 
-### ✅ Phase 4: Health
-- [x] Migrate treatments, vaccinations, and diagnoses to `HealthRepository`
-- [x] Implement `HealthProvider` and custom `useHealth` hook
-- [x] Rebuild Treatments and Vaccination history logs
+**7 — Tasks.** Daily tasks, generation and reminders.
 
-### ✅ Phase 5: Breeding
-- [x] Rebuild heat cycle records, pregnancy checks, calving history, and breeding events under `BreedingRepository`
-- [x] Implement `BreedingProvider` and custom `useBreeding` hook
+**8 — Finance.** Income, expenses, milk sales and feed costs.
 
-### ✅ Phase 6: Inventory
-- [x] Rebuild Feed, Medicine, Equipment, and Supplies under farm-scoped `InventoryRepository`
-- [x] Implement `InventoryProvider` and custom `useInventory` hook
+**10 — Dashboard.** A composition layer over the feature hooks, owning no data
+of its own.
 
-### ✅ Phase 7: Tasks
-- [x] Rebuild daily tasks, feed schedules, and reminders under `TaskRepository`
-- [x] Implement `TaskProvider` and custom `useTasks` hook
+**11 — Herd workspace.** Sheds, farmer-defined categories and the breeding and
+vaccination timelines.
 
-### ✅ Phase 8: Finance
-- [x] Rebuild Income, Expenses, milk sales, and feed costs under `FinanceRepository`
-- [x] Implement `FinanceProvider` and custom `useFinance` hook
+**Auth and hardening (unnumbered).** Google Sign-In; refresh-token rotation
+and real logout; authenticated, ownership-checked file access; and a set of
+security fixes in the surrounding auth code. See `AUTHENTICATION.md` and
+`GOOGLE_AUTH.md`.
 
-### ✅ Phase 10: Dashboard Workspace
-- [x] Refactor dashboard composition layer (combines data from `useAnimals`, `useMilk`, `useFinance`, etc.)
+> There was no phase 9. The numbering is kept so older commits and notes still
+> line up.
 
-### ✅ Phase 11: Herd Workspace
-- [x] Separate Herd view and timelines (Breeding, Vaccination) into a dedicated screen and workspace.
+## Next
 
-### ⏹ Phase 12: Offline Sync (Next)
-- [ ] Build conflict resolution engine, retry queue, background synchronization, and stale data policies
+**12 — Offline writes.** The one with real design risk. Repositories currently
+fall back to cache on *read* only; writes fail when the API is unreachable.
+Needs a durable queue, retry with backoff, conflict resolution and a staleness
+policy. Nothing here is started — see `frontend/DATA_LAYER.md` before quoting
+the app as offline-capable.
 
-### ⏹ Phase 13: Notifications
-- [ ] Add support for local reminders and system notifications based on feature hooks (vaccines, tasks, heat cycles).
+**13 — Notifications.** Local reminders for vaccinations, tasks and heat
+cycles, driven by the existing feature hooks. `expo-notifications` is already a
+dependency and the permission field exists on the farmer.
 
-### ⏹ Phase 14: Analytics Workspace
-- [ ] Implement `AnalyticsRepository` fetching cost-to-feed, production forecasting, and profit margins
+**14 — Analytics.** Cost-to-feed, yield forecasting and profit margins.
 
-### ⏹ Phase 15: Reports / Export
-- [ ] Support PDF generation and Excel sheet reports exports for milk production and expenses.
+**15 — Reports.** PDF and Excel export for production and expenses.
+`expo-print` and `expo-sharing` are already installed.
 
-### ⏹ Phase 16: GauGuru AI Workspace
-- [ ] Build Chat screens and voice assistance orchestrating the structured feature module APIs
+**16 — GauGuru grounding.** The AI endpoints exist but answer from the prompt
+alone. This phase feeds them the farm's own records so answers reference real
+animals and history.
+
+## Known debt
+
+- **Two frontend trees.** `src/` holds the layered modules; `app/`,
+  `components/`, `context/` and `services/` still hold pre-migration code.
+  Auth and profile live in the old tree.
+- **Large screens.** `app/animal/[id].tsx` and `app/(tabs)/animals.tsx` are
+  each over 2,000 lines.
+- **Thin tests.** Three frontend suites, 19 assertions. No backend test runner;
+  `test:*` scripts are manual scripts, not a suite.
+- **Unused 2FA columns.** `is_2fa_enabled` and `totp_secret` survive the
+  removal of the 2FA path.

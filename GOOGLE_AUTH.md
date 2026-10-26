@@ -23,9 +23,10 @@ Accounts are linked **by email**, and only when Google reports
 existing email account is not a takeover. An existing password login keeps
 working; Google just adds a second door to the same farmer.
 
-If the account has 2FA enabled the response carries `requires2fa` and
-`tempToken` instead of tokens, and the app routes to `/(auth)/2fa` — same as
-password login.
+Matching runs on the Google `sub` first and falls back to email. `sub` never
+changes, so renaming a Gmail address still lands on the same farmer rather
+than silently creating a second one; the email fallback covers accounts that
+predate the `google_id` column and users who signed up with a password.
 
 ## Files
 
@@ -42,7 +43,7 @@ password login.
 | --- | --- |
 | `frontend/hooks/useGoogleAuth.ts` | Wraps the native SDK, exchanges the token, stores the session |
 | `frontend/components/GoogleLoginButton.tsx` | Button, styled to match the auth screens |
-| `frontend/app/(auth)/login.tsx`, `register.tsx` | Mount the button |
+| `frontend/app/(auth)/login.tsx` and `.../register.tsx` | Mount the button |
 | `frontend/services/api.ts` | `googleLogin(idToken)` |
 | `frontend/app.config.js` | Injects the client IDs from `EXPO_PUBLIC_*` into `expo.extra` |
 
@@ -113,8 +114,8 @@ npx expo prebuild --clean     # regenerates android/ with the plugin applied
 npx expo run:android          # or: eas build --profile development
 ```
 
-`frontend/android/` is untracked and currently predates this change, so the
-prebuild step is required locally.
+`frontend/android/` is generated and untracked, so prebuild is required after
+cloning and after any change to `app.json` or `app.config.js`.
 
 ## Verifying
 
@@ -142,7 +143,8 @@ Reviewing the surrounding auth code turned up several defects that predated
 Google sign-in. All are fixed on this branch; listed here because they explain
 changes that otherwise look unrelated to Google.
 
-- **The global `ValidationPipe` was inert API-wide.** `main.ts` sets
+- **The global `ValidationPipe` was inert API-wide.**
+  `backend/api-server/src/main.ts` sets
   `whitelist` and `forbidNonWhitelisted`, but the server ran under `tsx`, whose
   esbuild transform drops `emitDecoratorMetadata` — so Nest had no
   `design:paramtypes`, could not resolve a DTO class, and skipped validation on
