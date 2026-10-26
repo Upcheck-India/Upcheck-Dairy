@@ -35,16 +35,29 @@ export class OtpRepository {
       .where(eq(otpCodes.id, id));
   }
 
-  async deleteExpired(email: string): Promise<void> {
+  /**
+   * Retire every code still live for an address.
+   *
+   * Called before issuing a new one, so only the newest code ever works.
+   * Without this each resend added another valid code — with a 5 minute expiry
+   * and three sends a minute, roughly fifteen could be accepted at once, which
+   * multiplies the chance of guessing one.
+   *
+   * Marks them used rather than deleting, so the audit trail survives;
+   * findActiveOtps already filters on `usedAt IS NULL`.
+   *
+   * (This replaces a method named `deleteExpired` whose predicate actually
+   * matched *unexpired* codes, and which nothing ever called.)
+   */
+  async invalidateActiveForEmail(email: string): Promise<void> {
     await this.dbService.drizzle
-      .delete(otpCodes)
+      .update(otpCodes)
+      .set({ usedAt: new Date() })
       .where(
         and(
           eq(otpCodes.email, email),
-          and(
-            isNull(otpCodes.usedAt),
-            gt(otpCodes.expiresAt, new Date())
-          )
+          isNull(otpCodes.usedAt),
+          gt(otpCodes.expiresAt, new Date())
         )
       );
   }

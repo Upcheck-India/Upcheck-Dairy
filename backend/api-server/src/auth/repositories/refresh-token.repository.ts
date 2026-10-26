@@ -7,6 +7,44 @@ import { eq, and, gt, isNull } from "drizzle-orm";
 export class RefreshTokenRepository {
   constructor(@Inject(DatabaseService) private dbService: DatabaseService) {}
 
+  /** Find a live token by its indexed lookup key. */
+  async findActiveByLookup(userId: string, tokenLookup: string): Promise<RefreshToken | null> {
+    const results = await this.dbService.drizzle
+      .select()
+      .from(refreshTokens)
+      .where(
+        and(
+          eq(refreshTokens.userId, userId),
+          eq(refreshTokens.tokenLookup, tokenLookup),
+          gt(refreshTokens.expiresAt, new Date()),
+          isNull(refreshTokens.revokedAt)
+        )
+      )
+      .limit(1);
+    return results[0] || null;
+  }
+
+  /**
+   * Live tokens for a user that predate the lookup column.
+   *
+   * Only these need the bcrypt scan; anything issued since is found by index.
+   * Once no rows with a null lookup remain, this returns nothing and the scan
+   * costs a single indexed query.
+   */
+  async findActiveLegacyTokensForUser(userId: string): Promise<RefreshToken[]> {
+    return this.dbService.drizzle
+      .select()
+      .from(refreshTokens)
+      .where(
+        and(
+          eq(refreshTokens.userId, userId),
+          isNull(refreshTokens.tokenLookup),
+          gt(refreshTokens.expiresAt, new Date()),
+          isNull(refreshTokens.revokedAt)
+        )
+      );
+  }
+
   async findActiveTokensForUser(userId: string): Promise<RefreshToken[]> {
     return this.dbService.drizzle
       .select()

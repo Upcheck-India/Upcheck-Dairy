@@ -23,6 +23,10 @@ export class OtpService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 5);
 
+    // Supersede any code still live for this address, so a resend replaces the
+    // previous code instead of adding a second accepted one.
+    await this.otpRepository.invalidateActiveForEmail(email);
+
     await this.otpRepository.create({
       email,
       otpHash,
