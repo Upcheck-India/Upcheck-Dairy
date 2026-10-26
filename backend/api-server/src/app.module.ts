@@ -16,6 +16,7 @@ import { VaccinationsModule } from "./vaccinations/vaccinations.module";
 import { InventoryItemsModule } from "./inventory-items/inventory-items.module";
 import { TasksModule } from "./tasks/tasks.module";
 import { FinancialsModule } from "./financials/financials.module";
+import { FilesModule } from "./files/files.module";
 
 @Injectable()
 class CustomThrottlerGuard extends ThrottlerGuard {
@@ -58,6 +59,7 @@ class CustomThrottlerGuard extends ThrottlerGuard {
     InventoryItemsModule,
     TasksModule,
     FinancialsModule,
+    FilesModule,
   ],
   providers: [
     // Register the global CustomThrottlerGuard so all routes are rate-limited by default

@@ -1,4 +1,5 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { AuthedImage } from "@/components/AuthedImage";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
@@ -715,7 +716,7 @@ export default function AnimalDetail() {
           {/* Large Square Image on Left */}
           <Pressable style={styles.squarePhotoContainer} onPress={handleCamera}>
             {animal.photoUri ? (
-              <Image source={{ uri: animal.photoUri }} style={styles.squarePhoto} />
+              <AuthedImage uri={animal.photoUri} style={styles.squarePhoto} />
             ) : (
               /* Deliberately not a stock photo of some other animal — an empty
                  frame that invites a real one is honest and works offline. */

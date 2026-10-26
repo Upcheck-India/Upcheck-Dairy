@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
+import { AuthedImage } from "@/components/AuthedImage";
 import {
   View,
   Text,
@@ -794,7 +795,7 @@ export default function AnimalsScreen() {
                       }}
                     >
                       {animal.photoUri ? (
-                        <Image source={{ uri: animal.photoUri }} style={styles.animalPhoto} />
+                        <AuthedImage uri={animal.photoUri} style={styles.animalPhoto} />
                       ) : (
                         <View style={[styles.animalPhotoPlaceholder, { backgroundColor: statusColor + "12" }]}>
                           {/* This icon set has no buffalo or calf glyph, so every
