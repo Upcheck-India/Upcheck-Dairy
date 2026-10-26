@@ -1,7 +1,7 @@
 import { Controller, Post, Get, Body, Inject } from "@nestjs/common";
 import { AuthService } from "../services/auth.service";
 import { Public, GetUser } from "../../common/decorators/auth.decorators";
-import { toPublicFarmer } from "../../common/public-farmer";
+import type { PublicFarmer } from "../../common/public-farmer";
 import type { Farmer } from "@workspace/db";
 import { Throttle } from "@nestjs/throttler";
 import {
@@ -81,15 +81,15 @@ export class AuthController {
    * access tokens long after the user believed they had signed out.
    */
   @Post("logout")
-  async logout(@GetUser() user: Farmer) {
+  async logout(@GetUser() user: PublicFarmer) {
     await this.authService.logout(user.id);
     return { message: "Signed out" };
   }
 
   /** Return the currently authenticated farmer (requires Bearer token) */
   @Get("me")
-  async getMe(@GetUser() user: Farmer) {
-    return toPublicFarmer(user);
+  async getMe(@GetUser() user: PublicFarmer) {
+    return user;
   }
 
   /** Reset password using email, OTP, and new password */

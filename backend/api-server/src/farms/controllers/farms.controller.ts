@@ -6,7 +6,7 @@ import { Public, GetUser } from "../../common/decorators/auth.decorators";
 import { CreateFarmDto } from "../dto/create-farm.dto";
 import { UpdateFarmDto } from "../dto/update-farm.dto";
 import { UserRepository } from "../../auth/repositories/user.repository";
-import { toPublicFarmer } from "../../common/public-farmer";
+import { toPublicFarmer, type PublicFarmer } from "../../common/public-farmer";
 import type { Farmer } from "@workspace/db";
 
 @Controller("farms")
@@ -14,27 +14,27 @@ export class FarmsController {
   constructor(@Inject(FarmsService) private readonly farmsService: FarmsService) {}
 
   @Post()
-  async create(@GetUser() user: Farmer, @Body() body: CreateFarmDto) {
+  async create(@GetUser() user: PublicFarmer, @Body() body: CreateFarmDto) {
     return this.farmsService.createFarm(user.id, body.name, body.location);
   }
 
   @Get()
-  async getMyFarms(@GetUser() user: Farmer) {
+  async getMyFarms(@GetUser() user: PublicFarmer) {
     return this.farmsService.getFarmsByOwner(user.id);
   }
 
   @Get(":id")
-  async getById(@GetUser() user: Farmer, @Param("id") id: string) {
+  async getById(@GetUser() user: PublicFarmer, @Param("id") id: string) {
     return this.farmsService.getFarmById(id, user.id);
   }
 
   @Put(":id")
-  async update(@GetUser() user: Farmer, @Param("id") id: string, @Body() body: UpdateFarmDto) {
+  async update(@GetUser() user: PublicFarmer, @Param("id") id: string, @Body() body: UpdateFarmDto) {
     return this.farmsService.updateFarm(id, body, user.id);
   }
 
   @Delete(":id")
-  async remove(@GetUser() user: Farmer, @Param("id") id: string) {
+  async remove(@GetUser() user: PublicFarmer, @Param("id") id: string) {
     await this.farmsService.deleteFarm(id, user.id);
     return { success: true };
   }
@@ -48,18 +48,27 @@ export class LegacyFarmController {
   ) {}
 
   @Get("profile")
-  async getProfile(@GetUser() user: Farmer) {
-    return toPublicFarmer(user);
+  async getProfile(@GetUser() user: PublicFarmer) {
+    return user;
   }
 
   @Post("profile")
   async createOrUpdateProfile(
-    @GetUser() user: Farmer,
+    @GetUser() user: PublicFarmer,
     @Body() body: Partial<Farmer> & { notificationsEnabled?: boolean }
   ) {
     const updates: Partial<Farmer> = {};
     if (body.name !== undefined) updates.name = body.name;
-    if (body.phone !== undefined) updates.phone = body.phone;
+    // A phone number typed into the profile form is a claim, not a proof, so
+    // writing one resets phoneVerified. Email is immutable here for the same
+    // reason (see below), but phone has to stay editable because the profile
+    // screen edits it — clearing the flag is what keeps the claim harmless.
+    // Any future phone sign-in MUST gate on phoneVerified; without that it
+    // would be the same takeover primitive the email rule exists to prevent.
+    if (body.phone !== undefined && body.phone !== user.phone) {
+      updates.phone = body.phone;
+      updates.phoneVerified = false;
+    }
     // `email` is deliberately NOT writable here. It is the identity this
     // account is matched on — AuthService.googleLogin falls back to
     // findByEmail when it has no googleId yet — so an unverified write is an

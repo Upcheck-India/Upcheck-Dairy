@@ -3,7 +3,7 @@ import { AnimalsService } from "../services/animals.service";
 import { CreateAnimalDto } from "../dto/create-animal.dto";
 import { UpdateAnimalDto } from "../dto/update-animal.dto";
 import { GetUser } from "../../common/decorators/auth.decorators";
-import type { Farmer } from "@workspace/db";
+import type { PublicFarmer } from "../../common/public-farmer";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
 import { extname } from "path";
@@ -13,7 +13,7 @@ export class AnimalsController {
   constructor(@Inject(AnimalsService) private readonly animalsService: AnimalsService) {}
 
   @Post()
-  async create(@GetUser() user: Farmer, @Body() dto: CreateAnimalDto) {
+  async create(@GetUser() user: PublicFarmer, @Body() dto: CreateAnimalDto) {
     return this.animalsService.create(user.id, dto);
   }
 
@@ -44,27 +44,27 @@ export class AnimalsController {
   }
 
   @Get()
-  async getMyAnimals(@GetUser() user: Farmer, @Headers("x-farm-id") farmId: string) {
+  async getMyAnimals(@GetUser() user: PublicFarmer, @Headers("x-farm-id") farmId: string) {
     return this.animalsService.getByFarm(user.id, farmId);
   }
 
   @Get("farm/:farmId")
-  async getByFarm(@GetUser() user: Farmer, @Param("farmId") farmId: string) {
+  async getByFarm(@GetUser() user: PublicFarmer, @Param("farmId") farmId: string) {
     return this.animalsService.getByFarm(user.id, farmId);
   }
 
   @Get(":id")
-  async getById(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+  async getById(@GetUser() user: PublicFarmer, @Param("id", ParseIntPipe) id: number) {
     return this.animalsService.getById(user.id, id);
   }
 
   @Put(":id")
-  async update(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number, @Body() dto: UpdateAnimalDto) {
+  async update(@GetUser() user: PublicFarmer, @Param("id", ParseIntPipe) id: number, @Body() dto: UpdateAnimalDto) {
     return this.animalsService.update(user.id, id, dto);
   }
 
   @Delete(":id")
-  async remove(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+  async remove(@GetUser() user: PublicFarmer, @Param("id", ParseIntPipe) id: number) {
     await this.animalsService.delete(user.id, id);
     return { success: true };
   }
