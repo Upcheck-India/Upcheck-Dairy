@@ -31,6 +31,7 @@ import { useSheds } from "@/src/modules/herd/context/ShedProvider";
 import { useCategories, AnimalCategory } from "@/src/modules/herd/context/CategoryProvider";
 import { resolveAnimalShed } from "@/src/modules/herd/utils/shedAssignment";
 import { HerdFilters } from "@/src/modules/herd/components/HerdFilters";
+import { FarmerAvatar } from "@/components/FarmerAvatar";
 import AddAnimalModal from "@/components/AddAnimalModal";
 import MilkLogModal from "@/components/MilkLogModal";
 import HealthNoteModal, { HealthNoteOption } from "@/components/HealthNoteModal";
@@ -481,9 +482,13 @@ export default function AnimalsScreen() {
             }}
             hitSlop={8}
           >
-            <View style={[styles.avatarCircle, { backgroundColor: farmer?.avatarColor ?? "#16a34a" }]}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
+            <FarmerAvatar
+              uri={farmer?.avatarUrl}
+              initials={initials}
+              color={farmer?.avatarColor ?? "#16a34a"}
+              size={32}
+              fontSize={12}
+            />
           </Pressable>
         </View>
       </View>
@@ -1821,18 +1826,6 @@ const styles = StyleSheet.create({
   },
   avatarBtn: {
     marginLeft: 4,
-  },
-  avatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
   },
   selectorRow: {
     flexDirection: "row",

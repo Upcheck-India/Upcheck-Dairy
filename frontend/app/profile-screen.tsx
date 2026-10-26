@@ -18,6 +18,7 @@ import {
 import Svg, { Path, Rect, Circle, G } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
+import { FarmerAvatar } from "@/components/FarmerAvatar";
 import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { LANGUAGE_NAMES, type Language } from "@/context/LanguageContext";
@@ -455,13 +456,17 @@ export default function ProfileScreen() {
                 {/* Left Side: Avatar + Info */}
                 <View style={styles.profileMainInfo}>
                   <Pressable
-                    style={[
-                      styles.avatar,
-                      { backgroundColor: farmer?.avatarColor ?? "#2563eb" },
-                    ]}
                     onPress={() => handleOpenEdit("name", language === "ta" ? "விவசாயி பெயர்" : "Farmer Name", farmer?.name ?? "")}
                   >
-                    <Text style={styles.avatarText}>{initials}</Text>
+                    <FarmerAvatar
+                      uri={farmer?.avatarUrl}
+                      initials={initials}
+                      color={farmer?.avatarColor ?? "#2563eb"}
+                      size={62}
+                      fontSize={24}
+                      style={styles.avatarShadow}
+                      textStyle={styles.avatarText}
+                    />
                   </Pressable>
 
                   <View style={styles.profileDetails}>
@@ -902,12 +907,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  avatar: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    alignItems: "center",
-    justifyContent: "center",
+  avatarShadow: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,

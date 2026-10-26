@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { FarmerAvatar } from "@/components/FarmerAvatar";
 import { useColors } from "@/hooks/useColors";
 
 interface DashboardHeaderProps {
@@ -9,6 +10,7 @@ interface DashboardHeaderProps {
   onFarmPress: () => void;
   onProfilePress: () => void;
   avatarColor?: string;
+  avatarUrl?: string | null;
   initials?: string;
   syncStatusLabel?: string;
   syncStatusColor?: string;
@@ -20,6 +22,7 @@ export function DashboardHeader({
   onFarmPress,
   onProfilePress,
   avatarColor = "#16a34a",
+  avatarUrl = null,
   initials = "?",
   syncStatusLabel,
   syncStatusColor,
@@ -50,9 +53,13 @@ export function DashboardHeader({
             </View>
           )}
           <Pressable style={styles.profileBtn} onPress={onProfilePress} hitSlop={8}>
-            <View style={[styles.profileCircle, { backgroundColor: avatarColor }]}>
-              <Text style={styles.profileInitial}>{initials}</Text>
-            </View>
+            <FarmerAvatar
+              uri={avatarUrl}
+              initials={initials}
+              color={avatarColor}
+              size={40}
+              fontSize={16}
+            />
           </Pressable>
         </View>
       </View>
@@ -113,17 +120,5 @@ const styles = StyleSheet.create({
   },
   profileBtn: {
     padding: 2,
-  },
-  profileCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  profileInitial: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
   },
 });
