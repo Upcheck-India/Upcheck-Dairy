@@ -97,9 +97,14 @@ export class AuthService {
   /**
    * Sign in (or auto-register) with a Google ID token from the mobile app.
    *
-   * Accounts are linked by email. That is only safe because we refuse tokens
-   * whose `email_verified` claim is false — Google has proven the user owns
-   * the address, so adopting an existing email account is not a takeover.
+   * Matching runs on the Google `sub` first, then falls back to email. `sub`
+   * is stable for the life of the account, so a user who renames their Gmail
+   * address still lands on the same farmer instead of silently getting a new
+   * one. The email fallback exists for accounts that predate `googleId`, and
+   * for users who first signed up with a password — it is only safe because
+   * we refuse tokens whose `email_verified` claim is false, so Google has
+   * proven address ownership and adopting the account is not a takeover.
+   *
    * An existing password login keeps working; this just adds a second door.
    */
   async googleLogin(idToken: string): Promise<{ user: Farmer; accessToken: string; refreshToken: string; requires2fa?: boolean; tempToken?: string }> {
@@ -108,19 +113,38 @@ export class AuthService {
       throw new UnauthorizedException("Google account email is not verified");
     }
 
-    let user = await this.userRepository.findByEmail(profile.email);
+    let user = await this.userRepository.findByGoogleId(profile.googleId);
+
     if (!user) {
-      user = await this.userRepository.create({
-        id: crypto.randomUUID(),
+      user = await this.userRepository.findByEmail(profile.email);
+
+      if (user) {
+        // First Google sign-in for an account we already had: stamp the stable
+        // id so later logins match on it, and fill anything still missing.
+        user = await this.userRepository.update(user.id, {
+          googleId: profile.googleId,
+          emailVerified: true,
+          ...(user.avatarUrl ? {} : { avatarUrl: profile.avatarUrl }),
+        });
+      } else {
+        user = await this.userRepository.create({
+          id: crypto.randomUUID(),
+          email: profile.email,
+          name: profile.name,
+          googleId: profile.googleId,
+          avatarUrl: profile.avatarUrl,
+          authProvider: "google",
+          emailVerified: true,
+          phoneVerified: false,
+          is2faEnabled: false,
+        });
+      }
+    } else if (user.email !== profile.email || user.avatarUrl !== profile.avatarUrl) {
+      // Known account — keep the address and photo in step with Google.
+      user = await this.userRepository.update(user.id, {
         email: profile.email,
-        name: profile.name,
-        authProvider: "google",
-        emailVerified: true,
-        phoneVerified: false,
-        is2faEnabled: false,
+        avatarUrl: profile.avatarUrl,
       });
-    } else if (!user.emailVerified) {
-      user = await this.userRepository.update(user.id, { emailVerified: true });
     }
 
     if (user.is2faEnabled) {

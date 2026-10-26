@@ -19,6 +19,8 @@ export interface FarmerProfile {
   onboardingCompleted?: boolean;
   avatarColor?: string;
   avatarInitials?: string;
+  /** Provider profile picture (Google). Null means fall back to initials. */
+  avatarUrl?: string | null;
   createdAt?: string;
   // Legacy compat
   totalLandAcres?: number;
@@ -127,6 +129,7 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
       farmName: u.farmName ?? undefined,
       avatarColor: u.avatarColor ?? pickAvatarColor(name),
       avatarInitials: u.avatarInitials ?? getInitials(name),
+      avatarUrl: u.avatarUrl ?? null,
       createdAt: u.createdAt,
       notificationsEnabled: u.notificationsEnabled ?? u.notificationPermission ?? false,
     };

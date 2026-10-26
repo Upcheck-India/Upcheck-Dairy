@@ -71,6 +71,8 @@ export interface AuthUser {
   emailVerified?: boolean;
   avatarColor?: string | null;
   avatarInitials?: string | null;
+  /** Provider profile picture (Google). Null means fall back to initials. */
+  avatarUrl?: string | null;
   createdAt?: string;
   notificationPermission?: boolean;
   notificationsEnabled?: boolean;

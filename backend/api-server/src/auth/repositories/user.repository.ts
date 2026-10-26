@@ -25,6 +25,15 @@ export class UserRepository {
     return results[0] || null;
   }
 
+  async findByGoogleId(googleId: string): Promise<Farmer | null> {
+    const results = await this.dbService.drizzle
+      .select()
+      .from(farmers)
+      .where(eq(farmers.googleId, googleId))
+      .limit(1);
+    return results[0] || null;
+  }
+
   async findByPhone(phone: string): Promise<Farmer | null> {
     const results = await this.dbService.drizzle
       .select()

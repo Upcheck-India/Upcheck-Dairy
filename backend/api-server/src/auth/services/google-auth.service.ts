@@ -7,6 +7,8 @@ export interface GoogleProfile {
   emailVerified: boolean;
   name: string;
   googleId: string;
+  /** Profile picture URL. Absent if the account has no photo set. */
+  avatarUrl: string | null;
 }
 
 /**
@@ -67,6 +69,7 @@ export class GoogleAuthService {
       emailVerified: payload.email_verified ?? false,
       name: payload.name?.trim() || payload.email.split("@")[0]!,
       googleId: payload.sub,
+      avatarUrl: payload.picture ?? null,
     };
   }
 }
