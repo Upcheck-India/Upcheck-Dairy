@@ -12,11 +12,15 @@ const webClientId = extra.googleClientIdWeb || undefined;
 const iosClientId = extra.googleClientIdIos || undefined;
 
 /**
- * Google Sign-In is only wired up when at least one OAuth client ID is
- * configured, so a build without credentials degrades to "button hidden"
- * rather than a crash at import time.
+ * Google Sign-In is only wired up when the client ID *this* platform needs is
+ * present, so a build without credentials degrades to "button hidden" rather
+ * than failing at the tap.
+ *
+ * Note which ID matters where: Android signs in with the **web** client ID —
+ * the Android client ID is never passed in code, it only has to exist in the
+ * Google console against the package name and signing SHA-1. iOS uses its own.
  */
-const hasClientIds = !!(webClientId || iosClientId || extra.googleClientIdAndroid);
+const hasClientIds = Platform.OS === "ios" ? !!iosClientId : !!webClientId;
 
 /**
  * The native module is absent in Expo Go and on web, where requiring it throws.

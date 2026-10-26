@@ -78,8 +78,12 @@ GOOGLE_CLIENT_ID_IOS=
 GOOGLE_CLIENT_ID_ANDROID=
 ```
 
-Every ID listed becomes an accepted `aud`. List each platform that can reach
-the API; leave the rest blank. With all three blank the endpoint returns
+Every ID listed becomes an accepted `aud`. **`WEB` is the one that matters for
+Android** — the native SDK signs in with the web client ID, so Android tokens
+carry it as their `aud`. `IOS` is needed for iOS builds. `ANDROID` is never an
+`aud` in this flow and can stay blank here.
+
+With all three blank the endpoint returns
 `401 Google sign-in is not configured on the server`.
 
 ### 3. Frontend env
