@@ -60,7 +60,14 @@ export class LegacyFarmController {
     const updates: Partial<Farmer> = {};
     if (body.name !== undefined) updates.name = body.name;
     if (body.phone !== undefined) updates.phone = body.phone;
-    if (body.email !== undefined) updates.email = body.email;
+    // `email` is deliberately NOT writable here. It is the identity this
+    // account is matched on — AuthService.googleLogin falls back to
+    // findByEmail when it has no googleId yet — so an unverified write is an
+    // account-takeover primitive: claim an address you do not own, and when
+    // its real owner first signs in with Google they are handed *your*
+    // farmer record, while you keep your password to it. Changing an email
+    // needs an ownership check (OTP to the new address); until that flow
+    // exists the address is fixed at sign-up. No client sends this field.
     if (body.farmName !== undefined) updates.farmName = body.farmName;
     if (body.village !== undefined) updates.village = body.village;
     if (body.district !== undefined) updates.district = body.district;
