@@ -129,19 +129,43 @@ Endpoint behaviour, confirmed against a running server:
 The errors are deliberately indistinguishable — a probing client learns nothing
 about whether it failed on signature, expiry or audience.
 
-End-to-end sign-in needs real OAuth credentials and a native build, so it has
-not been exercised here.
+Sign-in has since been exercised end to end on a device against real OAuth
+credentials.
 
-## Known issue in the surrounding code
+Account selection: `useGoogleAuth` calls `GoogleSignin.signOut()` before
+`signIn()`. Without it the library reuses the cached account and the picker
+never appears, so a user with several Google accounts cannot switch.
 
-Nest's global `ValidationPipe` (`whitelist` / `forbidNonWhitelisted` in
-`main.ts`) is **inert across the whole API**. The server runs under `tsx`,
-whose esbuild transform does not honour `emitDecoratorMetadata`, so Nest has no
-`design:paramtypes` to resolve a DTO class from and skips validation entirely.
-Observable on `development` too: `POST /api/auth/login` with `{}` returns 500
-rather than 400, and a malformed email reaches the service.
+## Related fixes this work uncovered
 
-This predates Google auth and is not fixed here. `GoogleAuthService` validates
-its own input so this route is correct regardless, but the pipe should be
-repaired separately — it is load-bearing security config that currently does
-nothing.
+Reviewing the surrounding auth code turned up several defects that predated
+Google sign-in. All are fixed on this branch; listed here because they explain
+changes that otherwise look unrelated to Google.
+
+- **The global `ValidationPipe` was inert API-wide.** `main.ts` sets
+  `whitelist` and `forbidNonWhitelisted`, but the server ran under `tsx`, whose
+  esbuild transform drops `emitDecoratorMetadata` — so Nest had no
+  `design:paramtypes`, could not resolve a DTO class, and skipped validation on
+  every endpoint. `dev`/`start` now run under `@swc-node/register`, which emits
+  it. See `.swcrc`.
+- **Password hash and TOTP secret were returned to clients** by five endpoints.
+  `toPublicFarmer()` strips them, and `JwtStrategy` now sanitises
+  `request.user` so the leak cannot recur.
+- **Account email was writable without verification**, which defeated the
+  email fallback in `googleLogin`. It is now immutable; a phone write clears
+  `phoneVerified`.
+- **Access tokens were never refreshed.** `refreshAccessToken` had no callers
+  while tokens expired after 15 minutes. `src/core/auth/TokenStore` now owns
+  the session and refreshes on 401, single-flight because the backend consumes
+  the refresh token.
+- **Uploads were served publicly.** `express.static("/uploads")` is replaced by
+  `GET /api/files/:filename`, which requires a token and checks that the caller
+  owns the farm whose record references the file.
+- **OTPs used `Math.random()`** — now `crypto.randomInt`.
+
+## Still open
+
+- 2FA is removed, not implemented. `is_2fa_enabled` and `totp_secret` remain as
+  unused columns.
+- Offline write queue (ROADMAP phase 12) is unstarted; repositories fall back
+  to cache on read only.
