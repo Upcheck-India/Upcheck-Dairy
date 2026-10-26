@@ -73,6 +73,10 @@ export interface AuthUser {
   avatarInitials?: string | null;
   /** Provider profile picture (Google). Null means fall back to initials. */
   avatarUrl?: string | null;
+  /** How the account was originally created: "google", "email", or "phone". */
+  authProvider?: string | null;
+  /** Google's `sub`. Present once the account has been linked to Google. */
+  googleId?: string | null;
   createdAt?: string;
   notificationPermission?: boolean;
   notificationsEnabled?: boolean;

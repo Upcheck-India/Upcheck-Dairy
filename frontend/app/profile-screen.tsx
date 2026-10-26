@@ -100,6 +100,10 @@ export default function ProfileScreen() {
   const [editingFieldValue, setEditingFieldValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
+  // Linked, not "created with" — an email account that later signed in with
+  // Google still has authProvider === "email" but is genuinely connected.
+  const isGoogleAccount = !!farmer?.googleLinked;
+
   const [allAnimals, setAllAnimals] = useState<any[]>([]);
   const [loadingStats, setLoadingStats] = useState(false);
 
@@ -224,6 +228,21 @@ export default function ProfileScreen() {
         ta: "உறுப்பினர்",
         hi: "सदस्यता",
         en: "Member Since",
+      },
+      signInMethod: {
+        ta: "உள்நுழைவு முறை",
+        hi: "साइन-इन विधि",
+        en: "Sign-in Method",
+      },
+      signInGoogle: {
+        ta: "Google மூலம் இணைக்கப்பட்டது",
+        hi: "Google से जुड़ा हुआ",
+        en: "Connected to Google",
+      },
+      signInPassword: {
+        ta: "மின்னஞ்சல் & கடவுச்சொல்",
+        hi: "ईमेल और पासवर्ड",
+        en: "Email & password",
       },
       farmName: {
         ta: "பண்ணை பெயர்",
@@ -631,6 +650,13 @@ export default function ProfileScreen() {
               icon="mail"
               label={getLabel("email")}
               value={farmer?.email || "—"}
+              showChevron={false}
+            />
+            <DetailRow
+              icon={isGoogleAccount ? "google" : "lock"}
+              iconType={isGoogleAccount ? "material" : "feather"}
+              label={getLabel("signInMethod")}
+              value={getLabel(isGoogleAccount ? "signInGoogle" : "signInPassword")}
               showChevron={false}
             />
             <DetailRow

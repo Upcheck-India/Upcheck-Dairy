@@ -21,6 +21,14 @@ export interface FarmerProfile {
   avatarInitials?: string;
   /** Provider profile picture (Google). Null means fall back to initials. */
   avatarUrl?: string | null;
+  /** How the account was originally created: "google", "email", or "phone". */
+  authProvider?: string | null;
+  /**
+   * Whether the account can sign in with Google. Derived from `googleId`
+   * rather than `authProvider`, because an account created with a password
+   * and later linked to Google keeps authProvider === "email".
+   */
+  googleLinked?: boolean;
   createdAt?: string;
   // Legacy compat
   totalLandAcres?: number;
@@ -130,6 +138,8 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
       avatarColor: u.avatarColor ?? pickAvatarColor(name),
       avatarInitials: u.avatarInitials ?? getInitials(name),
       avatarUrl: u.avatarUrl ?? null,
+      authProvider: u.authProvider ?? null,
+      googleLinked: !!u.googleId,
       createdAt: u.createdAt,
       notificationsEnabled: u.notificationsEnabled ?? u.notificationPermission ?? false,
     };
