@@ -51,9 +51,16 @@ cloning or after any config-plugin change.
 ## Checks
 
 ```bash
-cd backend/api-server && pnpm typecheck
+cd backend/api-server && pnpm typecheck && pnpm test
 cd frontend && pnpm typecheck && pnpm test
 ```
+
+`backend` tests are integration tests: they start the API themselves on ports
+4310/4311 (override with `TEST_PORT`) and need `DATABASE_URL` reachable. They
+run twice because rate limiting cannot be both on and off — the validation and
+JWT suites need it skipped, the security suite asserts a 429. Individual
+suites can still be run against an already-running server with
+`pnpm test:validation`, `test:auth` or `test:security`, which honour `PORT`.
 
 Schema changes go through `pnpm --filter @workspace/db push`. Read
 `backend/lib/db/migrations/README` conventions first: `push` offers to

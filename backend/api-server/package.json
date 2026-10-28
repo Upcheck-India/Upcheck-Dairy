@@ -8,9 +8,10 @@
     "build": "tsc --build",
     "start": "node --import @swc-node/register/esm-register src/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:security": "tsx test/security.ts",
-    "test:auth": "tsx test/auth.ts",
-    "test:validation": "tsx test/validation.ts"
+    "test": "node --test --import @swc-node/register/esm-register test/integration.test.ts",
+    "test:security": "node --import @swc-node/register/esm-register test/security.ts",
+    "test:auth": "node --import @swc-node/register/esm-register test/auth.ts",
+    "test:validation": "node --import @swc-node/register/esm-register test/validation.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.27",

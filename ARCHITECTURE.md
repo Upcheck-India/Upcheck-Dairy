@@ -248,10 +248,12 @@ The EventBus is intended only for global application events.
 - **Domain Models**: Unit tested independently for business rules, formatting, and computed properties.
 - **ApiClient**: Integration tested independently against static mock endpoints.
 
-> **Intent, not current state.** Today there are three frontend suites — domain
-> services and utils only — and no backend test runner; the `test:*` scripts in
-> `api-server` are standalone scripts, not a suite. Treat the list above as the
-> shape coverage should take as it grows.
+> **Intent, not current state.** Today there are three frontend suites covering
+> domain services and utils, and three backend integration suites run by
+> `node --test` (`api-server/test/integration.test.ts`) which boot the API and
+> check validation, the JWT guard, headers, CORS and throttling. Nothing yet
+> covers repositories, providers, components or screens — treat the list above
+> as the shape coverage should take as it grows.
 
 ---
 

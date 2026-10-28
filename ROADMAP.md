@@ -70,7 +70,8 @@ animals and history.
   Auth and profile live in the old tree.
 - **Large screens.** `app/animal/[id].tsx` and `app/(tabs)/animals.tsx` are
   each over 2,000 lines.
-- **Thin tests.** Three frontend suites, 19 assertions. No backend test runner;
-  `test:*` scripts are manual scripts, not a suite.
+- **Thin tests.** Three frontend suites (19 assertions) and three backend
+  integration suites. Neither runs in CI, and nothing covers repositories,
+  providers or screens.
 - **Unused 2FA columns.** `is_2fa_enabled` and `totp_secret` survive the
   removal of the 2FA path.
