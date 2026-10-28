@@ -46,14 +46,21 @@ function loadGoogleSignin(): GoogleSigninModule | null {
   return googleSignin;
 }
 
+/** A sign-in that found no account, and the token needed to create one. */
+export interface PendingSignup {
+  idToken: string;
+  email: string | null;
+}
+
 /**
  * @param intent which screen the button is on. "signin" refuses to create an
- * account, so the sign-in screen reports an unknown Google address instead of
- * silently provisioning an empty farmer for it.
+ * account, so the sign-in screen can offer sign-up instead of silently
+ * provisioning an empty farmer for an unrecognised address.
  */
 export function useGoogleAuth(intent: "signin" | "signup") {
   const { loginWithJwt } = useFarmer();
   const [loading, setLoading] = useState(false);
+  const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(null);
 
   const signInWithGoogle = useCallback(async () => {
     const mod = loadGoogleSignin();
@@ -67,6 +74,7 @@ export function useGoogleAuth(intent: "signin" | "signup") {
 
     const { GoogleSignin, isSuccessResponse, isErrorWithCode, statusCodes } = mod;
 
+    setPendingSignup(null);
     setLoading(true);
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
@@ -101,31 +109,14 @@ export function useGoogleAuth(intent: "signin" | "signup") {
         await loginWithJwt(result);
       } catch (err: any) {
         // Signing in with a Google account that has no farmer yet. Rather than
-        // dead-ending, offer to create it — and reuse the token we already
-        // have, so accepting does not mean picking the account a second time.
+        // dead-ending, hand the screen everything it needs to offer sign-up —
+        // including the token we already hold, so accepting does not mean
+        // picking the Google account a second time.
         if (intent === "signin" && err?.status === 404) {
-          const address = response.data.user?.email ?? "this Google account";
-          Alert.alert(
-            "No account yet",
-            `${address} isn't registered with Upcheck. Create an account with it?`,
-            [
-              { text: "Not now", style: "cancel" },
-              {
-                text: "Create account",
-                onPress: async () => {
-                  setLoading(true);
-                  try {
-                    const created = await googleLogin(idToken, "signup");
-                    await loginWithJwt(created);
-                  } catch (e: any) {
-                    Alert.alert("Could not create account", e?.message ?? "Please try again.");
-                  } finally {
-                    setLoading(false);
-                  }
-                },
-              },
-            ]
-          );
+          setPendingSignup({
+            idToken,
+            email: response.data.user?.email ?? null,
+          });
           return;
         }
         throw err;
@@ -146,5 +137,34 @@ export function useGoogleAuth(intent: "signin" | "signup") {
     }
   }, [loginWithJwt, intent]);
 
-  return { signInWithGoogle, loading, isAvailable: hasClientIds && Platform.OS !== "web" };
+  /** Accept the offer: create the account with the token already obtained. */
+  const createAccountFromPending = useCallback(async () => {
+    if (!pendingSignup) return;
+    setLoading(true);
+    try {
+      const created = await googleLogin(pendingSignup.idToken, "signup");
+      setPendingSignup(null);
+      await loginWithJwt(created);
+    } catch (err: any) {
+      // Google ID tokens are short-lived, so an offer left on screen can
+      // expire. Clear it and send them back through the picker.
+      setPendingSignup(null);
+      Alert.alert(
+        "Could not create account",
+        err?.message ?? "Please tap Continue with Google again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [pendingSignup, loginWithJwt]);
+
+  return {
+    signInWithGoogle,
+    loading,
+    isAvailable: hasClientIds && Platform.OS !== "web",
+    /** Non-null when sign-in found no account for the chosen Google address. */
+    pendingSignup,
+    createAccountFromPending,
+    dismissPendingSignup: useCallback(() => setPendingSignup(null), []),
+  };
 }

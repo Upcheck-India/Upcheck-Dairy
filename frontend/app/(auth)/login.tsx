@@ -23,7 +23,14 @@ import { loginUser, sendOtpCode } from "@/services/api";
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { loginWithJwt } = useFarmer();
-  const { signInWithGoogle, loading: googleLoading, isAvailable: googleAvailable } = useGoogleAuth("signin");
+  const {
+    signInWithGoogle,
+    loading: googleLoading,
+    isAvailable: googleAvailable,
+    pendingSignup,
+    createAccountFromPending,
+    dismissPendingSignup,
+  } = useGoogleAuth("signin");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -176,6 +183,30 @@ export default function LoginScreen() {
             <GoogleLoginButton onPress={signInWithGoogle} loading={googleLoading} />
           )}
 
+          {/* Sign-in found no account for the chosen address. Offered inline
+              rather than as a dialog: it sits right under the button that was
+              just pressed, and does not interrupt. Tapping it reuses the token
+              already obtained, so no second trip through the account picker. */}
+          {pendingSignup && (
+            <Pressable
+              style={({ pressed }) => [styles.offerBanner, pressed && styles.btnPressed]}
+              onPress={createAccountFromPending}
+              disabled={googleLoading}
+              accessibilityRole="button"
+            >
+              <Feather name="user-plus" size={16} color="#b45309" />
+              <View style={styles.offerTextWrap}>
+                <Text style={styles.offerTitle}>
+                  {pendingSignup.email ?? "That Google account"} isn't registered
+                </Text>
+                <Text style={styles.offerAction}>Tap to create an account with it</Text>
+              </View>
+              <Pressable onPress={dismissPendingSignup} hitSlop={10}>
+                <Feather name="x" size={16} color="#b45309" />
+              </Pressable>
+            </Pressable>
+          )}
+
         </View>
 
         {/* Create account — a footer action, not a third sign-in option */}
@@ -256,6 +287,23 @@ const styles = StyleSheet.create({
 
   linksRow: { alignItems: "center", marginTop: 12 },
   linkText: { fontSize: 14, color: "#16a34a", fontWeight: "600" },
+
+  // Borrowed from Upcheckapp's verifyBanner: a recoverable problem reads
+  // better as a tappable strip near the control that caused it than as a modal.
+  offerBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#fffbeb",
+    borderLeftWidth: 3,
+    borderLeftColor: "#f59e0b",
+  },
+  offerTextWrap: { flex: 1 },
+  offerTitle: { fontSize: 13, fontWeight: "700", color: "#b45309" },
+  offerAction: { fontSize: 12, color: "#b45309", marginTop: 2 },
 
   footerRow: { alignItems: "center", marginTop: 20 },
   footerText: { fontSize: 14, color: "#cbd5e1" },
