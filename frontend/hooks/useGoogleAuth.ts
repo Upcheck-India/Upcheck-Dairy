@@ -46,7 +46,12 @@ function loadGoogleSignin(): GoogleSigninModule | null {
   return googleSignin;
 }
 
-export function useGoogleAuth() {
+/**
+ * @param intent which screen the button is on. "signin" refuses to create an
+ * account, so the sign-in screen reports an unknown Google address instead of
+ * silently provisioning an empty farmer for it.
+ */
+export function useGoogleAuth(intent: "signin" | "signup") {
   const { loginWithJwt } = useFarmer();
   const [loading, setLoading] = useState(false);
 
@@ -91,7 +96,7 @@ export function useGoogleAuth() {
         return;
       }
 
-      const result = await googleLogin(idToken);
+      const result = await googleLogin(idToken, intent);
       await loginWithJwt(result);
     } catch (err: any) {
       if (isErrorWithCode(err)) {
@@ -107,7 +112,7 @@ export function useGoogleAuth() {
     } finally {
       setLoading(false);
     }
-  }, [loginWithJwt]);
+  }, [loginWithJwt, intent]);
 
   return { signInWithGoogle, loading, isAvailable: hasClientIds && Platform.OS !== "web" };
 }

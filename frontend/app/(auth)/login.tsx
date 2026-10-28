@@ -23,7 +23,7 @@ import { loginUser, sendOtpCode } from "@/services/api";
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { loginWithJwt } = useFarmer();
-  const { signInWithGoogle, loading: googleLoading, isAvailable: googleAvailable } = useGoogleAuth();
+  const { signInWithGoogle, loading: googleLoading, isAvailable: googleAvailable } = useGoogleAuth("signin");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

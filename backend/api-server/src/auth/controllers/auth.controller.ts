@@ -63,7 +63,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post("google")
   async googleLogin(@Body() body: GoogleLoginDto) {
-    return this.authService.googleLogin(body.idToken);
+    return this.authService.googleLogin(body.idToken, body.intent);
   }
 
   /** Exchange a refresh token for a new access token */

@@ -1,4 +1,4 @@
-import { Injectable, Inject, ConflictException, UnauthorizedException, BadRequestException } from "@nestjs/common";
+import { Injectable, Inject, ConflictException, UnauthorizedException, BadRequestException, NotFoundException } from "@nestjs/common";
 import { UserRepository } from "../repositories/user.repository";
 import { OtpService } from "./otp.service";
 import { TokenService } from "./token.service";
@@ -98,8 +98,17 @@ export class AuthService {
    * proven address ownership and adopting the account is not a takeover.
    *
    * An existing password login keeps working; this just adds a second door.
+   *
+   * `intent` distinguishes the two buttons. Google sign-in auto-provisions on
+   * first use, so without this, tapping "Continue with Google" on the sign-in
+   * screen with the wrong account silently created a second, empty farmer
+   * rather than saying the account does not exist. 'signup' and an absent
+   * value keep the provisioning behaviour.
    */
-  async googleLogin(idToken: string): Promise<{ user: PublicFarmer; accessToken: string; refreshToken: string }> {
+  async googleLogin(
+    idToken: string,
+    intent?: "signin" | "signup"
+  ): Promise<{ user: PublicFarmer; accessToken: string; refreshToken: string }> {
     const profile = await this.googleAuthService.verifyIdToken(idToken);
     if (!profile.emailVerified) {
       throw new UnauthorizedException("Google account email is not verified");
@@ -109,6 +118,14 @@ export class AuthService {
 
     if (!user) {
       user = await this.userRepository.findByEmail(profile.email);
+
+      // Checked after verification, so the decision rests on a claim Google
+      // signed rather than on an unverified token the caller supplied.
+      if (!user && intent === "signin") {
+        throw new NotFoundException(
+          "No Upcheck account uses that Google address. Create an account first."
+        );
+      }
 
       if (user) {
         // First Google sign-in for an account we already had: stamp the stable

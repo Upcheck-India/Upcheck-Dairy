@@ -21,7 +21,7 @@ import { registerUser } from "@/services/api";
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
-  const { signInWithGoogle, loading: googleLoading, isAvailable: googleAvailable } = useGoogleAuth();
+  const { signInWithGoogle, loading: googleLoading, isAvailable: googleAvailable } = useGoogleAuth("signup");
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");

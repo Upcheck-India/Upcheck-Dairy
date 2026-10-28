@@ -240,16 +240,24 @@ export async function loginUser(
  * Exchange a Google ID token for an Upcheck session.
  *
  * The backend verifies the token's signature and audience against its own
- * client IDs, then signs in (or auto-registers) the matching farmer. When the
+ * client IDs, then finds the matching farmer.
+ *
+ * `intent` says which button was pressed. "signup" provisions an account when
+ * none exists; "signin" refuses and reports that the address is unknown, so
+ * picking the wrong Google account on the sign-in screen does not silently
+ * create an empty second farmer.
  */
-export async function googleLogin(idToken: string): Promise<AuthResult> {
+export async function googleLogin(
+  idToken: string,
+  intent: "signin" | "signup"
+): Promise<AuthResult> {
   const base = getApiBase();
   return safeFetchJson<AuthResult>(
     `${base}/auth/google`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify({ idToken, intent }),
     },
     "Google sign in failed"
   );
