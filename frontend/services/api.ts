@@ -35,15 +35,30 @@ async function parseJsonResponse<T>(response: Response, fallbackMsg: string): Pr
   }
 
   if (!response.ok) {
+    // Nest sends { message, error, statusCode } where `message` is the useful
+    // sentence and `error` is the bare status name. Preferring `error` meant
+    // every failure surfaced as "Not Found" or "Conflict" and the explanation
+    // written on the server was thrown away.
+    let message = `${fallbackMsg} (${response.status})`;
     try {
       const data = JSON.parse(text);
-      throw new Error(data?.error ?? data?.message ?? `${fallbackMsg} (${response.status})`);
-    } catch (e: any) {
-      if (e.message && !e.message.startsWith("JSON") && e.message !== `${fallbackMsg} (${response.status})`) {
-        throw e;
+      if (Array.isArray(data?.message)) {
+        // Validation errors arrive as an array of field complaints.
+        message = data.message.join("\n");
+      } else if (typeof data?.message === "string" && data.message) {
+        message = data.message;
+      } else if (typeof data?.error === "string" && data.error) {
+        message = data.error;
       }
-      throw new Error(`${fallbackMsg} (${response.status})`);
+    } catch {
+      /* not JSON — keep the generic message */
     }
+
+    // Carry the status so callers can branch on *what* failed rather than
+    // pattern-matching the prose.
+    const error = new Error(message) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
   }
 
   if (!text) {

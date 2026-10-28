@@ -96,8 +96,40 @@ export function useGoogleAuth(intent: "signin" | "signup") {
         return;
       }
 
-      const result = await googleLogin(idToken, intent);
-      await loginWithJwt(result);
+      try {
+        const result = await googleLogin(idToken, intent);
+        await loginWithJwt(result);
+      } catch (err: any) {
+        // Signing in with a Google account that has no farmer yet. Rather than
+        // dead-ending, offer to create it — and reuse the token we already
+        // have, so accepting does not mean picking the account a second time.
+        if (intent === "signin" && err?.status === 404) {
+          const address = response.data.user?.email ?? "this Google account";
+          Alert.alert(
+            "No account yet",
+            `${address} isn't registered with Upcheck. Create an account with it?`,
+            [
+              { text: "Not now", style: "cancel" },
+              {
+                text: "Create account",
+                onPress: async () => {
+                  setLoading(true);
+                  try {
+                    const created = await googleLogin(idToken, "signup");
+                    await loginWithJwt(created);
+                  } catch (e: any) {
+                    Alert.alert("Could not create account", e?.message ?? "Please try again.");
+                  } finally {
+                    setLoading(false);
+                  }
+                },
+              },
+            ]
+          );
+          return;
+        }
+        throw err;
+      }
     } catch (err: any) {
       if (isErrorWithCode(err)) {
         if (err.code === statusCodes.SIGN_IN_CANCELLED || err.code === statusCodes.IN_PROGRESS) {
