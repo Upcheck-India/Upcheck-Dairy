@@ -322,6 +322,13 @@ export default function ProfileScreen() {
   const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
   const handleLanguagePress = () => setLanguageSheetVisible(true);
 
+  const openNameEditor = () =>
+    handleOpenEdit(
+      "name",
+      language === "ta" ? "விவசாயி பெயர்" : "Farmer Name",
+      farmer?.name ?? ""
+    );
+
   const handleLogout = () => {
     Alert.alert(
       t.logout,
@@ -419,65 +426,46 @@ export default function ProfileScreen() {
               style={styles.gradientCard}
             >
               <View style={styles.profileCardContent}>
-                {/* Left Side: Avatar + Info */}
-                <View style={styles.profileMainInfo}>
-                  <Pressable
-                    onPress={() => handleOpenEdit("name", language === "ta" ? "விவசாயி பெயர்" : "Farmer Name", farmer?.name ?? "")}
-                  >
-                    <FarmerAvatar
-                      uri={farmer?.avatarUrl}
-                      initials={initials}
-                      color={farmer?.avatarColor ?? "#2563eb"}
-                      size={62}
-                      fontSize={24}
-                      style={styles.avatarShadow}
-                      textStyle={styles.avatarText}
-                    />
+                <Pressable onPress={openNameEditor}>
+                  <FarmerAvatar
+                    uri={farmer?.avatarUrl}
+                    initials={initials}
+                    color={farmer?.avatarColor ?? "#2563eb"}
+                    size={58}
+                    fontSize={22}
+                    style={styles.avatarShadow}
+                    textStyle={styles.avatarText}
+                  />
+                </Pressable>
+
+                <View style={styles.profileDetails}>
+                  <Pressable onPress={openNameEditor} style={styles.nameRow}>
+                    <Text style={styles.farmerName} numberOfLines={1}>
+                      {farmer?.name || "Add your name"}
+                    </Text>
+                    <Feather name="edit-2" size={13} color="#15803d" />
                   </Pressable>
 
-                  <View style={styles.profileDetails}>
-                    <Pressable
-                      onPress={() => handleOpenEdit("name", language === "ta" ? "விவசாயி பெயர்" : "Farmer Name", farmer?.name ?? "")}
-                      style={styles.nameRow}
-                    >
-                      <Text style={styles.farmerName}>{farmer?.name ?? "—"}</Text>
-                      <Feather name="edit-2" size={12} color="#6b7280" style={{ marginLeft: 4 }} />
-                    </Pressable>
+                  {/* The email is how the account is actually identified, and
+                      it was not shown here at all. */}
+                  {!!farmer?.email && (
+                    <Text style={styles.profileEmail} numberOfLines={1}>
+                      {farmer.email}
+                    </Text>
+                  )}
 
-                    <View style={styles.roleBadge}>
-                      <Feather name="user" size={10} color="#16a34a" />
-                      <Text style={styles.roleText}>Farmer</Text>
-                    </View>
-
-                    {/* A lone em dash is noise; show the line only when there
-                        is a location to show. */}
-                    {!!locationString && locationString !== "—" && (
-                      <View style={styles.infoLine}>
-                        <Feather name="map-pin" size={12} color="#4b5563" />
-                        <Text style={styles.smallText}>{locationString}</Text>
-                      </View>
-                    )}
-
-                    <View style={styles.infoLine}>
-                      <Feather name="calendar" size={12} color="#4b5563" />
-                      <Text style={styles.smallText}>
-                        <Text style={{ fontWeight: "700" }}>
-                          {language === "ta" ? "உறுப்பினர்: " : language === "hi" ? "सदस्यता: " : "Member since "}
-                        </Text>
-                        {memberSinceStr}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Right Side: Mini Farm Card */}
-                <Pressable style={styles.farmCard} onPress={() => setCurrentView("farms")}>
-                  <FarmIllustration />
-                  <Text style={styles.farmCount}>{farmsCount}</Text>
-                  <Text style={styles.farmText}>
-                    {farmsCount === 1 ? "Farm" : "Farms"}
+                  {/* One quiet line instead of a hardcoded "Farmer" badge, a
+                      location row and a separate member-since row. */}
+                  <Text style={styles.profileMeta} numberOfLines={1}>
+                    {[
+                      `${farmsCount} ${farmsCount === 1 ? "farm" : "farms"}`,
+                      locationString && locationString !== "—" ? locationString : null,
+                      memberSinceStr ? `Since ${memberSinceStr}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join("  ·  ")}
                   </Text>
-                </Pressable>
+                </View>
               </View>
 
             </LinearGradient>
@@ -903,24 +891,16 @@ const styles = StyleSheet.create({
 
   // Profile Card
   gradientCard: {
-    borderRadius: 16,
-    padding: 12,
-    paddingBottom: 40, // space for landscape illustration
-    position: "relative",
+    borderRadius: 14,
+    padding: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#dcfce7",
   },
   profileCardContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-  },
-  profileMainInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    marginRight: 8,
   },
   avatarShadow: {
     shadowColor: "#000",
@@ -931,52 +911,22 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 24, fontWeight: "800", color: "#fff" },
   profileDetails: {
-    marginLeft: 10,
+    marginLeft: 14,
     flex: 1,
-    gap: 2,
+    gap: 3,
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 6,
   },
-  farmerName: { fontSize: 16, fontWeight: "700", color: "#111827" },
-  roleBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "#dcfce7",
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-    alignSelf: "flex-start",
-  },
-  roleText: { fontSize: 9, color: "#16a34a", fontWeight: "600" },
-  infoLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  smallText: { fontSize: 11, color: "#4b5563" },
+  // The name is the heading of the screen; it was the same size as a list
+  // row title while a 9px badge sat under it.
+  farmerName: { fontSize: 20, fontWeight: "800", color: "#111827", flexShrink: 1 },
+  profileEmail: { fontSize: 13, color: "#4b5563" },
+  profileMeta: { fontSize: 12, color: "#6b7280" },
 
   // Right Farm Card in header
-  farmCard: {
-    width: 64,
-    height: 74,
-    borderRadius: 12,
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#bbf7d0",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  farmCount: { fontSize: 15, fontWeight: "800", color: "#111827", marginTop: 2 },
-  farmText: { fontSize: 9, color: "#4b5563" },
 
   // Landscape Svg
 
