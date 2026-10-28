@@ -242,22 +242,6 @@ export default function ProfileScreen() {
   };
 
   const handleOpenEdit = (field: string, label: string, initialValue: string) => {
-    if (field === "memberSince") {
-      Alert.alert(
-        language === "ta" ? "அறிவிப்பு" : "Notice",
-        language === "ta" ? "உறுப்பினர் சேர்ந்த தேதியை மாற்ற முடியாது." : "Membership date is automatically set and cannot be changed."
-      );
-      return;
-    }
-    if (field === "totalAnimals") {
-      Alert.alert(
-        language === "ta" ? "அறிவிப்பு" : "Notice",
-        language === "ta"
-          ? "மொத்த விலங்குகள் உங்கள் மந்தையின் அடிப்படையில் கணக்கிடப்படுகிறது. விலங்குகளைச் சேர்க்க அல்லது நீக்க மந்தை தாவலுக்குச் செல்லவும்."
-          : "Total Animals is calculated based on your active herd. Go to the Herd tab to add or edit animals."
-      );
-      return;
-    }
     setEditingField(field);
     setEditingFieldLabel(label);
     setEditingFieldValue(initialValue);
@@ -301,15 +285,6 @@ export default function ProfileScreen() {
         } else if (editingField === "farmAddress") {
           await farmRepository.update(selectedFarm.id, { location: cleanValue });
           setSelectedFarm((prev: any) => prev ? new Farm({ ...prev, location: cleanValue }) : null);
-          await refreshFarms();
-        } else if (["village", "district", "state"].includes(editingField)) {
-          const parts = selectedFarm.location ? selectedFarm.location.split(",") : ["", "", ""];
-          if (editingField === "village") parts[0] = cleanValue;
-          if (editingField === "district") parts[1] = cleanValue;
-          if (editingField === "state") parts[2] = cleanValue;
-          const newLoc = parts.map(p => p.trim()).join(", ");
-          await farmRepository.update(selectedFarm.id, { location: newLoc });
-          setSelectedFarm((prev: any) => prev ? new Farm({ ...prev, location: newLoc }) : null);
           await refreshFarms();
         } else {
           await updateProfile({ [editingField]: cleanValue });
@@ -387,11 +362,6 @@ export default function ProfileScreen() {
 
   const locationString = [farmer?.village, farmer?.state].filter(Boolean).join(", ") || farmer?.district || "—";
   const farmsCount = farms.length;
-
-  const locationParts = selectedFarm?.location ? selectedFarm.location.split(",") : [];
-  const farmVillage = locationParts[0]?.trim() || "";
-  const farmDistrict = locationParts[1]?.trim() || "";
-  const farmState = locationParts[2]?.trim() || "";
 
   const selectedFarmAnimalsCount = selectedFarm
     ? (allAnimals.length > 0 
@@ -682,24 +652,6 @@ export default function ProfileScreen() {
               label={getLabel("farmAddress")}
               value={selectedFarm.location}
               onPress={() => handleOpenEdit("farmAddress", getLabel("farmAddress"), selectedFarm.location || "")}
-            />
-            <DetailRow
-              icon="map-pin"
-              label={t.village}
-              value={farmVillage}
-              onPress={() => handleOpenEdit("village", t.village, farmVillage || "")}
-            />
-            <DetailRow
-              icon="navigation"
-              label={t.district}
-              value={farmDistrict}
-              onPress={() => handleOpenEdit("district", t.district, farmDistrict || "")}
-            />
-            <DetailRow
-              icon="map"
-              label={getLabel("state")}
-              value={farmState}
-              onPress={() => handleOpenEdit("state", getLabel("state"), farmState || "")}
             />
             <DetailRow
               icon="cow"
