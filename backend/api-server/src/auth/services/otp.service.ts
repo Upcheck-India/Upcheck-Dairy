@@ -2,6 +2,7 @@ import { Injectable, Inject, BadRequestException } from "@nestjs/common";
 import { OtpRepository } from "../repositories/otp.repository";
 import { EmailService } from "../../notifications/email.service";
 import * as bcrypt from "bcrypt";
+import * as crypto from "crypto";
 
 @Injectable()
 export class OtpService {
@@ -11,12 +12,20 @@ export class OtpService {
   ) {}
 
   async generateAndSendOtp(email: string): Promise<void> {
-    const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    // randomInt, not Math.random: an OTP is a login credential. V8's PRNG is
+    // not cryptographic and its internal state can be recovered from a run of
+    // outputs — and an attacker can harvest outputs by requesting codes for an
+    // address they own, then predict the next code issued to someone else.
+    const rawOtp = crypto.randomInt(100000, 1000000).toString();
     const saltRounds = 10;
     const otpHash = await bcrypt.hash(rawOtp, saltRounds);
 
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 5);
+
+    // Supersede any code still live for this address, so a resend replaces the
+    // previous code instead of adding a second accepted one.
+    await this.otpRepository.invalidateActiveForEmail(email);
 
     await this.otpRepository.create({
       email,

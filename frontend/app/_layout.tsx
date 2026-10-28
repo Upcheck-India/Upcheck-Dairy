@@ -32,7 +32,7 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading: isAuthLoading, farmer } = useFarmer();
+  const { isAuthenticated, isLoading: isAuthLoading } = useFarmer();
   const { loading: isFarmLoading, farmsLoaded, farms } = useFarmContext();
   const segments = useSegments();
 
@@ -42,10 +42,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const inAuth = firstSegment === "(auth)";
   const isPublicUtility = firstSegment === "legal" || firstSegment === "permission";
 
-  // Only redirect authenticated users to tabs if they have completed their profile details
-  const hasProfile = !!(farmer && farmer.village && farmer.district);
-  const onOnboarding = firstSegment === "(auth)" && segments[1] === "onboarding";
-
   if (!isAuthenticated) {
     if (!inAuth && !isPublicUtility) {
       return <Redirect href="/(auth)/login" />;
@@ -53,12 +49,14 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  if (!hasProfile) {
-    if (!onOnboarding && !isPublicUtility) {
-      return <Redirect href="/(auth)/onboarding" />;
-    }
-    return <>{children}</>;
-  }
+  // There is no profile gate. Signing in already establishes identity —
+  // Google gives name, email and photo; OTP gives the email — and nothing in
+  // the app reads the farmer's phone, village or district, so blocking entry
+  // to collect them was friction for data with no consumer. They are edited
+  // in Personal Details on the profile screen whenever the farmer wants.
+  //
+  // The only thing still gated is having a farm, below, because every other
+  // screen is scoped to one.
 
   // Guard on farms loading state
   if (isFarmLoading || !farmsLoaded) {
@@ -72,7 +70,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     firstSegment === "animal" ||
     firstSegment === "inventory";
 
-  // Enforce active farm if not on onboarding/farms screen
+  // Every other screen is scoped to a farm, so a farmer with none is sent to
+  // create one. This is the only remaining gate.
   if (farms.length === 0) {
     if (!onFarmsScreen && !isUtilityScreen) {
       return <Redirect href="/farms" />;

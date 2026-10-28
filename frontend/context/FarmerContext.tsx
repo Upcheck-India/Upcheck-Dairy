@@ -1,6 +1,6 @@
-import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { getMyProfile, createOrUpdateProfile, type AuthUser, type AuthResult } from "@/services/api";
+import { getMyProfile, createOrUpdateProfile, logoutUser, type AuthUser, type AuthResult } from "@/services/api";
+import { tokenStore } from "../src/core/auth/TokenStore";
 
 // ==================== Types ====================
 
@@ -19,15 +19,19 @@ export interface FarmerProfile {
   onboardingCompleted?: boolean;
   avatarColor?: string;
   avatarInitials?: string;
+  /** Provider profile picture (Google). Null means fall back to initials. */
+  avatarUrl?: string | null;
+  /** How the account was originally created: "google", "email", or "phone". */
+  authProvider?: string | null;
+  /**
+   * Whether the account can sign in with Google. Derived from `googleId`
+   * rather than `authProvider`, because an account created with a password
+   * and later linked to Google keeps authProvider === "email".
+   */
+  googleLinked?: boolean;
   createdAt?: string;
   // Legacy compat
   totalLandAcres?: number;
-}
-
-interface StoredAuth {
-  accessToken: string;
-  refreshToken: string;
-  userId: string;
 }
 
 interface FarmerContextType {
@@ -55,13 +59,11 @@ interface FarmerContextType {
     onboardingCompleted?: boolean;
   }) => Promise<FarmerProfile>;
   updateProfile: (updates: Partial<FarmerProfile>) => Promise<void>;
-  /** Client-side logout — clears AsyncStorage tokens. */
+  /** Revokes the session server-side, then clears it locally. */
   logout: () => Promise<void>;
 }
 
 const FarmerContext = createContext<FarmerContextType | null>(null);
-
-const AUTH_STORAGE_KEY = "upcheck_auth";
 
 const AVATAR_COLORS = [
   "#16a34a", "#0284c7", "#7c3aed", "#d97706", "#dc2626",
@@ -86,32 +88,44 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
   const [farmer, setFarmer] = useState<FarmerProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // On mount: restore session from SecureStore
+  // On mount: restore and validate any persisted session.
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const raw = await SecureStore.getItemAsync(AUTH_STORAGE_KEY);
-        if (!raw || !mounted) return;
-        const stored: StoredAuth = JSON.parse(raw);
-        if (!stored.accessToken) return;
+        const stored = await tokenStore.hydrate();
+        if (!stored?.accessToken || !mounted) return;
 
-        // Validate token by fetching user profile
-        const me = await getMyProfile(stored.accessToken);
+        // Validates the session: a stale access token 401s, and getMyProfile
+        // refreshes and replays before this resolves. Only a dead refresh
+        // token reaches the catch.
+        const me = await getMyProfile();
         if (!mounted) return;
         setUser(me);
-        setAccessToken(stored.accessToken);
-
-        // Build a FarmerProfile from the user data
+        setAccessToken(tokenStore.getAccessToken());
         setFarmer(userToFarmerProfile(me));
       } catch {
-        // Token expired or invalid — clear storage
-        await SecureStore.deleteItemAsync(AUTH_STORAGE_KEY);
+        // Refresh token spent or revoked — the session is genuinely over.
+        await tokenStore.clear();
       } finally {
         if (mounted) setIsLoading(false);
       }
     })();
     return () => { mounted = false; };
+  }, []);
+
+  // Keep React state in step with the token store. Two cases matter: a
+  // background refresh swaps the access token, and a refresh that fails
+  // clears the session — without this the UI would stay "signed in" while
+  // every request 401s.
+  useEffect(() => {
+    return tokenStore.subscribe((session) => {
+      setAccessToken(session?.accessToken ?? null);
+      if (!session) {
+        setUser(null);
+        setFarmer(null);
+      }
+    });
   }, []);
 
   function userToFarmerProfile(u: AuthUser): FarmerProfile {
@@ -127,6 +141,9 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
       farmName: u.farmName ?? undefined,
       avatarColor: u.avatarColor ?? pickAvatarColor(name),
       avatarInitials: u.avatarInitials ?? getInitials(name),
+      avatarUrl: u.avatarUrl ?? null,
+      authProvider: u.authProvider ?? null,
+      googleLinked: !!u.googleId,
       createdAt: u.createdAt,
       notificationsEnabled: u.notificationsEnabled ?? u.notificationPermission ?? false,
     };
@@ -137,12 +154,11 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
    * Called right after a successful login or OTP verify.
    */
   const loginWithJwt = useCallback(async (result: AuthResult) => {
-    const stored: StoredAuth = {
+    await tokenStore.set({
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
       userId: result.user.id,
-    };
-    await SecureStore.setItemAsync(AUTH_STORAGE_KEY, JSON.stringify(stored));
+    });
     setAccessToken(result.accessToken);
     setUser(result.user);
     setFarmer(userToFarmerProfile(result.user));
@@ -166,7 +182,9 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
 
     const profileData: Partial<FarmerProfile> = {
       name: data.name.trim(),
-      phone: data.phone,
+      // Omit rather than send "" — farmers.phone is UNIQUE, so a second
+      // profile saved with an empty string would collide with the first.
+      phone: data.phone?.trim() || undefined,
       village: data.village?.trim(),
       district: data.district?.trim(),
       state: data.state ?? "Tamil Nadu",
@@ -207,7 +225,14 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
   }, [farmer, accessToken]);
 
   const logout = useCallback(async () => {
-    await SecureStore.deleteItemAsync(AUTH_STORAGE_KEY);
+    // Best effort: if the network is down we still clear locally rather than
+    // trapping the user in a session they asked to end.
+    try {
+      await logoutUser();
+    } catch {
+      /* ignore — local sign-out proceeds regardless */
+    }
+    await tokenStore.clear();
     setFarmer(null);
     setUser(null);
     setAccessToken(null);

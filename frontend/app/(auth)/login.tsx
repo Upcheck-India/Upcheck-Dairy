@@ -15,18 +15,27 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { useFarmer } from "@/context/FarmerContext";
+import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 import { loginUser, sendOtpCode } from "@/services/api";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { loginWithJwt } = useFarmer();
+  const {
+    signInWithGoogle,
+    loading: googleLoading,
+    isAvailable: googleAvailable,
+    pendingSignup,
+    createAccountFromPending,
+    dismissPendingSignup,
+  } = useGoogleAuth("signin");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
 
   const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
@@ -71,23 +80,6 @@ export default function LoginScreen() {
       }
     } finally {
       setLoading(false);
-    }
-  };
-
-  // ─── Email OTP (passwordless) ─────────────────────────────────────
-  const handleEmailOtp = async () => {
-    if (!isValidEmail(email)) {
-      Alert.alert("Invalid Email", "Please enter your email first, then tap 'Sign in with email code'.");
-      return;
-    }
-    setOtpLoading(true);
-    try {
-      await sendOtpCode(email.trim().toLowerCase());
-      router.push({ pathname: "/(auth)/otp", params: { email: email.trim().toLowerCase(), flow: "login" } });
-    } catch (err: any) {
-      Alert.alert("Error", err.message ?? "Failed to send code.");
-    } finally {
-      setOtpLoading(false);
     }
   };
 
@@ -186,31 +178,43 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Sign in with email code (OTP) */}
-          <Pressable onPress={handleEmailOtp} disabled={otpLoading} style={styles.otpBtn}>
-            {otpLoading ? (
-              <ActivityIndicator color="#16a34a" size="small" />
-            ) : (
-              <>
-                <Feather name="send" size={15} color="#0f766e" />
-                <Text style={styles.otpBtnText}>Sign in with email code</Text>
-              </>
-            )}
-          </Pressable>
+          {/* Google */}
+          {googleAvailable && (
+            <GoogleLoginButton onPress={signInWithGoogle} loading={googleLoading} />
+          )}
 
-          {/* Divider */}
-          <View style={[styles.divider, { marginTop: 8 }]}>
-            <View style={styles.dividerLine} />
-          </View>
+          {/* Sign-in found no account for the chosen address. Offered inline
+              rather than as a dialog: it sits right under the button that was
+              just pressed, and does not interrupt. Tapping it reuses the token
+              already obtained, so no second trip through the account picker. */}
+          {pendingSignup && (
+            <Pressable
+              style={({ pressed }) => [styles.offerBanner, pressed && styles.btnPressed]}
+              onPress={createAccountFromPending}
+              disabled={googleLoading}
+              accessibilityRole="button"
+            >
+              <Feather name="user-plus" size={16} color="#b45309" />
+              <View style={styles.offerTextWrap}>
+                <Text style={styles.offerTitle}>
+                  {pendingSignup.email ?? "That Google account"} isn't registered
+                </Text>
+                <Text style={styles.offerAction}>Tap to create an account with it</Text>
+              </View>
+              <Pressable onPress={dismissPendingSignup} hitSlop={10}>
+                <Feather name="x" size={16} color="#b45309" />
+              </Pressable>
+            </Pressable>
+          )}
 
-          {/* Create account */}
-          <Pressable
-            style={({ pressed }) => [styles.outlineBtn, pressed && styles.btnPressed]}
-            onPress={() => router.push("/(auth)/register")}
-          >
-            <Text style={styles.outlineBtnText}>Create Account</Text>
-          </Pressable>
         </View>
+
+        {/* Create account — a footer action, not a third sign-in option */}
+        <Pressable style={styles.footerRow} onPress={() => router.push("/(auth)/register")}>
+          <Text style={styles.footerText}>
+            New to Upcheck? <Text style={styles.footerLink}>Create an account</Text>
+          </Text>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -219,7 +223,9 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   bgGradient: { ...StyleSheet.absoluteFillObject },
-  scroll: { paddingHorizontal: 20 },
+  // flexGrow + centring keeps the card vertically centred instead of stranding
+  // it at the top with a tall empty gradient below.
+  scroll: { paddingHorizontal: 20, flexGrow: 1, justifyContent: "center" },
 
   hero: { alignItems: "center", marginBottom: 28 },
   logoCircle: {
@@ -282,27 +288,24 @@ const styles = StyleSheet.create({
   linksRow: { alignItems: "center", marginTop: 12 },
   linkText: { fontSize: 14, color: "#16a34a", fontWeight: "600" },
 
-  otpBtn: {
+  // Borrowed from Upcheckapp's verifyBanner: a recoverable problem reads
+  // better as a tappable strip near the control that caused it than as a modal.
+  offerBanner: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderWidth: 1.5,
-    borderColor: "#d1fae5",
-    borderRadius: 14,
-    paddingVertical: 14,
-    backgroundColor: "#f0fdf4",
+    gap: 10,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#fffbeb",
+    borderLeftWidth: 3,
+    borderLeftColor: "#f59e0b",
   },
-  otpBtnText: { fontSize: 15, fontWeight: "600", color: "#0f766e" },
+  offerTextWrap: { flex: 1 },
+  offerTitle: { fontSize: 13, fontWeight: "700", color: "#b45309" },
+  offerAction: { fontSize: 12, color: "#b45309", marginTop: 2 },
 
-  outlineBtn: {
-    borderWidth: 1.5,
-    borderColor: "#d1fae5",
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-    backgroundColor: "#f0fdf4",
-    marginTop: 4,
-  },
-  outlineBtnText: { fontSize: 15, fontWeight: "700", color: "#16a34a" },
+  footerRow: { alignItems: "center", marginTop: 20 },
+  footerText: { fontSize: 14, color: "#cbd5e1" },
+  footerLink: { color: "#86efac", fontWeight: "700" },
 });

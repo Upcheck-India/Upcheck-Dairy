@@ -184,7 +184,10 @@ export default function LegalScreen() {
         style={styles.scrollArea}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: insets.bottom + 32 },
+          // Floor the inset: on Android it can report 0 while the system
+          // nav bar still overlays the window, which left the last card
+          // clipped behind it.
+          { paddingBottom: Math.max(insets.bottom, 24) + 32 },
         ]}
         showsVerticalScrollIndicator={false}
       >

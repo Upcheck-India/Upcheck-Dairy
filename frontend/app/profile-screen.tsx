@@ -18,9 +18,10 @@ import {
 import Svg, { Path, Rect, Circle, G } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
+import { FarmerAvatar } from "@/components/FarmerAvatar";
 import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { LANGUAGE_NAMES, type Language } from "@/context/LanguageContext";
+import { LANGUAGE_NAMES, LANGUAGE_NATIVE, type Language } from "@/context/LanguageContext";
 import { useFarmContext } from "../src/modules/farms/context/FarmProvider";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 import { LinearGradient } from "expo-linear-gradient";
@@ -50,37 +51,6 @@ function FarmIllustration() {
   );
 }
 
-function ProfileCardLandscape() {
-  return (
-    <View style={styles.landscapeContainer} pointerEvents="none">
-      <Svg width="100%" height={45} viewBox="0 0 350 45" preserveAspectRatio="none">
-        <Path d="M -20 45 Q 60 25 140 38 T 370 32 L 370 45 Z" fill="#dcfce7" opacity={0.5} />
-        <Path d="M -20 45 Q 80 18 190 32 T 370 22 L 370 45 Z" fill="#bbf7d0" opacity={0.45} />
-        <G transform="translate(250, 12) scale(0.55)">
-          <Rect x={32} y={12} width={10} height={28} fill="#86efac" rx={2} />
-          <Path d="M32 12 Q 37 4 42 12 Z" fill="#166534" />
-          <Path d="M 0 22 L 15 10 L 30 22 Z" fill="#15803d" />
-          <Rect x={2} y={22} width={26} height={18} fill="#22c55e" />
-          <Rect x={10} y={28} width={10} height={12} fill="#fff" />
-        </G>
-        <G transform="translate(15, 26) scale(0.8)">
-          <Path
-            d="M0 8 L0 18 M0 12 L20 12 M10 8 L10 18 M20 8 L20 18 M20 12 L40 12 M30 8 L30 18 M40 8 L40 18"
-            stroke="#16a34a"
-            strokeWidth={1.5}
-            opacity={0.4}
-          />
-        </G>
-        <Circle cx={85} cy={30} r={6} fill="#16a34a" opacity={0.6} />
-        <Circle cx={93} cy={32} r={5} fill="#15803d" opacity={0.5} />
-        <Circle cx={120} cy={35} r={5} fill="#22c55e" opacity={0.6} />
-        <Circle cx={310} cy={28} r={7} fill="#15803d" opacity={0.55} />
-        <Circle cx={320} cy={31} r={6} fill="#16a34a" opacity={0.6} />
-      </Svg>
-    </View>
-  );
-}
-
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useTabBarHeight();
@@ -98,6 +68,10 @@ export default function ProfileScreen() {
   const [editingFieldLabel, setEditingFieldLabel] = useState<string>("");
   const [editingFieldValue, setEditingFieldValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
+
+  // Linked, not "created with" — an email account that later signed in with
+  // Google still has authProvider === "email" but is genuinely connected.
+  const isGoogleAccount = !!farmer?.googleLinked;
 
   const [allAnimals, setAllAnimals] = useState<any[]>([]);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -224,6 +198,36 @@ export default function ProfileScreen() {
         hi: "सदस्यता",
         en: "Member Since",
       },
+      sectionAccount: {
+        ta: "கணக்கு",
+        hi: "खाता",
+        en: "Account",
+      },
+      sectionPreferences: {
+        ta: "விருப்பங்கள்",
+        hi: "प्राथमिकताएँ",
+        en: "Preferences",
+      },
+      sectionAbout: {
+        ta: "பற்றி",
+        hi: "बारे में",
+        en: "About",
+      },
+      signInMethod: {
+        ta: "உள்நுழைவு முறை",
+        hi: "साइन-इन विधि",
+        en: "Sign-in Method",
+      },
+      signInGoogle: {
+        ta: "Google மூலம் இணைக்கப்பட்டது",
+        hi: "Google से जुड़ा हुआ",
+        en: "Connected to Google",
+      },
+      signInPassword: {
+        ta: "மின்னஞ்சல் & கடவுச்சொல்",
+        hi: "ईमेल और पासवर्ड",
+        en: "Email & password",
+      },
       farmName: {
         ta: "பண்ணை பெயர்",
         hi: "फार्म का नाम",
@@ -253,22 +257,6 @@ export default function ProfileScreen() {
   };
 
   const handleOpenEdit = (field: string, label: string, initialValue: string) => {
-    if (field === "memberSince") {
-      Alert.alert(
-        language === "ta" ? "அறிவிப்பு" : "Notice",
-        language === "ta" ? "உறுப்பினர் சேர்ந்த தேதியை மாற்ற முடியாது." : "Membership date is automatically set and cannot be changed."
-      );
-      return;
-    }
-    if (field === "totalAnimals") {
-      Alert.alert(
-        language === "ta" ? "அறிவிப்பு" : "Notice",
-        language === "ta"
-          ? "மொத்த விலங்குகள் உங்கள் மந்தையின் அடிப்படையில் கணக்கிடப்படுகிறது. விலங்குகளைச் சேர்க்க அல்லது நீக்க மந்தை தாவலுக்குச் செல்லவும்."
-          : "Total Animals is calculated based on your active herd. Go to the Herd tab to add or edit animals."
-      );
-      return;
-    }
     setEditingField(field);
     setEditingFieldLabel(label);
     setEditingFieldValue(initialValue);
@@ -313,15 +301,6 @@ export default function ProfileScreen() {
           await farmRepository.update(selectedFarm.id, { location: cleanValue });
           setSelectedFarm((prev: any) => prev ? new Farm({ ...prev, location: cleanValue }) : null);
           await refreshFarms();
-        } else if (["village", "district", "state"].includes(editingField)) {
-          const parts = selectedFarm.location ? selectedFarm.location.split(",") : ["", "", ""];
-          if (editingField === "village") parts[0] = cleanValue;
-          if (editingField === "district") parts[1] = cleanValue;
-          if (editingField === "state") parts[2] = cleanValue;
-          const newLoc = parts.map(p => p.trim()).join(", ");
-          await farmRepository.update(selectedFarm.id, { location: newLoc });
-          setSelectedFarm((prev: any) => prev ? new Farm({ ...prev, location: newLoc }) : null);
-          await refreshFarms();
         } else {
           await updateProfile({ [editingField]: cleanValue });
         }
@@ -337,18 +316,18 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLanguagePress = () => {
-    Alert.alert(
-      t.language,
-      language === "ta" ? "மொழியைத் தேர்ந்தெடுக்கவும்" : "Select Language",
-      [
-        { text: "English", onPress: () => setLanguage("en") },
-        { text: "தமிழ்", onPress: () => setLanguage("ta") },
-        { text: "हिंदी", onPress: () => setLanguage("hi") },
-        { text: t.cancel, style: "cancel" },
-      ]
+  // A native Alert caps out at three buttons on Android, which is why only
+  // three of the six supported languages were reachable. A sheet lists them
+  // all, in their own script, with the current one marked.
+  const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
+  const handleLanguagePress = () => setLanguageSheetVisible(true);
+
+  const openNameEditor = () =>
+    handleOpenEdit(
+      "name",
+      language === "ta" ? "விவசாயி பெயர்" : "Farmer Name",
+      farmer?.name ?? ""
     );
-  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -406,11 +385,6 @@ export default function ProfileScreen() {
   const locationString = [farmer?.village, farmer?.state].filter(Boolean).join(", ") || farmer?.district || "—";
   const farmsCount = farms.length;
 
-  const locationParts = selectedFarm?.location ? selectedFarm.location.split(",") : [];
-  const farmVillage = locationParts[0]?.trim() || "";
-  const farmDistrict = locationParts[1]?.trim() || "";
-  const farmState = locationParts[2]?.trim() || "";
-
   const selectedFarmAnimalsCount = selectedFarm
     ? (allAnimals.length > 0 
         ? allAnimals.filter((a: any) => a.farmId === selectedFarm.id).length 
@@ -452,61 +426,48 @@ export default function ProfileScreen() {
               style={styles.gradientCard}
             >
               <View style={styles.profileCardContent}>
-                {/* Left Side: Avatar + Info */}
-                <View style={styles.profileMainInfo}>
-                  <Pressable
-                    style={[
-                      styles.avatar,
-                      { backgroundColor: farmer?.avatarColor ?? "#2563eb" },
-                    ]}
-                    onPress={() => handleOpenEdit("name", language === "ta" ? "விவசாயி பெயர்" : "Farmer Name", farmer?.name ?? "")}
-                  >
-                    <Text style={styles.avatarText}>{initials}</Text>
+                <Pressable onPress={openNameEditor}>
+                  <FarmerAvatar
+                    uri={farmer?.avatarUrl}
+                    initials={initials}
+                    color={farmer?.avatarColor ?? "#2563eb"}
+                    size={58}
+                    fontSize={22}
+                    style={styles.avatarShadow}
+                    textStyle={styles.avatarText}
+                  />
+                </Pressable>
+
+                <View style={styles.profileDetails}>
+                  <Pressable onPress={openNameEditor} style={styles.nameRow}>
+                    <Text style={styles.farmerName} numberOfLines={1}>
+                      {farmer?.name || "Add your name"}
+                    </Text>
+                    <Feather name="edit-2" size={13} color="#15803d" />
                   </Pressable>
 
-                  <View style={styles.profileDetails}>
-                    <Pressable
-                      onPress={() => handleOpenEdit("name", language === "ta" ? "விவசாயி பெயர்" : "Farmer Name", farmer?.name ?? "")}
-                      style={styles.nameRow}
-                    >
-                      <Text style={styles.farmerName}>{farmer?.name ?? "—"}</Text>
-                      <Feather name="edit-2" size={12} color="#6b7280" style={{ marginLeft: 4 }} />
-                    </Pressable>
+                  {/* The email is how the account is actually identified, and
+                      it was not shown here at all. */}
+                  {!!farmer?.email && (
+                    <Text style={styles.profileEmail} numberOfLines={1}>
+                      {farmer.email}
+                    </Text>
+                  )}
 
-                    <View style={styles.roleBadge}>
-                      <Feather name="user" size={10} color="#16a34a" />
-                      <Text style={styles.roleText}>Farmer</Text>
-                    </View>
-
-                    <View style={styles.infoLine}>
-                      <Feather name="map-pin" size={12} color="#4b5563" />
-                      <Text style={styles.smallText}>{locationString}</Text>
-                    </View>
-
-                    <View style={styles.infoLine}>
-                      <Feather name="calendar" size={12} color="#4b5563" />
-                      <Text style={styles.smallText}>
-                        <Text style={{ fontWeight: "700" }}>
-                          {language === "ta" ? "உறுப்பினர்: " : language === "hi" ? "सदस्यता: " : "Member since "}
-                        </Text>
-                        {memberSinceStr}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Right Side: Mini Farm Card */}
-                <Pressable style={styles.farmCard} onPress={() => setCurrentView("farms")}>
-                  <FarmIllustration />
-                  <Text style={styles.farmCount}>{farmsCount}</Text>
-                  <Text style={styles.farmText}>
-                    {farmsCount === 1 ? "Farm" : "Farms"}
+                  {/* One quiet line instead of a hardcoded "Farmer" badge, a
+                      location row and a separate member-since row. */}
+                  <Text style={styles.profileMeta} numberOfLines={1}>
+                    {[
+                      `${farmsCount} ${farmsCount === 1 ? "farm" : "farms"}`,
+                      locationString && locationString !== "—" ? locationString : null,
+                      memberSinceStr ? `Since ${memberSinceStr}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join("  ·  ")}
                   </Text>
-                </Pressable>
+                </View>
               </View>
 
-              {/* Bottom Hills Illustration SVG */}
-              <ProfileCardLandscape />
             </LinearGradient>
 
             {/* Stats Row */}
@@ -518,9 +479,6 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.statNum}>{totalAnimalsCount}</Text>
                 <Text style={styles.statLabel}>{t.totalAnimals}</Text>
-                <Text style={styles.statSub}>
-                  {language === "ta" ? "அனைத்து விலங்குகள்" : language === "hi" ? "सभी पशु" : "All animals"}
-                </Text>
               </View>
 
               {/* Card 2: Healthy */}
@@ -530,9 +488,6 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.statNum}>{healthyCows}</Text>
                 <Text style={styles.statLabel}>{t.healthy}</Text>
-                <Text style={styles.statSub}>
-                  {language === "ta" ? "நன்றாக உள்ளது" : language === "hi" ? "सब ঠিক ہے" : "Doing well"}
-                </Text>
               </View>
 
               {/* Card 3: Needs Attention */}
@@ -540,15 +495,15 @@ export default function ProfileScreen() {
                 <View style={[styles.statIconWrap, { backgroundColor: "#fff7ed" }]}>
                   <Feather name="alert-triangle" size={16} color="#ea580c" />
                 </View>
-                <Text style={[styles.statNum, { color: "#111827" }]}>{attentionCows}</Text>
-                <Text style={[styles.statLabel, { color: "#ea580c" }]}>{t.attention}</Text>
-                <Text style={styles.statSub}>
-                  {language === "ta" ? "கவனம் தேவை" : language === "hi" ? "देखभाल की जरूरत" : "Requires care"}
-                </Text>
+                <Text style={[styles.statNum, attentionCows > 0 && { color: "#ea580c" }]}>{attentionCows}</Text>
+                <Text style={styles.statLabel}>{t.attention}</Text>
               </View>
             </View>
 
-            {/* Options List */}
+            {/* Options, grouped: eight identical rows in one slab gave no
+                sense of what belongs with what. */}
+            <View>
+            <Text style={styles.sectionLabel}>{getLabel("sectionAccount")}</Text>
             <View style={styles.optionsContainer}>
               <ProfileOption
                 icon="user"
@@ -558,12 +513,19 @@ export default function ProfileScreen() {
               />
 
               <ProfileOption
+                last
                 icon="home"
                 title={getLabel("farmDetails")}
                 subtitle={getLabel("farmDetailsDesc")}
                 onPress={() => setCurrentView("farms")}
               />
 
+            </View>
+            </View>
+
+            <View>
+            <Text style={styles.sectionLabel}>{getLabel("sectionPreferences")}</Text>
+            <View style={styles.optionsContainer}>
               <ProfileOption
                 icon="globe"
                 title={t.language}
@@ -579,12 +541,19 @@ export default function ProfileScreen() {
               />
 
               <ProfileOption
+                last
                 icon="shield"
                 title={getLabel("devicePermissions")}
                 subtitle={getLabel("devicePermissionsDesc")}
                 onPress={() => router.push("/permission" as any)}
               />
 
+            </View>
+            </View>
+
+            <View>
+            <Text style={styles.sectionLabel}>{getLabel("sectionAbout")}</Text>
+            <View style={styles.optionsContainer}>
               <ProfileOption
                 icon="file-text"
                 title={getLabel("legalTerms")}
@@ -593,14 +562,20 @@ export default function ProfileScreen() {
               />
 
               <ProfileOption
+                last
                 icon="info"
                 title={getLabel("appInfo")}
                 subtitle={getLabel("appInfoDesc")}
                 onPress={() => router.push("/legal" as any)}
               />
 
+            </View>
+            </View>
+
+            <View style={styles.optionsContainer}>
               {farmer && (
                 <ProfileOption
+                  last
                   icon="log-out"
                   iconBgColor="#fef2f2"
                   iconColor="#ef4444"
@@ -618,39 +593,47 @@ export default function ProfileScreen() {
             <DetailRow
               icon="phone"
               label={t.phone}
-              value={farmer?.phone || "—"}
+              value={farmer?.phone}
               onPress={() => handleOpenEdit("phone", t.phone, farmer?.phone || "")}
             />
 
             <DetailRow
               icon="mail"
               label={getLabel("email")}
-              value={farmer?.email || "—"}
+              value={farmer?.email}
+              showChevron={false}
+            />
+            <DetailRow
+              icon={isGoogleAccount ? "google" : "lock"}
+              iconType={isGoogleAccount ? "material" : "feather"}
+              label={getLabel("signInMethod")}
+              value={getLabel(isGoogleAccount ? "signInGoogle" : "signInPassword")}
               showChevron={false}
             />
             <DetailRow
               icon="map-pin"
               label={t.village}
-              value={farmer?.village || "—"}
+              value={farmer?.village}
               onPress={() => handleOpenEdit("village", t.village, farmer?.village || "")}
             />
             <DetailRow
               icon="navigation"
               label={t.district}
-              value={farmer?.district || "—"}
+              value={farmer?.district}
               onPress={() => handleOpenEdit("district", t.district, farmer?.district || "")}
             />
             <DetailRow
               icon="map"
               label={getLabel("state")}
-              value={farmer?.state || "—"}
+              value={farmer?.state}
               onPress={() => handleOpenEdit("state", getLabel("state"), farmer?.state || "")}
             />
             <DetailRow
               icon="calendar"
+              last
               label={getLabel("memberSince")}
               value={memberSinceStr}
-              onPress={() => handleOpenEdit("memberSince", getLabel("memberSince"), memberSinceStr)}
+              showChevron={false}
             />
           </View>
         )}
@@ -694,33 +677,16 @@ export default function ProfileScreen() {
             <DetailRow
               icon="map-pin"
               label={getLabel("farmAddress")}
-              value={selectedFarm.location || "—"}
+              value={selectedFarm.location}
               onPress={() => handleOpenEdit("farmAddress", getLabel("farmAddress"), selectedFarm.location || "")}
-            />
-            <DetailRow
-              icon="map-pin"
-              label={t.village}
-              value={farmVillage || "—"}
-              onPress={() => handleOpenEdit("village", t.village, farmVillage || "")}
-            />
-            <DetailRow
-              icon="navigation"
-              label={t.district}
-              value={farmDistrict || "—"}
-              onPress={() => handleOpenEdit("district", t.district, farmDistrict || "")}
-            />
-            <DetailRow
-              icon="map"
-              label={getLabel("state")}
-              value={farmState || "—"}
-              onPress={() => handleOpenEdit("state", getLabel("state"), farmState || "")}
             />
             <DetailRow
               icon="cow"
               iconType="material"
+              last
               label={t.totalAnimals}
               value={selectedFarmAnimalsCount.toString()}
-              onPress={() => handleOpenEdit("totalAnimals", t.totalAnimals, selectedFarmAnimalsCount.toString())}
+              showChevron={false}
             />
           </View>
         )}
@@ -736,6 +702,41 @@ export default function ProfileScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Language sheet — all six, each in its own script */}
+      <Modal
+        visible={languageSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLanguageSheetVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setLanguageSheetVisible(false)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>{t.language}</Text>
+            {(Object.keys(LANGUAGE_NATIVE) as Language[]).map((code) => {
+              const selected = code === language;
+              return (
+                <Pressable
+                  key={code}
+                  style={[styles.langRow, selected && styles.langRowActive]}
+                  onPress={() => {
+                    setLanguage(code);
+                    setLanguageSheetVisible(false);
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.langNative, selected && styles.langNativeActive]}>
+                      {LANGUAGE_NATIVE[code].name}
+                    </Text>
+                    <Text style={styles.langEnglish}>{LANGUAGE_NATIVE[code].english}</Text>
+                  </View>
+                  {selected && <Feather name="check" size={18} color="#16a34a" />}
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Editing Modal */}
       <Modal
@@ -801,6 +802,7 @@ export default function ProfileScreen() {
 }
 
 interface ProfileOptionProps {
+  last?: boolean;
   icon: string;
   iconType?: "feather" | "material";
   title: string;
@@ -811,6 +813,7 @@ interface ProfileOptionProps {
 }
 
 function ProfileOption({
+  last,
   icon,
   iconType = "feather",
   title,
@@ -820,7 +823,7 @@ function ProfileOption({
   iconColor = "#16a34a",
 }: ProfileOptionProps) {
   return (
-    <Pressable style={styles.optionRow} onPress={onPress}>
+    <Pressable style={[styles.optionRow, last && styles.optionRowLast]} onPress={onPress}>
       <View style={[styles.optionIconWrap, { backgroundColor: iconBgColor }]}>
         {iconType === "material" ? (
           <MaterialCommunityIcons name={icon as any} size={18} color={iconColor} />
@@ -838,17 +841,18 @@ function ProfileOption({
 }
 
 interface DetailRowProps {
+  last?: boolean;
   icon: string;
   iconType?: "feather" | "material";
   label: string;
-  value: string;
+  value: string | null | undefined;
   onPress?: () => void;
   showChevron?: boolean;
 }
 
-function DetailRow({ icon, iconType = "feather", label, value, onPress, showChevron = true }: DetailRowProps) {
+function DetailRow({ icon, iconType = "feather", label, value, onPress, showChevron = true, last }: DetailRowProps) {
   return (
-    <Pressable style={styles.detailRow} onPress={onPress} disabled={!onPress}>
+    <Pressable style={[styles.detailRow, last && styles.detailRowLast]} onPress={onPress} disabled={!onPress}>
       <View style={styles.detailIconWrap}>
         {iconType === "material" ? (
           <MaterialCommunityIcons name={icon as any} size={18} color="#16a34a" />
@@ -858,7 +862,11 @@ function DetailRow({ icon, iconType = "feather", label, value, onPress, showChev
       </View>
       <View style={styles.detailContent}>
         <Text style={styles.detailLabel}>{label}</Text>
-        <Text style={styles.detailValue}>{value || "—"}</Text>
+        {/* An empty field reads as a dash with no hint that it can be filled.
+            Say so, and style it as absent rather than as a value. */}
+        <Text style={[styles.detailValue, !value && styles.detailValueEmpty]}>
+          {value || (onPress ? "Tap to add" : "Not set")}
+        </Text>
       </View>
       {showChevron && <Feather name="chevron-right" size={16} color="#9ca3af" />}
     </Pressable>
@@ -883,31 +891,18 @@ const styles = StyleSheet.create({
 
   // Profile Card
   gradientCard: {
-    borderRadius: 16,
-    padding: 12,
-    paddingBottom: 40, // space for landscape illustration
-    position: "relative",
+    borderRadius: 14,
+    padding: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#dcfce7",
   },
   profileCardContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  profileMainInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    marginRight: 8,
-  },
-  avatar: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    alignItems: "center",
-    justifyContent: "center",
+  avatarShadow: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
@@ -916,64 +911,24 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 24, fontWeight: "800", color: "#fff" },
   profileDetails: {
-    marginLeft: 10,
+    marginLeft: 14,
     flex: 1,
-    gap: 2,
+    gap: 3,
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 6,
   },
-  farmerName: { fontSize: 16, fontWeight: "700", color: "#111827" },
-  roleBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "#dcfce7",
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-    alignSelf: "flex-start",
-  },
-  roleText: { fontSize: 9, color: "#16a34a", fontWeight: "600" },
-  infoLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  smallText: { fontSize: 11, color: "#4b5563" },
+  // The name is the heading of the screen; it was the same size as a list
+  // row title while a 9px badge sat under it.
+  farmerName: { fontSize: 20, fontWeight: "800", color: "#111827", flexShrink: 1 },
+  profileEmail: { fontSize: 13, color: "#4b5563" },
+  profileMeta: { fontSize: 12, color: "#6b7280" },
 
   // Right Farm Card in header
-  farmCard: {
-    width: 64,
-    height: 74,
-    borderRadius: 12,
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#bbf7d0",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  farmCount: { fontSize: 15, fontWeight: "800", color: "#111827", marginTop: 2 },
-  farmText: { fontSize: 9, color: "#4b5563" },
 
   // Landscape Svg
-  landscapeContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 45,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    overflow: "hidden",
-  },
 
   // Stats Row
   statsRow: {
@@ -984,47 +939,47 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    padding: 10,
+    borderColor: "#e5e7eb",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
   },
   statIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 6,
   },
-  statNum: { fontSize: 16, fontWeight: "800", color: "#111827" },
-  statLabel: { fontSize: 9, fontWeight: "700", color: "#16a34a", marginTop: 2, textAlign: "center" },
-  statSub: { fontSize: 8, color: "#9ca3af", marginTop: 1, textAlign: "center" },
+  statNum: { fontSize: 26, fontWeight: "800", color: "#111827", lineHeight: 30 },
+  statLabel: { fontSize: 11, fontWeight: "600", color: "#6b7280", marginTop: 2, textAlign: "center" },
 
   // Options Menu List
   optionsContainer: {
     backgroundColor: "#ffffff",
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#edf2f7",
+    borderColor: "#e5e7eb",
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
   },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#9ca3af",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  optionRowLast: { borderBottomWidth: 0 },
   optionRow: {
     flexDirection: "row",
     alignItems: "center",
     padding: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#f7fafc",
+    borderBottomColor: "#f1f5f9",
   },
   optionIconWrap: {
     width: 32,
@@ -1038,28 +993,24 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   optionTitle: { fontSize: 14, fontWeight: "700", color: "#1a202c" },
-  optionSubtitle: { fontSize: 11, color: "#718096", marginTop: 2 },
+  optionSubtitle: { fontSize: 12, color: "#6b7280", marginTop: 2 },
 
   // Sub-view Cards
   cardContainer: {
     backgroundColor: "#ffffff",
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#edf2f7",
+    borderColor: "#e5e7eb",
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
   },
+  detailRowLast: { borderBottomWidth: 0 },
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f7fafc",
+    borderBottomColor: "#f1f5f9",
   },
   detailIconWrap: {
     width: 30,
@@ -1075,6 +1026,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: { fontSize: 11, color: "#718096", fontWeight: "500" },
   detailValue: { fontSize: 14, fontWeight: "700", color: "#1f2937", marginTop: 1 },
+  detailValueEmpty: { fontWeight: "500", color: "#9ca3af" },
 
   // Farms List View
   farmsContainer: {
@@ -1149,6 +1101,17 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   modalTitle: { fontSize: 16, fontWeight: "700", color: "#1a202c", marginBottom: 14 },
+  langRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  langRowActive: { backgroundColor: "#f0fdf4" },
+  langNative: { fontSize: 16, fontWeight: "600", color: "#1f2937" },
+  langNativeActive: { color: "#16a34a" },
+  langEnglish: { fontSize: 12, color: "#9ca3af", marginTop: 1 },
   modalInput: {
     borderWidth: 1.5,
     borderColor: "#e2e8f0",

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Inject, UseInterceptors, UploadedFile, BadRequestException } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Inject, UseInterceptors, UseFilters, UploadedFile, BadRequestException, ConflictException } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Throttle } from "@nestjs/throttler";
 import { FarmsService } from "../services/farms.service";
@@ -6,6 +6,8 @@ import { Public, GetUser } from "../../common/decorators/auth.decorators";
 import { CreateFarmDto } from "../dto/create-farm.dto";
 import { UpdateFarmDto } from "../dto/update-farm.dto";
 import { UserRepository } from "../../auth/repositories/user.repository";
+import { toPublicFarmer, type PublicFarmer } from "../../common/public-farmer";
+import { MulterExceptionFilter } from "../../common/multer-exception.filter";
 import type { Farmer } from "@workspace/db";
 
 @Controller("farms")
@@ -13,27 +15,27 @@ export class FarmsController {
   constructor(@Inject(FarmsService) private readonly farmsService: FarmsService) {}
 
   @Post()
-  async create(@GetUser() user: Farmer, @Body() body: CreateFarmDto) {
+  async create(@GetUser() user: PublicFarmer, @Body() body: CreateFarmDto) {
     return this.farmsService.createFarm(user.id, body.name, body.location);
   }
 
   @Get()
-  async getMyFarms(@GetUser() user: Farmer) {
+  async getMyFarms(@GetUser() user: PublicFarmer) {
     return this.farmsService.getFarmsByOwner(user.id);
   }
 
   @Get(":id")
-  async getById(@GetUser() user: Farmer, @Param("id") id: string) {
+  async getById(@GetUser() user: PublicFarmer, @Param("id") id: string) {
     return this.farmsService.getFarmById(id, user.id);
   }
 
   @Put(":id")
-  async update(@GetUser() user: Farmer, @Param("id") id: string, @Body() body: UpdateFarmDto) {
+  async update(@GetUser() user: PublicFarmer, @Param("id") id: string, @Body() body: UpdateFarmDto) {
     return this.farmsService.updateFarm(id, body, user.id);
   }
 
   @Delete(":id")
-  async remove(@GetUser() user: Farmer, @Param("id") id: string) {
+  async remove(@GetUser() user: PublicFarmer, @Param("id") id: string) {
     await this.farmsService.deleteFarm(id, user.id);
     return { success: true };
   }
@@ -47,19 +49,44 @@ export class LegacyFarmController {
   ) {}
 
   @Get("profile")
-  async getProfile(@GetUser() user: Farmer) {
+  async getProfile(@GetUser() user: PublicFarmer) {
     return user;
   }
 
   @Post("profile")
   async createOrUpdateProfile(
-    @GetUser() user: Farmer,
+    @GetUser() user: PublicFarmer,
     @Body() body: Partial<Farmer> & { notificationsEnabled?: boolean }
   ) {
     const updates: Partial<Farmer> = {};
     if (body.name !== undefined) updates.name = body.name;
-    if (body.phone !== undefined) updates.phone = body.phone;
-    if (body.email !== undefined) updates.email = body.email;
+    // A phone number typed into the profile form is a claim, not a proof, so
+    // writing one resets phoneVerified. Email is immutable here for the same
+    // reason (see below), but phone has to stay editable because the profile
+    // screen edits it — clearing the flag is what keeps the claim harmless.
+    // Any future phone sign-in MUST gate on phoneVerified; without that it
+    // would be the same takeover primitive the email rule exists to prevent.
+    if (body.phone !== undefined && body.phone !== user.phone) {
+      // farmers.phone is UNIQUE, so a number already in use would otherwise
+      // surface as a 500 from the constraint. Onboarding now requires a phone,
+      // which makes a collision a normal thing for a user to hit.
+      if (body.phone) {
+        const existing = await this.userRepository.findByPhone(body.phone);
+        if (existing && existing.id !== user.id) {
+          throw new ConflictException("That phone number is already registered");
+        }
+      }
+      updates.phone = body.phone;
+      updates.phoneVerified = false;
+    }
+    // `email` is deliberately NOT writable here. It is the identity this
+    // account is matched on — AuthService.googleLogin falls back to
+    // findByEmail when it has no googleId yet — so an unverified write is an
+    // account-takeover primitive: claim an address you do not own, and when
+    // its real owner first signs in with Google they are handed *your*
+    // farmer record, while you keep your password to it. Changing an email
+    // needs an ownership check (OTP to the new address); until that flow
+    // exists the address is fixed at sign-up. No client sends this field.
     if (body.farmName !== undefined) updates.farmName = body.farmName;
     if (body.village !== undefined) updates.village = body.village;
     if (body.district !== undefined) updates.district = body.district;
@@ -71,7 +98,7 @@ export class LegacyFarmController {
     if (body.notificationsEnabled !== undefined) updates.notificationPermission = body.notificationsEnabled;
     if (body.notificationPermission !== undefined) updates.notificationPermission = body.notificationPermission;
 
-    return this.userRepository.update(user.id, updates);
+    return toPublicFarmer(await this.userRepository.update(user.id, updates));
   }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -92,6 +119,7 @@ export class LegacyFarmController {
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post("transcribe")
+  @UseFilters(MulterExceptionFilter)
   @UseInterceptors(
     FileInterceptor("audio", {
       limits: {

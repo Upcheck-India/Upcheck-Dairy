@@ -4,6 +4,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
 
+import { FarmerAvatar } from "@/components/FarmerAvatar";
 import VoiceButton from "@/components/VoiceButton";
 import VoiceModal from "@/components/VoiceModal";
 import AddAnimalModal from "@/components/AddAnimalModal";
@@ -29,9 +30,13 @@ function ProfileAvatar() {
       onPress={() => router.push("/profile")}
       hitSlop={8}
     >
-      <View style={[styles.avatarCircle, { backgroundColor: farmer?.avatarColor ?? "#16a34a" }]}>
-        <Text style={styles.avatarText}>{initials}</Text>
-      </View>
+      <FarmerAvatar
+        uri={farmer?.avatarUrl}
+        initials={initials}
+        color={farmer?.avatarColor ?? "#16a34a"}
+        size={34}
+        fontSize={13}
+      />
     </Pressable>
   );
 }
@@ -261,14 +266,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatarBtn: { marginRight: 16 },
-  avatarCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: { color: "#fff", fontSize: 13, fontWeight: "700" },
   floatingActionWrap: {
     position: "absolute",
     left: 0,

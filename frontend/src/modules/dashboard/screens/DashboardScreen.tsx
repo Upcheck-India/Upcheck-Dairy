@@ -139,6 +139,7 @@ export function DashboardScreen() {
         onFarmPress={() => setSelectorVisible(true)}
         onProfilePress={() => router.push("/profile")}
         avatarColor={farmer?.avatarColor ?? colors.primary}
+        avatarUrl={farmer?.avatarUrl}
         initials={farmer?.name ? farmer.name.trim()[0]!.toUpperCase() : "?"}
         syncStatusLabel={syncLabel}
         syncStatusColor={syncDot}

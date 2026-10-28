@@ -19,6 +19,7 @@ import {
   useColorScheme,
 } from "react-native";
 
+import { FarmerAvatar } from "@/components/FarmerAvatar";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
 import StatCard from "@/components/StatCard";
 import { getTodayString, SmartAlert } from "@/context/AppContext";
@@ -325,11 +326,13 @@ export default function TodayTab() {
         {/* Greeting Row */}
         <View style={styles.greetingRow}>
           <Pressable style={styles.todayProfileBtn} onPress={() => router.push("/profile")} hitSlop={8}>
-            <View style={[styles.todayProfileCircle, { backgroundColor: farmer?.avatarColor ?? colors.primary }]}>
-              <Text style={styles.todayProfileInitial}>
-                {farmer?.name ? farmer.name.trim()[0]!.toUpperCase() : "?"}
-              </Text>
-            </View>
+            <FarmerAvatar
+              uri={farmer?.avatarUrl}
+              initials={farmer?.name ? farmer.name.trim()[0]!.toUpperCase() : "?"}
+              color={farmer?.avatarColor ?? colors.primary}
+              size={42}
+              fontSize={17}
+            />
           </Pressable>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={[styles.greeting, { color: colors.foreground }]}>
@@ -714,8 +717,6 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 20, fontWeight: "700" },
   greetingSub: { fontSize: 12, marginTop: 4, lineHeight: 18 },
   todayProfileBtn: { padding: 2 },
-  todayProfileCircle: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
-  todayProfileInitial: { color: "#fff", fontSize: 17, fontWeight: "700" },
   dateText: { fontSize: 12, fontWeight: "500" },
   weatherBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   weatherText: { fontSize: 11 },

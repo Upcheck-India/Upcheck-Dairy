@@ -5,7 +5,6 @@ import { AppModule } from "./app.module";
 import { ValidationPipe } from "@nestjs/common";
 import { logger } from "./lib/logger";
 import helmet from "helmet";
-import * as express from "express";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -100,8 +99,13 @@ async function bootstrap() {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
 
-  // Serve static files from the uploads directory
-  app.use("/uploads", express.static(uploadsDir));
+  // NOTE: uploads are deliberately NOT served statically. They used to be
+  // mounted here with express.static, which handed any uploaded photo or
+  // receipt to anyone who could guess a filename — no authentication, no
+  // ownership check, and outside the /api prefix so even the guard never saw
+  // it. They are now served by FilesController at GET /api/files/:filename,
+  // which requires a token and checks that the caller owns the farm whose
+  // record references the file.
 
   await app.listen(port, "0.0.0.0");
   logger.info({ port }, "NestJS Server listening");

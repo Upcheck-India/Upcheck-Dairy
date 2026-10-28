@@ -15,9 +15,17 @@ export const farmers = pgTable("farmers", {
   locationPermission: boolean("location_permission").default(false).notNull(),
   notificationPermission: boolean("notification_permission").default(false).notNull(),
   avatarInitials: text("avatar_initials"),
+  /** Profile picture URL from the OAuth provider; initials are the fallback. */
+  avatarUrl: text("avatar_url"),
   language: text("language").default("ta"),
   email: varchar("email", { length: 255 }).unique(),
   authProvider: varchar("auth_provider", { length: 20 }).default("phone"),
+  /**
+   * Google's `sub` claim — the stable per-account identifier. Unlike email it
+   * never changes, so it survives a user renaming their Gmail address and
+   * keeps two people who have swapped an address from colliding.
+   */
+  googleId: varchar("google_id", { length: 255 }).unique(),
   is2faEnabled: boolean("is_2fa_enabled").default(false).notNull(),
   totpSecret: text("totp_secret"),
   phoneVerified: boolean("phone_verified").default(false).notNull(),

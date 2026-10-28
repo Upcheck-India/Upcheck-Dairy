@@ -1,6 +1,21 @@
 import { Animal } from "../models/Animal";
 import { AnimalResponseDto } from "../types/AnimalDto";
 
+/**
+ * Turn a stored upload path into a fetchable URL.
+ *
+ * The backend stores `/uploads/<name>` but no longer serves that path — files
+ * come from the authenticated, ownership-checked `/api/files/<name>`. Mapping
+ * it here keeps every existing row working without a data migration. Render
+ * these with <AuthedImage>, which attaches the token.
+ */
+function toFileUrl(stored: string | null | undefined): string | null {
+  if (!stored) return stored ?? null;
+  if (!stored.startsWith("/uploads/")) return stored;
+  const base = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api";
+  return `${base.replace(/\/$/, "")}/files/${stored.slice("/uploads/".length)}`;
+}
+
 export class AnimalMapper {
   static toDomain(dto: AnimalResponseDto): Animal {
     return new Animal({
@@ -10,9 +25,7 @@ export class AnimalMapper {
       type: dto.type,
       breed: dto.breed,
       tagNumber: dto.tagNumber,
-      photoUri: dto.photoUri && dto.photoUri.startsWith("/uploads")
-        ? (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api").replace(/\/api$/, "") + dto.photoUri
-        : dto.photoUri,
+      photoUri: toFileUrl(dto.photoUri),
       healthStatus: dto.healthStatus,
       notes: dto.notes,
       birthDate: dto.birthDate ? new Date(dto.birthDate) : null,

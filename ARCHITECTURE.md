@@ -11,20 +11,34 @@ This document defines the architectural boundaries of the UpCheck Dairy applicat
 ```text
 src/
 ├── core/              # Global Application Infrastructure
-│   ├── api/           # ApiClient (in-memory config)
+│   ├── api/           # ApiClient (farm scope; token read from core/auth)
+│   ├── auth/          # TokenStore — session persistence and refresh
 │   ├── constants/     # Global Keys, Event names, Config
 │   ├── events/        # Global EventBus (emitter-based)
 │   └── storage/       # Low-level Storage wrappers
 │
 ├── shared/            # Reusable UI & Utilities
-│   ├── components/    # Reusable design components (Buttons, Cards, Inputs)
-│   ├── hooks/         # Shared React hooks (e.g. useColors)
-│   └── utils/         # Helper functions, formatters
+│   └── types/         # Cross-module types
 │
 └── modules/           # Business Feature Modules
-    ├── auth/          # User authentication and settings
-    └── farms/         # Farm management and active farm context
+    ├── animals/       ├── breeding/      ├── dashboard/
+    ├── farms/         ├── finance/       ├── health/
+    ├── herd/          ├── inventory/     ├── milk/
+    ├── tasks/         └── vaccination/
 ```
+
+### The second tree
+
+`src/` is the target architecture, not the whole app. Pre-migration code still
+lives in `app/`, `components/`, `context/`, `hooks/`, `screens/` and
+`services/` at the frontend root — notably **auth and the farmer profile**,
+which were never migrated into a module.
+
+New work belongs in `src/modules/`. When touching the old tree, prefer moving
+the piece you are changing over extending it in place. Two HTTP clients exist
+for this reason (`core/api/ApiClient` and `services/api.ts`); both read their
+token from `core/auth/TokenStore`, which is the single source of session
+truth.
 
 ---
 
@@ -234,6 +248,13 @@ The EventBus is intended only for global application events.
 - **Domain Models**: Unit tested independently for business rules, formatting, and computed properties.
 - **ApiClient**: Integration tested independently against static mock endpoints.
 
+> **Intent, not current state.** Today there are three frontend suites covering
+> domain services and utils, and three backend integration suites run by
+> `node --test` (`api-server/test/integration.test.ts`) which boot the API and
+> check validation, the JWT guard, headers, CORS and throttling. Nothing yet
+> covers repositories, providers, components or screens — treat the list above
+> as the shape coverage should take as it grows.
+
 ---
 
 ## 15. Complete End-to-End System Alignment
@@ -329,18 +350,27 @@ Domain Services encapsulate business logic that does not naturally belong to a s
 
 ## 19. Feature Modules Status
 
-### Current Modules
-- [x] **Auth**: authentication and settings
-- [x] **Farms**: Farm management and active farm context
-- [x] **Animals**: Animal profiles, breed, tag, weight, and lifecycle
+### Feature modules (`src/modules/`)
+- [x] **Farms**: farm management and active farm context
+- [x] **Animals**: profiles, breed, tag, weight, lifecycle
 - [x] **Milk**: collection logging, daily production metrics
-- [x] **Health**: diseases, vaccinations, treatments
-- [x] **Breeding**: heat cycle monitoring, pregnancy, calving history
+- [x] **Health**: diseases, treatments
+- [x] **Vaccination**: schedule and history
+- [x] **Breeding**: heat monitoring, pregnancy, calving history
 - [x] **Inventory**: feed, medicines, supplies, equipment
 - [x] **Tasks**: daily routines, reminders, schedules
-- [x] **Finance**: income, feed/medicine expenses, sales
-- [x] **Dashboard**: composition hook orchestrating feature hook metrics
+- [x] **Finance**: income, expenses, sales, reconciliation
 
-### Upcoming Modules
+### Composition modules
+- [x] **Dashboard**: orchestrates feature hooks; owns no data
+- [x] **Herd**: sheds, farmer-defined categories, event timelines
+
+### Not yet modules
+- [ ] **Auth**: still in `context/FarmerContext` and `services/api.ts`
 - [ ] **Analytics**: yields, profit margins, cost-to-feed forecasting
-- [ ] **AI (GauGuru)**: voice diagnostics, assistant chat interfaces
+- [ ] **AI (GauGuru)**: screens live in the old tree; endpoints are live
+
+### Backend modules (`backend/api-server/src/`)
+`auth`, `farms`, `animals`, `milk`, `health-events`, `breeding-events`,
+`vaccinations`, `inventory-items`, `tasks`, `financials`, `files`, plus the
+infrastructure modules `database`, `redis`, `notifications` and `health-check`.

@@ -1,11 +1,13 @@
-import { Controller, Get, Post, Delete, Body, Param, Inject, Headers, ParseIntPipe, UseInterceptors, UploadedFile, BadRequestException } from "@nestjs/common";
+import { Controller, Get, Post, Delete, Body, Param, Inject, Headers, ParseIntPipe, UseInterceptors, UploadedFile, BadRequestException , UseFilters } from "@nestjs/common";
 import { FinancialsService } from "../services/financials.service";
 import { CreateIncomeEntryDto } from "../dto/create-income-entry.dto";
 import { CreateExpenseEntryDto } from "../dto/create-expense-entry.dto";
 import { GetUser } from "../../common/decorators/auth.decorators";
-import type { Farmer } from "@workspace/db";
+import type { PublicFarmer } from "../../common/public-farmer";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+import { MulterExceptionFilter } from "../../common/multer-exception.filter";
+import { randomBytes } from "node:crypto";
 import { extname } from "path";
 
 @Controller("financials")
@@ -13,22 +15,26 @@ export class FinancialsController {
   constructor(@Inject(FinancialsService) private readonly financialsService: FinancialsService) {}
 
   @Get("overview")
-  async getOverview(@GetUser() user: Farmer, @Headers("x-farm-id") farmId: string) {
+  async getOverview(@GetUser() user: PublicFarmer, @Headers("x-farm-id") farmId: string) {
     return this.financialsService.getOverview(user.id, farmId);
   }
 
   @Get("passbook")
-  async getPassbook(@GetUser() user: Farmer, @Headers("x-farm-id") farmId: string) {
+  async getPassbook(@GetUser() user: PublicFarmer, @Headers("x-farm-id") farmId: string) {
     return this.financialsService.getPassbookEntries(user.id, farmId);
   }
 
   @Post("upload")
+  @UseFilters(MulterExceptionFilter)
   @UseInterceptors(
     FileInterceptor("file", {
       storage: diskStorage({
         destination: "./uploads",
         filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+          // crypto, not Math.random: the filename is part of the file's URL,
+          // so a predictable one is worth avoiding even behind the ownership
+          // check in FilesService.
+          const uniqueSuffix = Date.now() + "-" + randomBytes(8).toString("hex");
           cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
         },
       }),
@@ -51,17 +57,17 @@ export class FinancialsController {
   // ── Income ────────────────────────────────────────────────────────────────
 
   @Get("income")
-  async getIncome(@GetUser() user: Farmer, @Headers("x-farm-id") farmId: string) {
+  async getIncome(@GetUser() user: PublicFarmer, @Headers("x-farm-id") farmId: string) {
     return this.financialsService.getIncomeEntries(user.id, farmId);
   }
 
   @Post("income")
-  async createIncome(@GetUser() user: Farmer, @Body() dto: CreateIncomeEntryDto) {
+  async createIncome(@GetUser() user: PublicFarmer, @Body() dto: CreateIncomeEntryDto) {
     return this.financialsService.createIncomeEntry(user.id, dto);
   }
 
   @Delete("income/:id")
-  async deleteIncome(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+  async deleteIncome(@GetUser() user: PublicFarmer, @Param("id", ParseIntPipe) id: number) {
     await this.financialsService.deleteIncomeEntry(user.id, id);
     return { success: true };
   }
@@ -69,17 +75,17 @@ export class FinancialsController {
   // ── Expenses ──────────────────────────────────────────────────────────────
 
   @Get("expenses")
-  async getExpenses(@GetUser() user: Farmer, @Headers("x-farm-id") farmId: string) {
+  async getExpenses(@GetUser() user: PublicFarmer, @Headers("x-farm-id") farmId: string) {
     return this.financialsService.getExpenseEntries(user.id, farmId);
   }
 
   @Post("expenses")
-  async createExpense(@GetUser() user: Farmer, @Body() dto: CreateExpenseEntryDto) {
+  async createExpense(@GetUser() user: PublicFarmer, @Body() dto: CreateExpenseEntryDto) {
     return this.financialsService.createExpenseEntry(user.id, dto);
   }
 
   @Delete("expenses/:id")
-  async deleteExpense(@GetUser() user: Farmer, @Param("id", ParseIntPipe) id: number) {
+  async deleteExpense(@GetUser() user: PublicFarmer, @Param("id", ParseIntPipe) id: number) {
     await this.financialsService.deleteExpenseEntry(user.id, id);
     return { success: true };
   }
