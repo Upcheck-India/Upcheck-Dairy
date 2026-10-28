@@ -555,7 +555,7 @@ export default function ProfileScreen() {
                 <Text style={styles.statNum}>{healthyCows}</Text>
                 <Text style={styles.statLabel}>{t.healthy}</Text>
                 <Text style={styles.statSub}>
-                  {language === "ta" ? "நன்றாக உள்ளது" : language === "hi" ? "सब ঠিক ہے" : "Doing well"}
+                  {language === "ta" ? "நன்றாக உள்ளது" : language === "hi" ? "सब ठीक है" : "Doing well"}
                 </Text>
               </View>
 
