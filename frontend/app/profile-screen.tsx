@@ -21,7 +21,7 @@ import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { FarmerAvatar } from "@/components/FarmerAvatar";
 import { useFarmer } from "@/context/FarmerContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { LANGUAGE_NAMES, type Language } from "@/context/LanguageContext";
+import { LANGUAGE_NAMES, LANGUAGE_NATIVE, type Language } from "@/context/LanguageContext";
 import { useFarmContext } from "../src/modules/farms/context/FarmProvider";
 import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
 import { LinearGradient } from "expo-linear-gradient";
@@ -48,37 +48,6 @@ function FarmIllustration() {
       <Circle cx={28} cy={18} r={4} fill="#22c55e" />
       <Circle cx={34} cy={18} r={4} fill="#22c55e" />
     </Svg>
-  );
-}
-
-function ProfileCardLandscape() {
-  return (
-    <View style={styles.landscapeContainer} pointerEvents="none">
-      <Svg width="100%" height={45} viewBox="0 0 350 45" preserveAspectRatio="none">
-        <Path d="M -20 45 Q 60 25 140 38 T 370 32 L 370 45 Z" fill="#dcfce7" opacity={0.5} />
-        <Path d="M -20 45 Q 80 18 190 32 T 370 22 L 370 45 Z" fill="#bbf7d0" opacity={0.45} />
-        <G transform="translate(250, 12) scale(0.55)">
-          <Rect x={32} y={12} width={10} height={28} fill="#86efac" rx={2} />
-          <Path d="M32 12 Q 37 4 42 12 Z" fill="#166534" />
-          <Path d="M 0 22 L 15 10 L 30 22 Z" fill="#15803d" />
-          <Rect x={2} y={22} width={26} height={18} fill="#22c55e" />
-          <Rect x={10} y={28} width={10} height={12} fill="#fff" />
-        </G>
-        <G transform="translate(15, 26) scale(0.8)">
-          <Path
-            d="M0 8 L0 18 M0 12 L20 12 M10 8 L10 18 M20 8 L20 18 M20 12 L40 12 M30 8 L30 18 M40 8 L40 18"
-            stroke="#16a34a"
-            strokeWidth={1.5}
-            opacity={0.4}
-          />
-        </G>
-        <Circle cx={85} cy={30} r={6} fill="#16a34a" opacity={0.6} />
-        <Circle cx={93} cy={32} r={5} fill="#15803d" opacity={0.5} />
-        <Circle cx={120} cy={35} r={5} fill="#22c55e" opacity={0.6} />
-        <Circle cx={310} cy={28} r={7} fill="#15803d" opacity={0.55} />
-        <Circle cx={320} cy={31} r={6} fill="#16a34a" opacity={0.6} />
-      </Svg>
-    </View>
   );
 }
 
@@ -357,18 +326,11 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLanguagePress = () => {
-    Alert.alert(
-      t.language,
-      language === "ta" ? "மொழியைத் தேர்ந்தெடுக்கவும்" : "Select Language",
-      [
-        { text: "English", onPress: () => setLanguage("en") },
-        { text: "தமிழ்", onPress: () => setLanguage("ta") },
-        { text: "हिंदी", onPress: () => setLanguage("hi") },
-        { text: t.cancel, style: "cancel" },
-      ]
-    );
-  };
+  // A native Alert caps out at three buttons on Android, which is why only
+  // three of the six supported languages were reachable. A sheet lists them
+  // all, in their own script, with the current one marked.
+  const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
+  const handleLanguagePress = () => setLanguageSheetVisible(true);
 
   const handleLogout = () => {
     Alert.alert(
@@ -502,10 +464,14 @@ export default function ProfileScreen() {
                       <Text style={styles.roleText}>Farmer</Text>
                     </View>
 
-                    <View style={styles.infoLine}>
-                      <Feather name="map-pin" size={12} color="#4b5563" />
-                      <Text style={styles.smallText}>{locationString}</Text>
-                    </View>
+                    {/* A lone em dash is noise; show the line only when there
+                        is a location to show. */}
+                    {!!locationString && locationString !== "—" && (
+                      <View style={styles.infoLine}>
+                        <Feather name="map-pin" size={12} color="#4b5563" />
+                        <Text style={styles.smallText}>{locationString}</Text>
+                      </View>
+                    )}
 
                     <View style={styles.infoLine}>
                       <Feather name="calendar" size={12} color="#4b5563" />
@@ -529,8 +495,6 @@ export default function ProfileScreen() {
                 </Pressable>
               </View>
 
-              {/* Bottom Hills Illustration SVG */}
-              <ProfileCardLandscape />
             </LinearGradient>
 
             {/* Stats Row */}
@@ -542,9 +506,6 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.statNum}>{totalAnimalsCount}</Text>
                 <Text style={styles.statLabel}>{t.totalAnimals}</Text>
-                <Text style={styles.statSub}>
-                  {language === "ta" ? "அனைத்து விலங்குகள்" : language === "hi" ? "सभी पशु" : "All animals"}
-                </Text>
               </View>
 
               {/* Card 2: Healthy */}
@@ -554,9 +515,6 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.statNum}>{healthyCows}</Text>
                 <Text style={styles.statLabel}>{t.healthy}</Text>
-                <Text style={styles.statSub}>
-                  {language === "ta" ? "நன்றாக உள்ளது" : language === "hi" ? "सब ठीक है" : "Doing well"}
-                </Text>
               </View>
 
               {/* Card 3: Needs Attention */}
@@ -566,9 +524,6 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={[styles.statNum, { color: "#111827" }]}>{attentionCows}</Text>
                 <Text style={[styles.statLabel, { color: "#ea580c" }]}>{t.attention}</Text>
-                <Text style={styles.statSub}>
-                  {language === "ta" ? "கவனம் தேவை" : language === "hi" ? "देखभाल की जरूरत" : "Requires care"}
-                </Text>
               </View>
             </View>
 
@@ -642,14 +597,14 @@ export default function ProfileScreen() {
             <DetailRow
               icon="phone"
               label={t.phone}
-              value={farmer?.phone || "—"}
+              value={farmer?.phone}
               onPress={() => handleOpenEdit("phone", t.phone, farmer?.phone || "")}
             />
 
             <DetailRow
               icon="mail"
               label={getLabel("email")}
-              value={farmer?.email || "—"}
+              value={farmer?.email}
               showChevron={false}
             />
             <DetailRow
@@ -662,26 +617,26 @@ export default function ProfileScreen() {
             <DetailRow
               icon="map-pin"
               label={t.village}
-              value={farmer?.village || "—"}
+              value={farmer?.village}
               onPress={() => handleOpenEdit("village", t.village, farmer?.village || "")}
             />
             <DetailRow
               icon="navigation"
               label={t.district}
-              value={farmer?.district || "—"}
+              value={farmer?.district}
               onPress={() => handleOpenEdit("district", t.district, farmer?.district || "")}
             />
             <DetailRow
               icon="map"
               label={getLabel("state")}
-              value={farmer?.state || "—"}
+              value={farmer?.state}
               onPress={() => handleOpenEdit("state", getLabel("state"), farmer?.state || "")}
             />
             <DetailRow
               icon="calendar"
               label={getLabel("memberSince")}
               value={memberSinceStr}
-              onPress={() => handleOpenEdit("memberSince", getLabel("memberSince"), memberSinceStr)}
+              showChevron={false}
             />
           </View>
         )}
@@ -725,25 +680,25 @@ export default function ProfileScreen() {
             <DetailRow
               icon="map-pin"
               label={getLabel("farmAddress")}
-              value={selectedFarm.location || "—"}
+              value={selectedFarm.location}
               onPress={() => handleOpenEdit("farmAddress", getLabel("farmAddress"), selectedFarm.location || "")}
             />
             <DetailRow
               icon="map-pin"
               label={t.village}
-              value={farmVillage || "—"}
+              value={farmVillage}
               onPress={() => handleOpenEdit("village", t.village, farmVillage || "")}
             />
             <DetailRow
               icon="navigation"
               label={t.district}
-              value={farmDistrict || "—"}
+              value={farmDistrict}
               onPress={() => handleOpenEdit("district", t.district, farmDistrict || "")}
             />
             <DetailRow
               icon="map"
               label={getLabel("state")}
-              value={farmState || "—"}
+              value={farmState}
               onPress={() => handleOpenEdit("state", getLabel("state"), farmState || "")}
             />
             <DetailRow
@@ -751,7 +706,7 @@ export default function ProfileScreen() {
               iconType="material"
               label={t.totalAnimals}
               value={selectedFarmAnimalsCount.toString()}
-              onPress={() => handleOpenEdit("totalAnimals", t.totalAnimals, selectedFarmAnimalsCount.toString())}
+              showChevron={false}
             />
           </View>
         )}
@@ -767,6 +722,41 @@ export default function ProfileScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Language sheet — all six, each in its own script */}
+      <Modal
+        visible={languageSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLanguageSheetVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setLanguageSheetVisible(false)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>{t.language}</Text>
+            {(Object.keys(LANGUAGE_NATIVE) as Language[]).map((code) => {
+              const selected = code === language;
+              return (
+                <Pressable
+                  key={code}
+                  style={[styles.langRow, selected && styles.langRowActive]}
+                  onPress={() => {
+                    setLanguage(code);
+                    setLanguageSheetVisible(false);
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.langNative, selected && styles.langNativeActive]}>
+                      {LANGUAGE_NATIVE[code].name}
+                    </Text>
+                    <Text style={styles.langEnglish}>{LANGUAGE_NATIVE[code].english}</Text>
+                  </View>
+                  {selected && <Feather name="check" size={18} color="#16a34a" />}
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Editing Modal */}
       <Modal
@@ -872,7 +862,7 @@ interface DetailRowProps {
   icon: string;
   iconType?: "feather" | "material";
   label: string;
-  value: string;
+  value: string | null | undefined;
   onPress?: () => void;
   showChevron?: boolean;
 }
@@ -889,7 +879,11 @@ function DetailRow({ icon, iconType = "feather", label, value, onPress, showChev
       </View>
       <View style={styles.detailContent}>
         <Text style={styles.detailLabel}>{label}</Text>
-        <Text style={styles.detailValue}>{value || "—"}</Text>
+        {/* An empty field reads as a dash with no hint that it can be filled.
+            Say so, and style it as absent rather than as a value. */}
+        <Text style={[styles.detailValue, !value && styles.detailValueEmpty]}>
+          {value || (onPress ? "Tap to add" : "Not set")}
+        </Text>
       </View>
       {showChevron && <Feather name="chevron-right" size={16} color="#9ca3af" />}
     </Pressable>
@@ -990,16 +984,6 @@ const styles = StyleSheet.create({
   farmText: { fontSize: 9, color: "#4b5563" },
 
   // Landscape Svg
-  landscapeContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 45,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    overflow: "hidden",
-  },
 
   // Stats Row
   statsRow: {
@@ -1030,7 +1014,6 @@ const styles = StyleSheet.create({
   },
   statNum: { fontSize: 16, fontWeight: "800", color: "#111827" },
   statLabel: { fontSize: 9, fontWeight: "700", color: "#16a34a", marginTop: 2, textAlign: "center" },
-  statSub: { fontSize: 8, color: "#9ca3af", marginTop: 1, textAlign: "center" },
 
   // Options Menu List
   optionsContainer: {
@@ -1101,6 +1084,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: { fontSize: 11, color: "#718096", fontWeight: "500" },
   detailValue: { fontSize: 14, fontWeight: "700", color: "#1f2937", marginTop: 1 },
+  detailValueEmpty: { fontWeight: "500", color: "#9ca3af" },
 
   // Farms List View
   farmsContainer: {
@@ -1175,6 +1159,17 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   modalTitle: { fontSize: 16, fontWeight: "700", color: "#1a202c", marginBottom: 14 },
+  langRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  langRowActive: { backgroundColor: "#f0fdf4" },
+  langNative: { fontSize: 16, fontWeight: "600", color: "#1f2937" },
+  langNativeActive: { color: "#16a34a" },
+  langEnglish: { fontSize: 12, color: "#9ca3af", marginTop: 1 },
   modalInput: {
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
