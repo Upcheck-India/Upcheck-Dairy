@@ -55,10 +55,6 @@ export default function LocationScreen() {
             Alert.alert("Error", "Please enter your district");
             return;
         }
-        if (!data.state.trim()) {
-            Alert.alert("Error", "Please enter your state");
-            return;
-        }
 
         if (validateCurrentStep()) {
             goNext();
@@ -116,7 +112,6 @@ export default function LocationScreen() {
 
                     <InputField
                         label={t.onboardingLocationStateLabel}
-                        required
                         placeholder={t.onboardingLocationStatePlaceholder}
                         value={data.state}
                         onChangeText={(text) =>

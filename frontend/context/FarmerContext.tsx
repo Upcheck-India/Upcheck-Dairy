@@ -182,7 +182,9 @@ export function FarmerProvider({ children }: { children: React.ReactNode }) {
 
     const profileData: Partial<FarmerProfile> = {
       name: data.name.trim(),
-      phone: data.phone,
+      // Omit rather than send "" — farmers.phone is UNIQUE, so a second
+      // profile saved with an empty string would collide with the first.
+      phone: data.phone?.trim() || undefined,
       village: data.village?.trim(),
       district: data.district?.trim(),
       state: data.state ?? "Tamil Nadu",

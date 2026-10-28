@@ -187,7 +187,11 @@ export function OnboardingProvider({
       * 4 → Success
       */
 
-    const [currentStep, setCurrentStep] = useState(0);
+    // Skip the welcome screen for anyone who already signed in — it is
+    // informational, and they have just come through an auth flow.
+    const [currentStep, setCurrentStep] = useState(() =>
+        farmer?.name && (farmer?.email || user?.email) ? 1 : 0
+    );
 
     const totalSteps = 5;
 
@@ -304,21 +308,25 @@ export function OnboardingProvider({
             /**
              * Farm Details
              */
+            // Only the owner's name is genuinely needed, and Google or OTP
+            // sign-in has already supplied it. farmName falls back to
+            // "<name>'s Farm" when saving, and phone is nullable — requiring
+            // either here just blocked people on data the app can do without.
             case 1:
                 return (
-                    data.farmName.trim().length > 0 &&
                     data.ownerName.trim().length > 0 &&
-                    data.phone.trim().length === 10
+                    (data.phone.trim().length === 0 || data.phone.trim().length === 10)
                 );
 
             /**
              * Location
              */
+            // village and district are the pair AuthGuard gates on, so they
+            // are genuinely required. state defaults when saving.
             case 2:
                 return (
                     data.village.trim().length > 0 &&
-                    data.district.trim().length > 0 &&
-                    data.state.trim().length > 0
+                    data.district.trim().length > 0
                 );
 
             /**

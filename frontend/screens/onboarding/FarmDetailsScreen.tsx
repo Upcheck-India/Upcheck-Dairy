@@ -47,16 +47,14 @@ export default function FarmDetailsScreen() {
     const { t } = useLanguage();
 
     function handleNext() {
-        if (!data.farmName.trim()) {
-            Alert.alert("Error", "Please enter your farm name");
-            return;
-        }
         if (!data.ownerName.trim()) {
             Alert.alert("Error", "Please enter the owner's name");
             return;
         }
-        if (data.phone.trim().length !== 10) {
-            Alert.alert("Error", "Please enter a valid 10-digit phone number");
+        // Phone is optional; only check the format when something was typed.
+        const phone = data.phone.trim();
+        if (phone.length > 0 && phone.length !== 10) {
+            Alert.alert("Error", "Please enter a valid 10-digit phone number, or leave it blank");
             return;
         }
 
@@ -92,7 +90,6 @@ export default function FarmDetailsScreen() {
                 <View style={styles.form}>
                     <InputField
                         label={t.onboardingFarmDetailsFarmNameLabel}
-                        required
                         placeholder={t.onboardingFarmDetailsFarmNamePlaceholder}
                         value={data.farmName}
                         onChangeText={(text) =>
@@ -116,7 +113,6 @@ export default function FarmDetailsScreen() {
 
                     <InputField
                         label={t.onboardingPhoneLabel}
-                        required
                         placeholder={t.onboardingFarmDetailsPhonePlaceholder}
                         keyboardType="phone-pad"
                         maxLength={10}
