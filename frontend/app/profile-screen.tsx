@@ -198,6 +198,21 @@ export default function ProfileScreen() {
         hi: "सदस्यता",
         en: "Member Since",
       },
+      sectionAccount: {
+        ta: "கணக்கு",
+        hi: "खाता",
+        en: "Account",
+      },
+      sectionPreferences: {
+        ta: "விருப்பங்கள்",
+        hi: "प्राथमिकताएँ",
+        en: "Preferences",
+      },
+      sectionAbout: {
+        ta: "பற்றி",
+        hi: "बारे में",
+        en: "About",
+      },
       signInMethod: {
         ta: "உள்நுழைவு முறை",
         hi: "साइन-इन विधि",
@@ -492,12 +507,15 @@ export default function ProfileScreen() {
                 <View style={[styles.statIconWrap, { backgroundColor: "#fff7ed" }]}>
                   <Feather name="alert-triangle" size={16} color="#ea580c" />
                 </View>
-                <Text style={[styles.statNum, { color: "#111827" }]}>{attentionCows}</Text>
-                <Text style={[styles.statLabel, { color: "#ea580c" }]}>{t.attention}</Text>
+                <Text style={[styles.statNum, attentionCows > 0 && { color: "#ea580c" }]}>{attentionCows}</Text>
+                <Text style={styles.statLabel}>{t.attention}</Text>
               </View>
             </View>
 
-            {/* Options List */}
+            {/* Options, grouped: eight identical rows in one slab gave no
+                sense of what belongs with what. */}
+            <View>
+            <Text style={styles.sectionLabel}>{getLabel("sectionAccount")}</Text>
             <View style={styles.optionsContainer}>
               <ProfileOption
                 icon="user"
@@ -507,12 +525,19 @@ export default function ProfileScreen() {
               />
 
               <ProfileOption
+                last
                 icon="home"
                 title={getLabel("farmDetails")}
                 subtitle={getLabel("farmDetailsDesc")}
                 onPress={() => setCurrentView("farms")}
               />
 
+            </View>
+            </View>
+
+            <View>
+            <Text style={styles.sectionLabel}>{getLabel("sectionPreferences")}</Text>
+            <View style={styles.optionsContainer}>
               <ProfileOption
                 icon="globe"
                 title={t.language}
@@ -528,12 +553,19 @@ export default function ProfileScreen() {
               />
 
               <ProfileOption
+                last
                 icon="shield"
                 title={getLabel("devicePermissions")}
                 subtitle={getLabel("devicePermissionsDesc")}
                 onPress={() => router.push("/permission" as any)}
               />
 
+            </View>
+            </View>
+
+            <View>
+            <Text style={styles.sectionLabel}>{getLabel("sectionAbout")}</Text>
+            <View style={styles.optionsContainer}>
               <ProfileOption
                 icon="file-text"
                 title={getLabel("legalTerms")}
@@ -542,14 +574,20 @@ export default function ProfileScreen() {
               />
 
               <ProfileOption
+                last
                 icon="info"
                 title={getLabel("appInfo")}
                 subtitle={getLabel("appInfoDesc")}
                 onPress={() => router.push("/legal" as any)}
               />
 
+            </View>
+            </View>
+
+            <View style={styles.optionsContainer}>
               {farmer && (
                 <ProfileOption
+                  last
                   icon="log-out"
                   iconBgColor="#fef2f2"
                   iconColor="#ef4444"
@@ -604,6 +642,7 @@ export default function ProfileScreen() {
             />
             <DetailRow
               icon="calendar"
+              last
               label={getLabel("memberSince")}
               value={memberSinceStr}
               showChevron={false}
@@ -656,6 +695,7 @@ export default function ProfileScreen() {
             <DetailRow
               icon="cow"
               iconType="material"
+              last
               label={t.totalAnimals}
               value={selectedFarmAnimalsCount.toString()}
               showChevron={false}
@@ -774,6 +814,7 @@ export default function ProfileScreen() {
 }
 
 interface ProfileOptionProps {
+  last?: boolean;
   icon: string;
   iconType?: "feather" | "material";
   title: string;
@@ -784,6 +825,7 @@ interface ProfileOptionProps {
 }
 
 function ProfileOption({
+  last,
   icon,
   iconType = "feather",
   title,
@@ -793,7 +835,7 @@ function ProfileOption({
   iconColor = "#16a34a",
 }: ProfileOptionProps) {
   return (
-    <Pressable style={styles.optionRow} onPress={onPress}>
+    <Pressable style={[styles.optionRow, last && styles.optionRowLast]} onPress={onPress}>
       <View style={[styles.optionIconWrap, { backgroundColor: iconBgColor }]}>
         {iconType === "material" ? (
           <MaterialCommunityIcons name={icon as any} size={18} color={iconColor} />
@@ -811,6 +853,7 @@ function ProfileOption({
 }
 
 interface DetailRowProps {
+  last?: boolean;
   icon: string;
   iconType?: "feather" | "material";
   label: string;
@@ -819,9 +862,9 @@ interface DetailRowProps {
   showChevron?: boolean;
 }
 
-function DetailRow({ icon, iconType = "feather", label, value, onPress, showChevron = true }: DetailRowProps) {
+function DetailRow({ icon, iconType = "feather", label, value, onPress, showChevron = true, last }: DetailRowProps) {
   return (
-    <Pressable style={styles.detailRow} onPress={onPress} disabled={!onPress}>
+    <Pressable style={[styles.detailRow, last && styles.detailRowLast]} onPress={onPress} disabled={!onPress}>
       <View style={styles.detailIconWrap}>
         {iconType === "material" ? (
           <MaterialCommunityIcons name={icon as any} size={18} color="#16a34a" />
@@ -946,46 +989,47 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    padding: 10,
+    borderColor: "#e5e7eb",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
   },
   statIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 6,
   },
-  statNum: { fontSize: 16, fontWeight: "800", color: "#111827" },
-  statLabel: { fontSize: 9, fontWeight: "700", color: "#16a34a", marginTop: 2, textAlign: "center" },
+  statNum: { fontSize: 26, fontWeight: "800", color: "#111827", lineHeight: 30 },
+  statLabel: { fontSize: 11, fontWeight: "600", color: "#6b7280", marginTop: 2, textAlign: "center" },
 
   // Options Menu List
   optionsContainer: {
     backgroundColor: "#ffffff",
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#edf2f7",
+    borderColor: "#e5e7eb",
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
   },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#9ca3af",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  optionRowLast: { borderBottomWidth: 0 },
   optionRow: {
     flexDirection: "row",
     alignItems: "center",
     padding: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#f7fafc",
+    borderBottomColor: "#f1f5f9",
   },
   optionIconWrap: {
     width: 32,
@@ -999,28 +1043,24 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   optionTitle: { fontSize: 14, fontWeight: "700", color: "#1a202c" },
-  optionSubtitle: { fontSize: 11, color: "#718096", marginTop: 2 },
+  optionSubtitle: { fontSize: 12, color: "#6b7280", marginTop: 2 },
 
   // Sub-view Cards
   cardContainer: {
     backgroundColor: "#ffffff",
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#edf2f7",
+    borderColor: "#e5e7eb",
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
   },
+  detailRowLast: { borderBottomWidth: 0 },
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f7fafc",
+    borderBottomColor: "#f1f5f9",
   },
   detailIconWrap: {
     width: 30,
