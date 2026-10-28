@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Inject, UseInterceptors, UploadedFile, BadRequestException } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Inject, UseInterceptors, UseFilters, UploadedFile, BadRequestException, ConflictException } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Throttle } from "@nestjs/throttler";
 import { FarmsService } from "../services/farms.service";
@@ -7,6 +7,7 @@ import { CreateFarmDto } from "../dto/create-farm.dto";
 import { UpdateFarmDto } from "../dto/update-farm.dto";
 import { UserRepository } from "../../auth/repositories/user.repository";
 import { toPublicFarmer, type PublicFarmer } from "../../common/public-farmer";
+import { MulterExceptionFilter } from "../../common/multer-exception.filter";
 import type { Farmer } from "@workspace/db";
 
 @Controller("farms")
@@ -66,6 +67,15 @@ export class LegacyFarmController {
     // Any future phone sign-in MUST gate on phoneVerified; without that it
     // would be the same takeover primitive the email rule exists to prevent.
     if (body.phone !== undefined && body.phone !== user.phone) {
+      // farmers.phone is UNIQUE, so a number already in use would otherwise
+      // surface as a 500 from the constraint. Onboarding now requires a phone,
+      // which makes a collision a normal thing for a user to hit.
+      if (body.phone) {
+        const existing = await this.userRepository.findByPhone(body.phone);
+        if (existing && existing.id !== user.id) {
+          throw new ConflictException("That phone number is already registered");
+        }
+      }
       updates.phone = body.phone;
       updates.phoneVerified = false;
     }
@@ -109,6 +119,7 @@ export class LegacyFarmController {
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post("transcribe")
+  @UseFilters(MulterExceptionFilter)
   @UseInterceptors(
     FileInterceptor("audio", {
       limits: {

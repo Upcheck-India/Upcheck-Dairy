@@ -42,8 +42,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const inAuth = firstSegment === "(auth)";
   const isPublicUtility = firstSegment === "legal" || firstSegment === "permission";
 
-  // Only redirect authenticated users to tabs if they have completed their profile details
-  const hasProfile = !!(farmer && farmer.village && farmer.district);
+  // Onboarding asks for one thing, so this gates on one thing. It used to
+  // require village and district, which nothing else in the app ever read —
+  // the farm's own location is set on /farms. The farm itself is gated
+  // separately below, once the farms list has loaded.
+  const hasProfile = !!(farmer && farmer.phone);
   const onOnboarding = firstSegment === "(auth)" && segments[1] === "onboarding";
 
   if (!isAuthenticated) {

@@ -1,34 +1,19 @@
 import React from "react";
-import { OnboardingProvider, useOnboarding } from "@/context/OnboardingContext";
-import WelcomeScreen from "@/screens/onboarding/WelcomeScreen";
-import FarmDetailsScreen from "@/screens/onboarding/FarmDetailsScreen";
-import LocationScreen from "@/screens/onboarding/LocationScreen";
-import PermissionScreen from "@/screens/onboarding/PermissionScreen";
-import SuccessScreen from "@/screens/onboarding/SuccessScreen";
+import PhoneSetupScreen from "@/screens/onboarding/PhoneSetupScreen";
 
-function OnboardingFlowContent() {
-  const { currentStep } = useOnboarding();
-
-  switch (currentStep) {
-    case 0:
-      return <WelcomeScreen />;
-    case 1:
-      return <FarmDetailsScreen />;
-    case 2:
-      return <LocationScreen />;
-    case 3:
-      return <PermissionScreen />;
-    case 4:
-      return <SuccessScreen />;
-    default:
-      return <WelcomeScreen />;
-  }
-}
-
+/**
+ * Onboarding is a single step: the phone number.
+ *
+ * It used to be a five-step wizard collecting farm name, owner name, phone,
+ * village, district, state and permissions. Sign-in already supplies the
+ * identity, `/farms` already creates the first farm, and village/district fed
+ * nothing but the gate that demanded them — so only the phone number was ever
+ * genuinely new information.
+ *
+ * The wizard screens remain under `screens/onboarding/` and
+ * `components/onboarding/` for a fuller profile flow later; nothing renders
+ * them today.
+ */
 export default function OnboardingScreen() {
-  return (
-    <OnboardingProvider>
-      <OnboardingFlowContent />
-    </OnboardingProvider>
-  );
+  return <PhoneSetupScreen />;
 }
