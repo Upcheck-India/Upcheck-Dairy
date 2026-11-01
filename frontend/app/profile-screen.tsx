@@ -138,15 +138,15 @@ export default function ProfileScreen() {
         hi: "अपने खेतों को देखें और प्रबंधित करें",
         en: "View and manage your farms",
       },
-      appInfo: {
-        ta: "பயன்பாட்டு தகவல்",
-        hi: "ऐप जानकारी",
-        en: "App Information",
+      privacyPolicy: {
+        ta: "தனியுரிமைக் கொள்கை",
+        hi: "गोपनीयता नीति",
+        en: "Privacy Policy",
       },
-      appInfoDesc: {
-        ta: "பதிப்பு 1.0.0 • விதிமுறைகள் & தனியுரிமை",
-        hi: "संस्करण 1.0.0 • नियम और गोपनीयता",
-        en: "Version 1.0.0 • Terms & Privacy",
+      privacyPolicyDesc: {
+        ta: "நாங்கள் சேகரிக்கும் தரவும் அதன் பயன்பாடும்",
+        hi: "हम कौन सा डेटा एकत्र करते हैं और उसका उपयोग कैसे करते हैं",
+        en: "What we collect and how it is used",
       },
       devicePermissions: {
         ta: "சாதன அனுமதிகள்",
@@ -159,14 +159,14 @@ export default function ProfileScreen() {
         en: "Camera, microphone, location & notifications",
       },
       legalTerms: {
-        ta: "சட்ட தகவல் & தனியுரிமை",
-        hi: "कानूनी और नीतियां",
-        en: "Legal & Policies",
+        ta: "விதிமுறைகள் & நிபந்தனைகள்",
+        hi: "नियम व शर्तें",
+        en: "Terms & Conditions",
       },
       legalTermsDesc: {
-        ta: "விதிமுறைகள், தனியுரிமை & உரிமங்கள்",
-        hi: "नियम, गोपनीयता और लाइसेंस",
-        en: "Terms of service, privacy & licenses",
+        ta: "செயலியைப் பயன்படுத்துவதற்கான விதிமுறைகள்",
+        hi: "ऐप के उपयोग की शर्तें",
+        en: "The terms you agree to by using the app",
       },
       logoutDesc: {
         ta: "உங்கள் கணக்கிலிருந்து வெளியேறவும்",
@@ -558,15 +558,15 @@ export default function ProfileScreen() {
                 icon="file-text"
                 title={getLabel("legalTerms")}
                 subtitle={getLabel("legalTermsDesc")}
-                onPress={() => router.push("/legal" as any)}
+                onPress={() => router.push("/legal/terms" as any)}
               />
 
               <ProfileOption
                 last
-                icon="info"
-                title={getLabel("appInfo")}
-                subtitle={getLabel("appInfoDesc")}
-                onPress={() => router.push("/legal" as any)}
+                icon="shield"
+                title={getLabel("privacyPolicy")}
+                subtitle={getLabel("privacyPolicyDesc")}
+                onPress={() => router.push("/legal/privacy" as any)}
               />
 
             </View>
