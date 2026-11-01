@@ -17,13 +17,13 @@
   ],
   "icons": [
     {
-      "src": "/assets/images/icon.png",
+      "src": "/assets/images/dairy.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/images/icon.png",
+      "src": "/assets/images/dairy.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -41,14 +41,14 @@
       "short_name": "Milk",
       "description": "Quickly record morning or evening milk yield",
       "url": "/(tabs)/today",
-      "icons": [{ "src": "/assets/images/icon.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/assets/images/dairy.png", "sizes": "96x96" }]
     },
     {
       "name": "My Animals",
       "short_name": "Herd",
       "description": "Inspect your dairy cattle herd",
       "url": "/(tabs)/animals",
-      "icons": [{ "src": "/assets/images/icon.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/assets/images/dairy.png", "sizes": "96x96" }]
     }
   ]
 }

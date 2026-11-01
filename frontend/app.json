@@ -4,12 +4,12 @@
     "slug": "upcheck-dairy",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/dairy.png",
     "scheme": "upcheckdairy",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/icon.png",
+      "image": "./assets/images/dairy.png",
       "resizeMode": "contain",
       "backgroundColor": "#16a34a"
     },
@@ -29,7 +29,7 @@
       "package": "com.upcheckdairy.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+        "foregroundImage": "./assets/images/dairy.png",
         "backgroundColor": "#16a34a"
       },
       "permissions": [
@@ -50,7 +50,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/images/icon.png",
+      "favicon": "./assets/images/dairy.png",
       "pwa": true
     },
     "plugins": [
@@ -81,7 +81,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/dairy.png",
           "color": "#16a34a",
           "sounds": []
         }
