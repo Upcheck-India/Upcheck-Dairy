@@ -3,7 +3,7 @@ import { AnimalsRepository } from "../repositories/animals.repository";
 import { FarmsRepository } from "../../farms/repositories/farms.repository";
 import { CreateAnimalDto } from "../dto/create-animal.dto";
 import { UpdateAnimalDto } from "../dto/update-animal.dto";
-import { type Animal } from "@workspace/db";
+import { type Animal, DEFAULT_ANIMAL_STATUSES } from "@workspace/db";
 
 @Injectable()
 export class AnimalsService {
@@ -46,6 +46,8 @@ export class AnimalsService {
       notes: dto.notes || null,
       lactationNumber: dto.lactationNumber || null,
       isPregnant: dto.isPregnant ?? false,
+      status: dto.status || (dto.type === "calf" ? "calf" : (dto.isPregnant ? "pregnant" : "lactating")),
+      shed: dto.shed || null,
     });
   }
 
@@ -64,16 +66,37 @@ export class AnimalsService {
       }
     }
 
+    // Distinguishes "key absent" (leave the stored value alone) from an
+    // explicit null (clear the column). Without this a date could only ever be
+    // set, never removed — a cow that has calved would keep her old expected
+    // calving date forever.
+    const toDate = (value: string | null | undefined) =>
+      value === undefined ? undefined : value === null ? null : new Date(value);
+
     const updates: Partial<Animal> = {
       ...dto,
-      birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
-      nextVaccinationDate: dto.nextVaccinationDate ? new Date(dto.nextVaccinationDate) : undefined,
-      nextDeliveryDate: dto.nextDeliveryDate ? new Date(dto.nextDeliveryDate) : undefined,
-      lastCalvingDate: dto.lastCalvingDate ? new Date(dto.lastCalvingDate) : undefined,
-      expectedCalvingDate: dto.expectedCalvingDate ? new Date(dto.expectedCalvingDate) : undefined,
+      birthDate: toDate(dto.birthDate),
+      nextVaccinationDate: toDate(dto.nextVaccinationDate),
+      nextDeliveryDate: toDate(dto.nextDeliveryDate),
+      lastCalvingDate: toDate(dto.lastCalvingDate),
+      expectedCalvingDate: toDate(dto.expectedCalvingDate),
       bodyConditionScore: dto.bodyConditionScore ? dto.bodyConditionScore.toString() : undefined,
       weightKg: dto.weightKg ? dto.weightKg.toString() : undefined,
     } as any;
+
+    // Derive the status from pregnancy/type only while the animal still sits in
+    // one of the seeded categories — a farmer's own category must not be
+    // silently overwritten.
+    const inSeededCategory = (DEFAULT_ANIMAL_STATUSES as readonly string[]).includes(animal.status);
+
+    if (dto.isPregnant !== undefined && dto.status === undefined && inSeededCategory) {
+      updates.status = dto.isPregnant ? "pregnant" : "lactating";
+    }
+    if (dto.type !== undefined && dto.status === undefined && inSeededCategory) {
+      if (dto.type === "calf") {
+        updates.status = "calf";
+      }
+    }
 
     return this.animalsRepository.update(id, updates);
   }
@@ -87,9 +110,9 @@ export class AnimalsService {
     return animal;
   }
 
-  async getByFarm(ownerFarmerId: string, farmId: string): Promise<Animal[]> {
+  async getByFarm(ownerFarmerId: string, farmId: string): Promise<any[]> {
     await this.verifyFarmOwnership(farmId, ownerFarmerId);
-    return this.animalsRepository.findByFarm(farmId);
+    return this.animalsRepository.findByFarmWithLatestMilk(farmId);
   }
 
   async delete(ownerFarmerId: string, id: number): Promise<void> {

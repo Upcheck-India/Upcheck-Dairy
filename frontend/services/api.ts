@@ -1,9 +1,114 @@
+import { tokenStore } from "../src/core/auth/TokenStore";
+
 const getApiBase = (): string => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
   return "http://localhost:3000/api";
 };
+
+async function safeFetchJson<T>(
+  url: string,
+  options?: RequestInit,
+  fallbackMsg = "Request failed"
+): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(url, options);
+  } catch (netErr: any) {
+    throw new Error(`${fallbackMsg}: Network request failed. Cannot connect to ${url}`);
+  }
+
+  return parseJsonResponse<T>(response, fallbackMsg);
+}
+
+async function parseJsonResponse<T>(response: Response, fallbackMsg: string): Promise<T> {
+  if (response.status === 204) {
+    return {} as T;
+  }
+  const text = await response.text();
+  const trimmed = text.trim();
+  const isHtml = trimmed.startsWith("<") || trimmed.toLowerCase().startsWith("<!doctype");
+
+  if (isHtml) {
+    throw new Error(`${fallbackMsg}: Unable to connect to backend API server. Received HTML response instead of JSON. Ensure your backend server is running on ${getApiBase()}.`);
+  }
+
+  if (!response.ok) {
+    // Nest sends { message, error, statusCode } where `message` is the useful
+    // sentence and `error` is the bare status name. Preferring `error` meant
+    // every failure surfaced as "Not Found" or "Conflict" and the explanation
+    // written on the server was thrown away.
+    let message = `${fallbackMsg} (${response.status})`;
+    try {
+      const data = JSON.parse(text);
+      if (Array.isArray(data?.message)) {
+        // Validation errors arrive as an array of field complaints.
+        message = data.message.join("\n");
+      } else if (typeof data?.message === "string" && data.message) {
+        message = data.message;
+      } else if (typeof data?.error === "string" && data.error) {
+        message = data.error;
+      }
+    } catch {
+      /* not JSON — keep the generic message */
+    }
+
+    // Carry the status so callers can branch on *what* failed rather than
+    // pattern-matching the prose.
+    const error = new Error(message) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
+  }
+
+  if (!text) {
+    return {} as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch (parseErr: any) {
+    throw new Error(`${fallbackMsg}: Received invalid response from server. Ensure backend API is running on ${getApiBase()}.`);
+  }
+}
+
+
+/**
+ * safeFetchJson plus the access token and a refresh-and-replay on 401.
+ *
+ * The token is read from tokenStore at send time rather than passed in, so a
+ * caller holding a token from before a refresh still sends the current one.
+ */
+async function authedFetchJson<T>(
+  url: string,
+  options: RequestInit = {},
+  fallbackMsg = "Request failed"
+): Promise<T> {
+  const send = async (token: string | null): Promise<Response> => {
+    try {
+      return await fetch(url, {
+        ...options,
+        headers: {
+          ...(options.headers as Record<string, string> | undefined),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+    } catch {
+      throw new Error(`${fallbackMsg}: Network request failed. Cannot connect to ${url}`);
+    }
+  };
+
+  let response = await send(tokenStore.getAccessToken());
+
+  if (response.status === 401 && tokenStore.getSession()) {
+    const refreshed = await tokenStore.refresh();
+    if (refreshed) {
+      response = await send(refreshed);
+    }
+  }
+
+  return parseJsonResponse<T>(response, fallbackMsg);
+}
 
 // ==================== Types ====================
 
@@ -24,6 +129,12 @@ export interface AuthUser {
   emailVerified?: boolean;
   avatarColor?: string | null;
   avatarInitials?: string | null;
+  /** Provider profile picture (Google). Null means fall back to initials. */
+  avatarUrl?: string | null;
+  /** How the account was originally created: "google", "email", or "phone". */
+  authProvider?: string | null;
+  /** Google's `sub`. Present once the account has been linked to Google. */
+  googleId?: string | null;
   createdAt?: string;
   notificationPermission?: boolean;
   notificationsEnabled?: boolean;
@@ -108,15 +219,15 @@ export async function registerUser(
   name: string,
 ): Promise<{ message: string }> {
   const base = getApiBase();
-  const response = await fetch(`${base}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, name }),
-  });
-  const data = await response.json() as { message?: string; error?: string; message_?: string };
-  if (!response.ok) {
-    throw new Error(data.error ?? data.message ?? `Registration failed: ${response.status}`);
-  }
+  const data = await safeFetchJson<{ message?: string; error?: string }>(
+    `${base}/auth/register`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, name }),
+    },
+    "Registration failed"
+  );
   return { message: data.message ?? "OTP sent to your email" };
 }
 
@@ -129,16 +240,57 @@ export async function loginUser(
   password: string,
 ): Promise<AuthResult> {
   const base = getApiBase();
-  const response = await fetch(`${base}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  const data = await response.json() as AuthResult & { error?: string; message?: string };
-  if (!response.ok) {
-    throw new Error(data.error ?? data.message ?? `Login failed: ${response.status}`);
-  }
-  return data;
+  return safeFetchJson<AuthResult>(
+    `${base}/auth/login`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    },
+    "Login failed"
+  );
+}
+
+/**
+ * Exchange a Google ID token for an Upcheck session.
+ *
+ * The backend verifies the token's signature and audience against its own
+ * client IDs, then finds the matching farmer.
+ *
+ * `intent` says which button was pressed. "signup" provisions an account when
+ * none exists; "signin" refuses and reports that the address is unknown, so
+ * picking the wrong Google account on the sign-in screen does not silently
+ * create an empty second farmer.
+ */
+export async function googleLogin(
+  idToken: string,
+  intent: "signin" | "signup"
+): Promise<AuthResult> {
+  const base = getApiBase();
+  return safeFetchJson<AuthResult>(
+    `${base}/auth/google`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken, intent }),
+    },
+    "Google sign in failed"
+  );
+}
+
+/**
+ * End the session server-side by revoking every refresh token for this user.
+ *
+ * Without this, signing out only forgets the tokens locally — the refresh
+ * token stays valid for its full 30 days.
+ */
+export async function logoutUser(): Promise<void> {
+  const base = getApiBase();
+  await authedFetchJson<{ message: string }>(
+    `${base}/auth/logout`,
+    { method: "POST", headers: { "Content-Type": "application/json" } },
+    "Sign out failed"
+  );
 }
 
 /**
@@ -146,15 +298,15 @@ export async function loginUser(
  */
 export async function sendOtpCode(email: string): Promise<{ message: string }> {
   const base = getApiBase();
-  const response = await fetch(`${base}/auth/send-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  const data = await response.json() as { message?: string; error?: string };
-  if (!response.ok) {
-    throw new Error(data.error ?? data.message ?? `Failed to send OTP: ${response.status}`);
-  }
+  const data = await safeFetchJson<{ message?: string }>(
+    `${base}/auth/send-otp`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    },
+    "Failed to send OTP"
+  );
   return { message: data.message ?? "OTP sent" };
 }
 
@@ -164,16 +316,15 @@ export async function sendOtpCode(email: string): Promise<{ message: string }> {
  */
 export async function verifyOtpCode(email: string, otp: string): Promise<AuthResult> {
   const base = getApiBase();
-  const response = await fetch(`${base}/auth/verify-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp }),
-  });
-  const data = await response.json() as AuthResult & { error?: string; message?: string };
-  if (!response.ok) {
-    throw new Error(data.error ?? data.message ?? `OTP verification failed: ${response.status}`);
-  }
-  return data;
+  return safeFetchJson<AuthResult>(
+    `${base}/auth/verify-otp`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp }),
+    },
+    "OTP verification failed"
+  );
 }
 
 /**
@@ -184,31 +335,23 @@ export async function refreshAccessToken(
   refreshToken: string,
 ): Promise<AuthTokens> {
   const base = getApiBase();
-  const response = await fetch(`${base}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, refreshToken }),
-  });
-  const data = await response.json() as AuthTokens & { error?: string };
-  if (!response.ok) {
-    throw new Error(data.error ?? `Token refresh failed: ${response.status}`);
-  }
-  return data;
+  return safeFetchJson<AuthTokens>(
+    `${base}/auth/refresh`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, refreshToken }),
+    },
+    "Token refresh failed"
+  );
 }
 
 /**
  * Get the currently authenticated user profile.
  */
-export async function getMyProfile(accessToken: string): Promise<AuthUser> {
+export async function getMyProfile(_accessToken?: string): Promise<AuthUser> {
   const base = getApiBase();
-  const response = await fetch(`${base}/auth/me`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  const data = await response.json() as AuthUser & { error?: string };
-  if (!response.ok) {
-    throw new Error(data.error ?? `Failed to fetch profile: ${response.status}`);
-  }
-  return data;
+  return authedFetchJson<AuthUser>(`${base}/auth/me`, {}, "Failed to fetch profile");
 }
 
 // ==================== Farm / Profile API ====================
@@ -234,15 +377,16 @@ export interface FarmerProfile {
 
 export async function fetchProfile(accessToken: string): Promise<FarmerProfile | null> {
   const base = getApiBase();
-  const response = await fetch(`${base}/farm/profile`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-  });
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error("Failed to fetch profile");
-  return response.json() as Promise<FarmerProfile>;
+  try {
+    return await authedFetchJson<FarmerProfile>(
+      `${base}/farm/profile`,
+      { headers: { "Content-Type": "application/json" } },
+      "Failed to fetch profile"
+    );
+  } catch (err: any) {
+    if (err.message && err.message.includes("404")) return null;
+    throw err;
+  }
 }
 
 export async function createOrUpdateProfile(
@@ -250,34 +394,30 @@ export async function createOrUpdateProfile(
   profile: Partial<FarmerProfile>
 ): Promise<FarmerProfile> {
   const base = getApiBase();
-  const response = await fetch(`${base}/farm/profile`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
+  return authedFetchJson<FarmerProfile>(
+    `${base}/farm/profile`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profile),
     },
-    body: JSON.stringify(profile),
-  });
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(body || `Failed to save profile (${response.status})`);
-  }
-  return response.json() as Promise<FarmerProfile>;
+    "Failed to save profile"
+  );
 }
 
 // ==================== Diagnostics ====================
 
 export async function diagnoseSymptoms(request: DiagnoseRequest): Promise<DiagnoseResponse> {
   const base = getApiBase();
-  const response = await fetch(`${base}/farm/diagnose`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  if (!response.ok) {
-    throw new Error(`Diagnosis failed: ${response.status}`);
-  }
-  return response.json() as Promise<DiagnoseResponse>;
+  return safeFetchJson<DiagnoseResponse>(
+    `${base}/farm/diagnose`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    },
+    "Diagnosis failed"
+  );
 }
 
 export async function transcribeAudio(audioUri: string, mimeType?: string): Promise<string> {
@@ -288,14 +428,14 @@ export async function transcribeAudio(audioUri: string, mimeType?: string): Prom
     type: mimeType ?? "audio/m4a",
     name: "recording.m4a",
   } as any);
-  const response = await fetch(`${base}/farm/transcribe`, {
-    method: "POST",
-    body: formData,
-  });
-  if (!response.ok) {
-    throw new Error(`Transcription failed: ${response.status}`);
-  }
-  const data = await response.json() as { transcript: string };
+  const data = await safeFetchJson<{ transcript: string }>(
+    `${base}/farm/transcribe`,
+    {
+      method: "POST",
+      body: formData,
+    },
+    "Transcription failed"
+  );
   return data.transcript;
 }
 
@@ -305,14 +445,15 @@ export async function chatWithGauGuru(
   language: string
 ): Promise<{ response: string }> {
   const base = getApiBase();
-  const response = await fetch(`${base}/farm/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, history, language }),
-  });
-  const data = await response.json() as { response: string; error?: string };
-  if (!response.ok) throw new Error(data.error ?? "Chat failed");
-  return data;
+  return safeFetchJson<{ response: string }>(
+    `${base}/farm/chat`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, history, language }),
+    },
+    "Chat failed"
+  );
 }
 
 export async function calculateRation(params: {
@@ -320,27 +461,28 @@ export async function calculateRation(params: {
   milkProductionL: number; language: string;
 }): Promise<RationResult> {
   const base = getApiBase();
-  const response = await fetch(`${base}/farm/ration`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
-  const data = await response.json() as RationResult & { error?: string };
-  if (!response.ok) throw new Error(data.error ?? "Ration calculation failed");
-  return data;
+  return safeFetchJson<RationResult>(
+    `${base}/farm/ration`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    },
+    "Ration calculation failed"
+  );
 }
 
 export async function parseVoiceCommand(request: VoiceCommandRequest): Promise<VoiceCommandResponse> {
   const base = getApiBase();
-  const response = await fetch(`${base}/farm/voice-command`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  if (!response.ok) {
-    throw new Error(`Voice command failed: ${response.status}`);
-  }
-  return response.json() as Promise<VoiceCommandResponse>;
+  return safeFetchJson<VoiceCommandResponse>(
+    `${base}/farm/voice-command`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    },
+    "Voice command failed"
+  );
 }
 
 // ==================== Misc Auth ====================
@@ -362,31 +504,18 @@ export async function resetPassword(
   newPassword: string
 ): Promise<{ message: string }> {
   const base = getApiBase();
-  const response = await fetch(`${base}/auth/reset-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp, newPassword }),
-  });
-  const data = await response.json() as { message?: string; error?: string };
-  if (!response.ok) {
-    throw new Error(data.error ?? data.message ?? "Failed to reset password");
-  }
+  const data = await safeFetchJson<{ message?: string }>(
+    `${base}/auth/reset-password`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp, newPassword }),
+    },
+    "Failed to reset password"
+  );
   return { message: data.message ?? "Password reset successfully" };
 }
 
-export async function verify2fa(tempToken: string, token: string): Promise<{ user: any; accessToken: string; refreshToken: string }> {
-  const base = getApiBase();
-  const response = await fetch(`${base}/auth/verify-2fa`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tempToken, token }),
-  });
-  const data = await response.json() as any;
-  if (!response.ok) {
-    throw new Error(data.message ?? "2FA verification failed");
-  }
-  return data;
-}
 
 // ==================== Legacy aliases ====================
 // Kept so existing screens that haven't migrated yet don't break
@@ -405,6 +534,5 @@ export const requestEmailOtp = sendOtpCode;
 /** @deprecated Use verifyOtpCode instead */
 export const verifyEmailOtp = verifyOtpCode;
 /** @deprecated No-op; logout is client-side now */
-export const signOut = async (_accessToken: string) => {};
 /** @deprecated Use getMyProfile instead */
 export const getMe = getMyProfile;

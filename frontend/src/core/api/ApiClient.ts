@@ -1,3 +1,5 @@
+import { tokenStore } from "../auth/TokenStore";
+
 const getApiBase = (): string => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
@@ -6,18 +8,26 @@ const getApiBase = (): string => {
 };
 
 class ApiClient {
-  private token: string | null = null;
   private farmId: string | null = null;
   private apiBase: string = getApiBase();
 
   configure(config: { token?: string | null; farmId?: string | null }): void {
-    if (config.token !== undefined) this.token = config.token;
+    // `token` is accepted but ignored: the access token is refreshed behind
+    // the caller's back, so a copy held here would go stale. tokenStore is the
+    // single source of truth.
     if (config.farmId !== undefined) this.farmId = config.farmId;
   }
 
   reset(): void {
-    this.token = null;
     this.farmId = null;
+  }
+
+  private get token(): string | null {
+    return tokenStore.getAccessToken();
+  }
+
+  getApiBase(): string {
+    return this.apiBase;
   }
 
   private getHeaders(): Record<string, string> {
@@ -33,37 +43,78 @@ class ApiClient {
     return headers;
   }
 
-  async get<T>(path: string): Promise<T> {
-    const response = await fetch(`${this.apiBase}${path}`, {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
+  /**
+   * Sends the request, and on a 401 refreshes the access token once and
+   * replays it. Access tokens live 15 minutes, so without this every session
+   * breaks a quarter of an hour in.
+   *
+   * Only one retry: if the replay also 401s the session is genuinely gone and
+   * looping would just hammer the endpoint.
+   */
+  private async request<T>(path: string, method: string, body?: any): Promise<T> {
+    const send = () =>
+      fetch(`${this.apiBase}${path}`, {
+        method,
+        headers: this.getHeaders(),
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      });
+
+    let response = await send();
+
+    if (response.status === 401 && tokenStore.getSession()) {
+      const refreshed = await tokenStore.refresh();
+      if (refreshed) {
+        response = await send();
+      }
+    }
+
     return this.handleResponse<T>(response);
+  }
+
+  async get<T>(path: string): Promise<T> {
+    return this.request<T>(path, "GET");
   }
 
   async post<T>(path: string, body: any): Promise<T> {
-    const response = await fetch(`${this.apiBase}${path}`, {
-      method: "POST",
-      headers: this.getHeaders(),
-      body: JSON.stringify(body),
-    });
-    return this.handleResponse<T>(response);
+    return this.request<T>(path, "POST", body);
   }
 
   async put<T>(path: string, body: any): Promise<T> {
-    const response = await fetch(`${this.apiBase}${path}`, {
-      method: "PUT",
-      headers: this.getHeaders(),
-      body: JSON.stringify(body),
-    });
-    return this.handleResponse<T>(response);
+    return this.request<T>(path, "PUT", body);
   }
 
   async delete<T>(path: string): Promise<T> {
-    const response = await fetch(`${this.apiBase}${path}`, {
-      method: "DELETE",
-      headers: this.getHeaders(),
-    });
+    return this.request<T>(path, "DELETE");
+  }
+
+  async uploadFile<T>(path: string, localUri: string, filename: string, mimeType: string): Promise<T> {
+    const formData = new FormData();
+    formData.append("file", {
+      uri: localUri,
+      name: filename,
+      type: mimeType || "application/octet-stream",
+    } as any);
+
+    const send = () => {
+      const headers: Record<string, string> = {};
+      if (this.token) {
+        headers["Authorization"] = `Bearer ${this.token}`;
+      }
+      if (this.farmId) {
+        headers["X-Farm-Id"] = this.farmId;
+      }
+      return fetch(`${this.apiBase}${path}`, { method: "POST", body: formData, headers });
+    };
+
+    let response = await send();
+
+    if (response.status === 401 && tokenStore.getSession()) {
+      const refreshed = await tokenStore.refresh();
+      if (refreshed) {
+        response = await send();
+      }
+    }
+
     return this.handleResponse<T>(response);
   }
 
@@ -71,11 +122,33 @@ class ApiClient {
     if (response.status === 204) {
       return {} as T;
     }
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data?.message || data?.error || `Request failed with status ${response.status}`);
+    const text = await response.text();
+    const trimmed = text.trim();
+    const isHtml = trimmed.startsWith("<") || trimmed.toLowerCase().startsWith("<!doctype");
+
+    if (isHtml) {
+      throw new Error(`Unable to connect to backend server. Received HTML response from ${this.apiBase}. Ensure your backend server is running.`);
     }
-    return data as T;
+
+    if (!response.ok) {
+      try {
+        const data = JSON.parse(text);
+        throw new Error(data?.message || data?.error || `Request failed with status ${response.status}`);
+      } catch (e: any) {
+        if (e.message && !e.message.startsWith("JSON")) throw e;
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+    }
+
+    if (!text) {
+      return {} as T;
+    }
+
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new Error(`Failed to parse server response as JSON. Ensure backend server is running on ${this.apiBase}.`);
+    }
   }
 }
 

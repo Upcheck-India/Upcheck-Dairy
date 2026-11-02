@@ -17,6 +17,8 @@ import { FarmerProvider, useFarmer } from "@/context/FarmerContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { FarmProvider, useFarmContext } from "../src/modules/farms/context/FarmProvider";
 import { AnimalProvider } from "../src/modules/animals/context/AnimalProvider";
+import { ShedProvider } from "../src/modules/herd/context/ShedProvider";
+import { CategoryProvider } from "../src/modules/herd/context/CategoryProvider";
 import { MilkProvider } from "../src/modules/milk/context/MilkProvider";
 import { HealthProvider } from "../src/modules/health/context/HealthProvider";
 import { BreedingProvider } from "../src/modules/breeding/context/BreedingProvider";
@@ -30,7 +32,7 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading: isAuthLoading, farmer } = useFarmer();
+  const { isAuthenticated, isLoading: isAuthLoading } = useFarmer();
   const { loading: isFarmLoading, farmsLoaded, farms } = useFarmContext();
   const segments = useSegments();
 
@@ -38,24 +40,23 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const firstSegment = segments[0] as string | undefined;
   const inAuth = firstSegment === "(auth)";
-
-  // Only redirect authenticated users to tabs if they have completed their profile details
-  const hasProfile = !!(farmer && farmer.village && farmer.district);
-  const onOnboarding = firstSegment === "(auth)" && segments[1] === "onboarding";
+  const isPublicUtility = firstSegment === "legal" || firstSegment === "permission";
 
   if (!isAuthenticated) {
-    if (!inAuth) {
+    if (!inAuth && !isPublicUtility) {
       return <Redirect href="/(auth)/login" />;
     }
     return <>{children}</>;
   }
 
-  if (!hasProfile) {
-    if (!onOnboarding) {
-      return <Redirect href="/(auth)/onboarding" />;
-    }
-    return <>{children}</>;
-  }
+  // There is no profile gate. Signing in already establishes identity —
+  // Google gives name, email and photo; OTP gives the email — and nothing in
+  // the app reads the farmer's phone, village or district, so blocking entry
+  // to collect them was friction for data with no consumer. They are edited
+  // in Personal Details on the profile screen whenever the farmer wants.
+  //
+  // The only thing still gated is having a farm, below, because every other
+  // screen is scoped to one.
 
   // Guard on farms loading state
   if (isFarmLoading || !farmsLoaded) {
@@ -63,10 +64,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   const onFarmsScreen = firstSegment === "farms";
+  const isUtilityScreen =
+    isPublicUtility ||
+    firstSegment === "profile-screen" ||
+    firstSegment === "animal" ||
+    firstSegment === "inventory";
 
-  // Enforce active farm if not on onboarding/farms screen
+  // Every other screen is scoped to a farm, so a farmer with none is sent to
+  // create one. This is the only remaining gate.
   if (farms.length === 0) {
-    if (!onFarmsScreen) {
+    if (!onFarmsScreen && !isUtilityScreen) {
       return <Redirect href="/farms" />;
     }
   } else {
@@ -88,7 +95,7 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
-        name="profile"
+        name="profile-screen"
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
@@ -96,7 +103,15 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card" }}
       />
       <Stack.Screen
-        name="herd"
+        name="inventory"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="legal"
+        options={{ headerShown: false, presentation: "card" }}
+      />
+      <Stack.Screen
+        name="permission"
         options={{ headerShown: false, presentation: "card" }}
       />
     </Stack>
@@ -128,25 +143,29 @@ export default function RootLayout() {
             <FarmerProvider>
               <FarmProvider>
                 <AnimalProvider>
-                  <MilkProvider>
-                    <HealthProvider>
-                      <BreedingProvider>
-                        <VaccinationProvider>
-                          <InventoryProvider>
-                            <TaskProvider>
-                              <FinanceProvider>
-                                <GestureHandlerRootView>
-                                  <AuthGuard>
-                                    <RootLayoutNav />
-                                  </AuthGuard>
-                                </GestureHandlerRootView>
-                              </FinanceProvider>
-                            </TaskProvider>
-                          </InventoryProvider>
-                        </VaccinationProvider>
-                      </BreedingProvider>
-                    </HealthProvider>
-                  </MilkProvider>
+                  <ShedProvider>
+                   <CategoryProvider>
+                    <MilkProvider>
+                      <HealthProvider>
+                        <BreedingProvider>
+                          <VaccinationProvider>
+                            <InventoryProvider>
+                              <TaskProvider>
+                                <FinanceProvider>
+                                  <GestureHandlerRootView>
+                                    <AuthGuard>
+                                      <RootLayoutNav />
+                                    </AuthGuard>
+                                  </GestureHandlerRootView>
+                                </FinanceProvider>
+                              </TaskProvider>
+                            </InventoryProvider>
+                          </VaccinationProvider>
+                        </BreedingProvider>
+                      </HealthProvider>
+                    </MilkProvider>
+                   </CategoryProvider>
+                  </ShedProvider>
                 </AnimalProvider>
               </FarmProvider>
             </FarmerProvider>

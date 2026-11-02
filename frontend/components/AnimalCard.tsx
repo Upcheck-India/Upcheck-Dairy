@@ -1,4 +1,5 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { AuthedImage } from "@/components/AuthedImage";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React from "react";
@@ -67,7 +68,7 @@ export default function AnimalCard({ animal, onMilkLog, onQuickAction }: AnimalC
         onPress={handlePress}
       >
         {animal.photoUri ? (
-          <Image source={{ uri: animal.photoUri }} style={styles.photo} />
+          <AuthedImage uri={animal.photoUri} style={styles.photo} />
         ) : (
           <View style={[styles.iconContainer, { backgroundColor: colors.muted }]}>
             <MaterialCommunityIcons name={ANIMAL_ICONS[animal.type] ?? "cow"} size={28} color={colors.primary} />

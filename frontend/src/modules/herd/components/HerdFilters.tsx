@@ -56,6 +56,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 8,
     maxHeight: 46,
+    flexShrink: 0,
   },
   contentContainer: {
     gap: 8,
@@ -67,9 +68,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   filterLabel: {
     fontSize: 13,
     fontWeight: "500",
+    lineHeight: 20,
+    textAlignVertical: "center",
   },
 });

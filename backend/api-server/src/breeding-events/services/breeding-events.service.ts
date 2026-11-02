@@ -33,13 +33,35 @@ export class BreedingEventsService {
     return animal.farmId;
   }
 
+  /**
+   * A sire must live on the same farm as the dam. Without this check a caller
+   * could point sire_id at any animal id in the database, including another
+   * farmer's, and read its name back through the breeding history.
+   */
+  private async verifySireOnSameFarm(
+    sireId: number,
+    damFarmId: string,
+    ownerFarmerId: string
+  ): Promise<void> {
+    const sireFarmId = await this.verifyAnimalOwnership(sireId, ownerFarmerId);
+    if (sireFarmId !== damFarmId) {
+      throw new ForbiddenException("The sire must belong to the same farm as the animal");
+    }
+  }
+
   async create(ownerFarmerId: string, dto: CreateBreedingEventDto): Promise<BreedingEvent> {
-    await this.verifyAnimalOwnership(dto.animalId, ownerFarmerId);
+    const farmId = await this.verifyAnimalOwnership(dto.animalId, ownerFarmerId);
+
+    if (dto.sireId != null) {
+      await this.verifySireOnSameFarm(dto.sireId, farmId, ownerFarmerId);
+    }
+
     return this.breedingEventsRepository.create({
       ...dto,
       date: new Date(dto.date),
       expectedCalvingDate: dto.expectedCalvingDate ? new Date(dto.expectedCalvingDate) : null,
       note: dto.note || null,
+      sireId: dto.sireId ?? null,
       bullName: dto.bullName || null,
       calvingGender: dto.calvingGender || null,
     });
@@ -60,7 +82,11 @@ export class BreedingEventsService {
     if (!event) {
       throw new NotFoundException("Breeding event not found");
     }
-    await this.verifyAnimalOwnership(event.animalId, ownerFarmerId);
+    const farmId = await this.verifyAnimalOwnership(event.animalId, ownerFarmerId);
+
+    if (dto.sireId != null) {
+      await this.verifySireOnSameFarm(dto.sireId, farmId, ownerFarmerId);
+    }
 
     const updates: Partial<BreedingEvent> = {
       ...dto,

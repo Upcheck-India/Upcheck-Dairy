@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "cross-env NODE_ENV=development tsx watch src/main.ts",
+    "dev": "cross-env NODE_ENV=development node --watch --import @swc-node/register/esm-register src/main.ts",
     "build": "tsc --build",
-    "start": "tsx src/main.ts",
+    "start": "node --import @swc-node/register/esm-register src/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:security": "tsx test/security.ts",
-    "test:auth": "tsx test/auth.ts",
-    "test:validation": "tsx test/validation.ts"
+    "test": "node --test --import @swc-node/register/esm-register test/integration.test.ts",
+    "test:security": "node --import @swc-node/register/esm-register test/security.ts",
+    "test:auth": "node --import @swc-node/register/esm-register test/auth.ts",
+    "test:validation": "node --import @swc-node/register/esm-register test/validation.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.27",
@@ -37,10 +38,10 @@
     "dotenv": "^16.4.7",
     "drizzle-orm": "catalog:",
     "express": "^5",
+    "google-auth-library": "^10.5.0",
     "helmet": "^8.2.0",
     "ioredis": "^5.11.1",
     "multer": "^2.1.1",
-    "otplib": "^12.0.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pino": "^9",
@@ -50,6 +51,8 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@swc-node/register": "^1.12.1",
+    "@swc/core": "^1.16.20",
     "@types/bcrypt": "^6.0.0",
     "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",

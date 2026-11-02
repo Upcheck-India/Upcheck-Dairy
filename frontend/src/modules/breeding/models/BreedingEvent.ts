@@ -4,6 +4,8 @@ export class BreedingEvent {
   readonly eventType: "heat" | "insemination" | "pregnancy_confirmed" | "dry_off" | "calving" | "abort";
   readonly date: Date;
   readonly note: string | null;
+  /** Sire kept on this farm; null for AI or an outside bull named in bullName. */
+  readonly sireId: string | null;
   readonly bullName: string | null;
   readonly expectedCalvingDate: Date | null;
   readonly calvingGender: string | null;
@@ -15,6 +17,7 @@ export class BreedingEvent {
     eventType: "heat" | "insemination" | "pregnancy_confirmed" | "dry_off" | "calving" | "abort";
     date: Date;
     note?: string | null;
+    sireId?: string | null;
     bullName?: string | null;
     expectedCalvingDate?: Date | null;
     calvingGender?: string | null;
@@ -25,6 +28,7 @@ export class BreedingEvent {
     this.eventType = data.eventType;
     this.date = data.date;
     this.note = data.note ?? null;
+    this.sireId = data.sireId ?? null;
     this.bullName = data.bullName ?? null;
     this.expectedCalvingDate = data.expectedCalvingDate ?? null;
     this.calvingGender = data.calvingGender ?? null;

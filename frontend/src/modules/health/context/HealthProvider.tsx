@@ -44,49 +44,31 @@ export function HealthProvider({ children }: { children: React.ReactNode }) {
   }, [activeFarm?.id, fetchHealth]);
 
   const createEvent = async (dto: CreateHealthEventRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const newEvent = await healthRepository.createHealthEvent(dto);
       setHealthEvents(prev => [newEvent, ...prev]);
       return newEvent;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to create health event");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to create health event");
     }
   };
 
   const updateEvent = async (id: number, dto: UpdateHealthEventRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const updated = await healthRepository.updateHealthEvent(id, dto);
       setHealthEvents(prev => prev.map(h => (Number(h.id) === id ? updated : h)));
       return updated;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to update health event");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to update health event");
     }
   };
 
   const removeEvent = async (id: number) => {
-    setError(null);
-    setLoading(true);
     try {
       await healthRepository.deleteHealthEvent(id);
       setHealthEvents(prev => prev.filter(h => Number(h.id) !== id));
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to delete health event");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to delete health event");
     }
   };
 

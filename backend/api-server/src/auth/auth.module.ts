@@ -8,6 +8,7 @@ import { AuthController } from "./controllers/auth.controller";
 import { AuthService } from "./services/auth.service";
 import { OtpService } from "./services/otp.service";
 import { TokenService } from "./services/token.service";
+import { GoogleAuthService } from "./services/google-auth.service";
 import { UserRepository } from "./repositories/user.repository";
 import { OtpRepository } from "./repositories/otp.repository";
 import { RefreshTokenRepository } from "./repositories/refresh-token.repository";
@@ -35,6 +36,7 @@ import { RedisModule } from "../redis/redis.module";
     AuthService,
     OtpService,
     TokenService,
+    GoogleAuthService,
     UserRepository,
     OtpRepository,
     RefreshTokenRepository,

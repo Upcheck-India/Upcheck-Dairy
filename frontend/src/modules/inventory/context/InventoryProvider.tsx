@@ -45,49 +45,31 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   }, [activeFarm?.id, fetchInventory]);
 
   const createItem = async (dto: CreateInventoryItemRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const newItem = await inventoryRepository.createInventoryItem(dto);
       setInventoryItems(prev => [...prev, newItem]);
       return newItem;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to create inventory item");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to create inventory item");
     }
   };
 
   const updateItem = async (id: number, dto: UpdateInventoryItemRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const updated = await inventoryRepository.updateInventoryItem(id, dto);
       setInventoryItems(prev => prev.map(item => (Number(item.id) === id ? updated : item)));
       return updated;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to update inventory item");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to update inventory item");
     }
   };
 
   const removeItem = async (id: number) => {
-    setError(null);
-    setLoading(true);
     try {
       await inventoryRepository.deleteInventoryItem(id);
       setInventoryItems(prev => prev.filter(item => Number(item.id) !== id));
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to delete inventory item");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to delete inventory item");
     }
   };
 

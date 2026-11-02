@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional, IsNumber, IsBoolean, IsDateString, IsUUID } from "class-validator";
+import { IsString, IsNotEmpty, IsEnum, IsOptional, IsNumber, IsBoolean, IsDateString, IsUUID, MaxLength } from "class-validator";
 
 export class CreateAnimalDto {
   @IsUUID()
@@ -68,4 +68,20 @@ export class CreateAnimalDto {
   @IsNumber()
   @IsOptional()
   weightKg?: number;
+
+  @IsString()
+  @IsOptional()
+  shed?: string;
+
+  // Free text: farmers can define their own herd categories, and the animal's
+  // category is stored here. The seeded ones are in DEFAULT_ANIMAL_STATUSES.
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  @IsOptional()
+  status?: string;
+
+  @IsString()
+  @IsOptional()
+  gender?: string;
 }

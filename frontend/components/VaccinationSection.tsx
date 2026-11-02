@@ -92,7 +92,10 @@ export default function VaccinationSection() {
         </Pressable>
       </View>
 
-      <Text style={styles.subHeading}>{t.upcomingOverdue}</Text>
+      <View style={styles.subHeadingRow}>
+        <Feather name="clock" size={14} color="#ea580c" />
+        <Text style={styles.subHeading}>{t.upcomingOverdue}</Text>
+      </View>
       {upcoming.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyText}>{t.noUpcomingVaccines}</Text>
@@ -142,7 +145,10 @@ export default function VaccinationSection() {
 
       {recent.length > 0 && (
         <>
-          <Text style={[styles.subHeading, { marginTop: 20 }]}>{t.recentlyAdministered}</Text>
+          <View style={[styles.subHeadingRow, { marginTop: 20 }]}>
+            <Feather name="check-circle" size={14} color="#16a34a" />
+            <Text style={styles.subHeading}>{t.recentlyAdministered}</Text>
+          </View>
           {recent.map((vax) => {
             const animal = animals.find((a) => a.id === vax.animalId);
             if (!animal) return null;
@@ -191,7 +197,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8,
   },
   addBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
-  subHeading: { fontSize: 13, fontWeight: "700", color: "#4b5563", marginBottom: 10 },
+  subHeadingRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
+  subHeading: { fontSize: 13, fontWeight: "700", color: "#4b5563" },
   emptyCard: {
     backgroundColor: "#fff", borderRadius: 16, padding: 20,
     alignItems: "center", gap: 12, marginBottom: 12,

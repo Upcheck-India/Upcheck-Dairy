@@ -5,7 +5,6 @@ import { AppModule } from "./app.module";
 import { ValidationPipe } from "@nestjs/common";
 import { logger } from "./lib/logger";
 import helmet from "helmet";
-import * as express from "express";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -35,8 +34,14 @@ async function bootstrap() {
       // 2. Check if the origin matches the configured whitelist
       const isWhitelisted = allowedOrigins.includes(origin);
 
-      // 3. In non-production environments, dynamically allow any localhost origin to ease development
-      const isLocalDev = process.env["NODE_ENV"] !== "production" && origin.startsWith("http://localhost:");
+      // 3. In non-production environments, dynamically allow any local origin to ease development
+      const isLocalDev =
+        process.env["NODE_ENV"] !== "production" &&
+        (origin.startsWith("http://localhost:") ||
+          origin.startsWith("http://127.0.0.1:") ||
+          origin.startsWith("http://192.168.") ||
+          origin.startsWith("http://10.") ||
+          origin.startsWith("http://172."));
 
       if (isWhitelisted || isLocalDev) {
         callback(null, true);
@@ -94,10 +99,15 @@ async function bootstrap() {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
 
-  // Serve static files from the uploads directory
-  app.use("/uploads", express.static(uploadsDir));
+  // NOTE: uploads are deliberately NOT served statically. They used to be
+  // mounted here with express.static, which handed any uploaded photo or
+  // receipt to anyone who could guess a filename — no authentication, no
+  // ownership check, and outside the /api prefix so even the guard never saw
+  // it. They are now served by FilesController at GET /api/files/:filename,
+  // which requires a token and checks that the caller owns the farm whose
+  // record references the file.
 
-  await app.listen(port);
+  await app.listen(port, "0.0.0.0");
   logger.info({ port }, "NestJS Server listening");
 }
 

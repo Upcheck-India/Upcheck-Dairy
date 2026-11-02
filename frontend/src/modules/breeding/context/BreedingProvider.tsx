@@ -44,49 +44,31 @@ export function BreedingProvider({ children }: { children: React.ReactNode }) {
   }, [activeFarm?.id, fetchBreeding]);
 
   const createBreeding = async (dto: CreateBreedingEventRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const newEvent = await breedingRepository.createBreedingEvent(dto);
       setBreedingEvents(prev => [newEvent, ...prev]);
       return newEvent;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to create breeding event");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to create breeding event");
     }
   };
 
   const updateBreeding = async (id: number, dto: UpdateBreedingEventRequestDto) => {
-    setError(null);
-    setLoading(true);
     try {
       const updated = await breedingRepository.updateBreedingEvent(id, dto);
       setBreedingEvents(prev => prev.map(b => (Number(b.id) === id ? updated : b)));
       return updated;
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to update breeding event");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to update breeding event");
     }
   };
 
   const removeBreeding = async (id: number) => {
-    setError(null);
-    setLoading(true);
     try {
       await breedingRepository.deleteBreedingEvent(id);
       setBreedingEvents(prev => prev.filter(b => Number(b.id) !== id));
     } catch (e: any) {
-      const err = e instanceof Error ? e : new Error(e.message || "Failed to delete breeding event");
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw e instanceof Error ? e : new Error(e.message || "Failed to delete breeding event");
     }
   };
 

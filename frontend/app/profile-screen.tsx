@@ -1,0 +1,1142 @@
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import React, { useState, useEffect } from "react";
+import * as Haptics from "expo-haptics";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  Modal,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import Svg, { Path, Rect, Circle, G } from "react-native-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTabBarHeight } from "@/hooks/useTabBarHeight";
+import { FarmerAvatar } from "@/components/FarmerAvatar";
+import { useFarmer } from "@/context/FarmerContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { LANGUAGE_NAMES, LANGUAGE_NATIVE, type Language } from "@/context/LanguageContext";
+import { useFarmContext } from "../src/modules/farms/context/FarmProvider";
+import { useAnimals } from "../src/modules/animals/hooks/useAnimals";
+import { LinearGradient } from "expo-linear-gradient";
+import { farmRepository } from "../src/modules/farms/api/FarmRepository";
+import { Farm } from "../src/modules/farms/models/Farm";
+import { apiClient } from "../src/core/api/ApiClient";
+import { Storage } from "../src/core/storage/Storage";
+import { AnimalMapper } from "../src/modules/animals/api/AnimalMapper";
+
+type ViewState = "main" | "personal" | "farms" | "farm_detail";
+
+function FarmIllustration() {
+  return (
+    <Svg width={40} height={30} viewBox="0 0 40 30">
+      {/* Ground line */}
+      <Path d="M 2 28 Q 20 26 38 28" stroke="#16a34a" strokeWidth={1.5} fill="none" />
+      {/* Roof of the house */}
+      <Path d="M 6 18 L 16 9 L 26 18 Z" fill="#15803d" />
+      {/* House structure */}
+      {/* Tree trunk */}
+      <Rect x={30} y={20} width={2} height={8} fill="#854d0e" />
+      {/* Tree foliage */}
+      <Circle cx={31} cy={16} r={5} fill="#15803d" />
+      <Circle cx={28} cy={18} r={4} fill="#22c55e" />
+      <Circle cx={34} cy={18} r={4} fill="#22c55e" />
+    </Svg>
+  );
+}
+
+export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight();
+  const { t, language, setLanguage } = useLanguage();
+  const { farmer, updateProfile, logout } = useFarmer();
+  const { animals } = useAnimals();
+  const { farms, activeFarm, refreshFarms } = useFarmContext();
+
+  const [currentView, setCurrentView] = useState<ViewState>("main");
+  const [selectedFarm, setSelectedFarm] = useState<Farm | null>(null);
+
+  // Edit modal states
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingField, setEditingField] = useState<string>("name");
+  const [editingFieldLabel, setEditingFieldLabel] = useState<string>("");
+  const [editingFieldValue, setEditingFieldValue] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  // Linked, not "created with" — an email account that later signed in with
+  // Google still has authProvider === "email" but is genuinely connected.
+  const isGoogleAccount = !!farmer?.googleLinked;
+
+  const [allAnimals, setAllAnimals] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // Helper to fetch animals for a specific farm with caching fallbacks
+  const fetchAnimalsForFarm = async (farmId: string): Promise<any[]> => {
+    const cacheKey = `upcheckdairy:${farmId}:animals`;
+    try {
+      const dtos = await apiClient.get<any[]>(`/animals/farm/${farmId}`);
+      await Storage.set(cacheKey, dtos);
+      return AnimalMapper.toDomainList(dtos);
+    } catch (e) {
+      console.warn(`[ProfileScreen] Failed to fetch animals for farm ${farmId}, loading cache`, e);
+      const cached = await Storage.get<any[]>(cacheKey);
+      if (cached) {
+        return AnimalMapper.toDomainList(cached);
+      }
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    const loadAllStats = async () => {
+      if (farms.length === 0) return;
+      setLoadingStats(true);
+      try {
+        const promises = farms.map(farm => fetchAnimalsForFarm(farm.id));
+        const results = await Promise.all(promises);
+        if (!active) return;
+        setAllAnimals(results.flat());
+      } catch (err) {
+        console.error("[ProfileScreen] Error loading aggregated stats:", err);
+      } finally {
+        if (active) setLoadingStats(false);
+      }
+    };
+
+    loadAllStats();
+    return () => {
+      active = false;
+    };
+  }, [farms, animals]);
+
+  const getLabel = (key: string) => {
+    const labels: Record<string, Record<string, string>> = {
+      personalDetails: {
+        ta: "தனிப்பட்ட விவரங்கள்",
+        hi: "व्यक्तिगत जानकारी",
+        en: "Personal Details",
+      },
+      personalDetailsDesc: {
+        ta: "உங்கள் தனிப்பட்ட தகவலைப் பார்க்கவும் மற்றும் நிர்வகிக்கவும்",
+        hi: "अपनी व्यक्तिगत जानकारी देखें और प्रबंधित करें",
+        en: "View and manage your personal information",
+      },
+      farmDetails: {
+        ta: "பண்ணை விவரங்கள்",
+        hi: "फार्म विवरण",
+        en: "Farm Details",
+      },
+      farmDetailsDesc: {
+        ta: "உங்கள் பண்ணைகளைப் பார்க்கவும் மற்றும் நிர்வகிக்கவும்",
+        hi: "अपने खेतों को देखें और प्रबंधित करें",
+        en: "View and manage your farms",
+      },
+      privacyPolicy: {
+        ta: "தனியுரிமைக் கொள்கை",
+        hi: "गोपनीयता नीति",
+        en: "Privacy Policy",
+      },
+      privacyPolicyDesc: {
+        ta: "நாங்கள் சேகரிக்கும் தரவும் அதன் பயன்பாடும்",
+        hi: "हम कौन सा डेटा एकत्र करते हैं और उसका उपयोग कैसे करते हैं",
+        en: "What we collect and how it is used",
+      },
+      devicePermissions: {
+        ta: "சாதன அனுமதிகள்",
+        hi: "डिवाइस अनुमतियाँ",
+        en: "Device Permissions",
+      },
+      devicePermissionsDesc: {
+        ta: "கேமரா, மைக்ரோஃபோன் & அறிவிப்புகள்",
+        hi: "कैमरा, माइक्रोफ़ोन और सूचनाएं",
+        en: "Camera, microphone, location & notifications",
+      },
+      legalTerms: {
+        ta: "விதிமுறைகள் & நிபந்தனைகள்",
+        hi: "नियम व शर्तें",
+        en: "Terms & Conditions",
+      },
+      legalTermsDesc: {
+        ta: "செயலியைப் பயன்படுத்துவதற்கான விதிமுறைகள்",
+        hi: "ऐप के उपयोग की शर्तें",
+        en: "The terms you agree to by using the app",
+      },
+      logoutDesc: {
+        ta: "உங்கள் கணக்கிலிருந்து வெளியேறவும்",
+        hi: "अपने खाते से साइन आउट करें",
+        en: "Sign out of your account",
+      },
+      yourFarms: {
+        ta: "உங்கள் பண்ணைகள்",
+        hi: "आपके फार्म",
+        en: "Your Farms",
+      },
+      tapFarmHint: {
+        ta: "கூடுதல் விவரங்களைப் பார்க்க ஒரு பண்ணையைத் தட்டவும்",
+        hi: "अधिक विवरण देखने के लिए किसी फ़ार्म पर टैप करें",
+        en: "Tap on a farm to view more details",
+      },
+      email: {
+        ta: "மின்னஞ்சல்",
+        hi: "ईमेल",
+        en: "Email",
+      },
+      state: {
+        ta: "மாநிலம்",
+        hi: "राज्य",
+        en: "State",
+      },
+      memberSince: {
+        ta: "உறுப்பினர்",
+        hi: "सदस्यता",
+        en: "Member Since",
+      },
+      sectionAccount: {
+        ta: "கணக்கு",
+        hi: "खाता",
+        en: "Account",
+      },
+      sectionPreferences: {
+        ta: "விருப்பங்கள்",
+        hi: "प्राथमिकताएँ",
+        en: "Preferences",
+      },
+      sectionAbout: {
+        ta: "பற்றி",
+        hi: "बारे में",
+        en: "About",
+      },
+      signInMethod: {
+        ta: "உள்நுழைவு முறை",
+        hi: "साइन-इन विधि",
+        en: "Sign-in Method",
+      },
+      signInGoogle: {
+        ta: "Google மூலம் இணைக்கப்பட்டது",
+        hi: "Google से जुड़ा हुआ",
+        en: "Connected to Google",
+      },
+      signInPassword: {
+        ta: "மின்னஞ்சல் & கடவுச்சொல்",
+        hi: "ईमेल और पासवर्ड",
+        en: "Email & password",
+      },
+      farmName: {
+        ta: "பண்ணை பெயர்",
+        hi: "फार्म का नाम",
+        en: "Farm Name",
+      },
+      farmAddress: {
+        ta: "பண்ணை முகவரி",
+        hi: "फार्म का पता",
+        en: "Farm Address",
+      },
+    };
+
+    const currentLang = (language === "ta" || language === "hi") ? language : "en";
+    return labels[key]?.[currentLang] || key;
+  };
+
+  const handleBack = () => {
+    if (currentView === "personal") {
+      setCurrentView("main");
+    } else if (currentView === "farms") {
+      setCurrentView("main");
+    } else if (currentView === "farm_detail") {
+      setCurrentView("farms");
+    } else {
+      router.back();
+    }
+  };
+
+  const handleOpenEdit = (field: string, label: string, initialValue: string) => {
+    setEditingField(field);
+    setEditingFieldLabel(label);
+    setEditingFieldValue(initialValue);
+    setEditModalVisible(true);
+  };
+
+  const handleModalSave = async () => {
+    const cleanValue = editingFieldValue.trim();
+    if (editingField === "phone" && !/^\d{10}$/.test(cleanValue)) {
+      Alert.alert(
+        language === "ta" ? "தவறு" : "Error",
+        language === "ta" ? "சரியான 10 இலக்க மொபைல் எண்ணை உள்ளிடவும்" : "Enter a valid 10-digit mobile number"
+      );
+      return;
+    }
+    if (editingField === "email" && cleanValue && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanValue)) {
+      Alert.alert(
+        language === "ta" ? "தவறு" : "Error",
+        language === "ta" ? "சரியான மின்னஞ்சலை உள்ளிடவும்" : "Enter a valid email address"
+      );
+      return;
+    }
+    if (["name", "village", "district", "state", "farmName"].includes(editingField) && !cleanValue) {
+      Alert.alert(
+        language === "ta" ? "தவறு" : "Error",
+        language === "ta" ? "இந்த விவரம் தேவை" : "This field is required"
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (currentView === "personal") {
+        await updateProfile({ [editingField]: cleanValue });
+      } else if (currentView === "farm_detail" && selectedFarm) {
+        if (editingField === "farmName") {
+          await farmRepository.update(selectedFarm.id, { name: cleanValue });
+          await updateProfile({ farmName: cleanValue });
+          setSelectedFarm((prev: any) => prev ? new Farm({ ...prev, name: cleanValue }) : null);
+          await refreshFarms();
+        } else if (editingField === "farmAddress") {
+          await farmRepository.update(selectedFarm.id, { location: cleanValue });
+          setSelectedFarm((prev: any) => prev ? new Farm({ ...prev, location: cleanValue }) : null);
+          await refreshFarms();
+        } else {
+          await updateProfile({ [editingField]: cleanValue });
+        }
+      }
+      setEditModalVisible(false);
+    } catch (e: any) {
+      Alert.alert(
+        language === "ta" ? "தவறு" : "Error",
+        e.message || "Failed to update detail"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // A native Alert caps out at three buttons on Android, which is why only
+  // three of the six supported languages were reachable. A sheet lists them
+  // all, in their own script, with the current one marked.
+  const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
+  const handleLanguagePress = () => setLanguageSheetVisible(true);
+
+  const openNameEditor = () =>
+    handleOpenEdit(
+      "name",
+      language === "ta" ? "விவசாயி பெயர்" : "Farmer Name",
+      farmer?.name ?? ""
+    );
+
+  const handleLogout = () => {
+    Alert.alert(
+      t.logout,
+      language === "ta"
+        ? "நிச்சயமாக வெளியேற விரும்புகிறீர்களா?"
+        : language === "hi"
+          ? "क्या आप लॉगआउट करना चाहते हैं?"
+          : "Are you sure you want to log out?",
+      [
+        { text: t.cancel, style: "cancel" },
+        {
+          text: t.logout,
+          style: "destructive",
+          onPress: async () => {
+            await logout();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleToggleNotifications = async () => {
+    const newValue = !farmer?.notificationsEnabled;
+    try {
+      await updateProfile({ notificationsEnabled: newValue });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      Alert.alert(
+        language === "ta" ? "தவறு" : "Error",
+        e.message || "Failed to update notification settings"
+      );
+    }
+  };
+
+  const initials = farmer?.name
+    ? farmer.name.trim().split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+    : "??";
+
+  const totalAnimalsCount = allAnimals.length > 0 ? allAnimals.length : animals.length;
+  const healthyCows = allAnimals.length > 0 
+    ? allAnimals.filter((a: any) => a.healthStatus === "healthy").length 
+    : animals.filter((a: any) => a.healthStatus === "healthy").length;
+  const attentionCows = allAnimals.length > 0 
+    ? allAnimals.filter((a: any) => a.healthStatus !== "healthy").length 
+    : animals.filter((a: any) => a.healthStatus !== "healthy").length;
+
+  const memberSinceStr = farmer?.createdAt
+    ? new Date(farmer.createdAt).toLocaleDateString(
+      language === "ta" ? "ta-IN" : language === "hi" ? "hi-IN" : "en-IN",
+      { month: "long", year: "numeric" }
+    )
+    : "—";
+
+  const locationString = [farmer?.village, farmer?.state].filter(Boolean).join(", ") || farmer?.district || "—";
+  const farmsCount = farms.length;
+
+  const selectedFarmAnimalsCount = selectedFarm
+    ? (allAnimals.length > 0 
+        ? allAnimals.filter((a: any) => a.farmId === selectedFarm.id).length 
+        : (selectedFarm.id === activeFarm?.id ? animals.length : 0))
+    : 0;
+
+  const getViewTitle = () => {
+    switch (currentView) {
+      case "personal":
+        return getLabel("personalDetails");
+      case "farms":
+      case "farm_detail":
+        return getLabel("farmDetails");
+      default:
+        return language === "ta" ? "எனது சுயவிவரம்" : language === "hi" ? "मेरी प्रोफाइल" : "My Profile";
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Header Row */}
+      <View style={[styles.headerRow, { paddingTop: insets.top + 12 }]}>
+        <Pressable style={styles.backBtn} onPress={handleBack}>
+          <Feather name="arrow-left" size={24} color="#16a34a" />
+        </Pressable>
+        <Text style={styles.headerTitle}>{getViewTitle()}</Text>
+        <View style={{ width: 32 }} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {currentView === "main" && (
+          <>
+            {/* Top Linear Gradient Profile Card */}
+            <LinearGradient
+              colors={["#f0fdf4", "#edfcf2", "#e6f9ed"]}
+              style={styles.gradientCard}
+            >
+              <View style={styles.profileCardContent}>
+                <Pressable onPress={openNameEditor}>
+                  <FarmerAvatar
+                    uri={farmer?.avatarUrl}
+                    initials={initials}
+                    color={farmer?.avatarColor ?? "#2563eb"}
+                    size={58}
+                    fontSize={22}
+                    style={styles.avatarShadow}
+                    textStyle={styles.avatarText}
+                  />
+                </Pressable>
+
+                <View style={styles.profileDetails}>
+                  <Pressable onPress={openNameEditor} style={styles.nameRow}>
+                    <Text style={styles.farmerName} numberOfLines={1}>
+                      {farmer?.name || "Add your name"}
+                    </Text>
+                    <Feather name="edit-2" size={13} color="#15803d" />
+                  </Pressable>
+
+                  {/* The email is how the account is actually identified, and
+                      it was not shown here at all. */}
+                  {!!farmer?.email && (
+                    <Text style={styles.profileEmail} numberOfLines={1}>
+                      {farmer.email}
+                    </Text>
+                  )}
+
+                  {/* One quiet line instead of a hardcoded "Farmer" badge, a
+                      location row and a separate member-since row. */}
+                  <Text style={styles.profileMeta} numberOfLines={1}>
+                    {[
+                      `${farmsCount} ${farmsCount === 1 ? "farm" : "farms"}`,
+                      locationString && locationString !== "—" ? locationString : null,
+                      memberSinceStr ? `Since ${memberSinceStr}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join("  ·  ")}
+                  </Text>
+                </View>
+              </View>
+
+            </LinearGradient>
+
+            {/* Stats Row */}
+            <View style={styles.statsRow}>
+              {/* Card 1: Total Animals */}
+              <View style={styles.statCard}>
+                <View style={[styles.statIconWrap, { backgroundColor: "#f0fdf4" }]}>
+                  <MaterialCommunityIcons name="cow" size={18} color="#16a34a" />
+                </View>
+                <Text style={styles.statNum}>{totalAnimalsCount}</Text>
+                <Text style={styles.statLabel}>{t.totalAnimals}</Text>
+              </View>
+
+              {/* Card 2: Healthy */}
+              <View style={styles.statCard}>
+                <View style={[styles.statIconWrap, { backgroundColor: "#f0fdf4" }]}>
+                  <Feather name="heart" size={16} color="#16a34a" />
+                </View>
+                <Text style={styles.statNum}>{healthyCows}</Text>
+                <Text style={styles.statLabel}>{t.healthy}</Text>
+              </View>
+
+              {/* Card 3: Needs Attention */}
+              <View style={styles.statCard}>
+                <View style={[styles.statIconWrap, { backgroundColor: "#fff7ed" }]}>
+                  <Feather name="alert-triangle" size={16} color="#ea580c" />
+                </View>
+                <Text style={[styles.statNum, attentionCows > 0 && { color: "#ea580c" }]}>{attentionCows}</Text>
+                <Text style={styles.statLabel}>{t.attention}</Text>
+              </View>
+            </View>
+
+            {/* Options, grouped: eight identical rows in one slab gave no
+                sense of what belongs with what. */}
+            <View>
+            <Text style={styles.sectionLabel}>{getLabel("sectionAccount")}</Text>
+            <View style={styles.optionsContainer}>
+              <ProfileOption
+                icon="user"
+                title={getLabel("personalDetails")}
+                subtitle={getLabel("personalDetailsDesc")}
+                onPress={() => setCurrentView("personal")}
+              />
+
+              <ProfileOption
+                last
+                icon="home"
+                title={getLabel("farmDetails")}
+                subtitle={getLabel("farmDetailsDesc")}
+                onPress={() => setCurrentView("farms")}
+              />
+
+            </View>
+            </View>
+
+            <View>
+            <Text style={styles.sectionLabel}>{getLabel("sectionPreferences")}</Text>
+            <View style={styles.optionsContainer}>
+              <ProfileOption
+                icon="globe"
+                title={t.language}
+                subtitle={LANGUAGE_NAMES[language] || "English"}
+                onPress={handleLanguagePress}
+              />
+
+              <ProfileOption
+                icon="bell"
+                title={language === "ta" ? "அறிவிப்புகள்" : "Notifications"}
+                subtitle={farmer?.notificationsEnabled ? (language === "ta" ? "செயல்படுத்தப்பட்டது" : "Enabled") : (language === "ta" ? "முடக்கப்பட்டது" : "Disabled")}
+                onPress={handleToggleNotifications}
+              />
+
+              <ProfileOption
+                last
+                icon="shield"
+                title={getLabel("devicePermissions")}
+                subtitle={getLabel("devicePermissionsDesc")}
+                onPress={() => router.push("/permission" as any)}
+              />
+
+            </View>
+            </View>
+
+            <View>
+            <Text style={styles.sectionLabel}>{getLabel("sectionAbout")}</Text>
+            <View style={styles.optionsContainer}>
+              <ProfileOption
+                icon="file-text"
+                title={getLabel("legalTerms")}
+                subtitle={getLabel("legalTermsDesc")}
+                onPress={() => router.push("/legal/terms" as any)}
+              />
+
+              <ProfileOption
+                last
+                icon="shield"
+                title={getLabel("privacyPolicy")}
+                subtitle={getLabel("privacyPolicyDesc")}
+                onPress={() => router.push("/legal/privacy" as any)}
+              />
+
+            </View>
+            </View>
+
+            <View style={styles.optionsContainer}>
+              {farmer && (
+                <ProfileOption
+                  last
+                  icon="log-out"
+                  iconBgColor="#fef2f2"
+                  iconColor="#ef4444"
+                  title={t.logout}
+                  subtitle={getLabel("logoutDesc")}
+                  onPress={handleLogout}
+                />
+              )}
+            </View>
+          </>
+        )}
+
+        {currentView === "personal" && (
+          <View style={styles.cardContainer}>
+            <DetailRow
+              icon="phone"
+              label={t.phone}
+              value={farmer?.phone}
+              onPress={() => handleOpenEdit("phone", t.phone, farmer?.phone || "")}
+            />
+
+            <DetailRow
+              icon="mail"
+              label={getLabel("email")}
+              value={farmer?.email}
+              showChevron={false}
+            />
+            <DetailRow
+              icon={isGoogleAccount ? "google" : "lock"}
+              iconType={isGoogleAccount ? "material" : "feather"}
+              label={getLabel("signInMethod")}
+              value={getLabel(isGoogleAccount ? "signInGoogle" : "signInPassword")}
+              showChevron={false}
+            />
+            <DetailRow
+              icon="map-pin"
+              label={t.village}
+              value={farmer?.village}
+              onPress={() => handleOpenEdit("village", t.village, farmer?.village || "")}
+            />
+            <DetailRow
+              icon="navigation"
+              label={t.district}
+              value={farmer?.district}
+              onPress={() => handleOpenEdit("district", t.district, farmer?.district || "")}
+            />
+            <DetailRow
+              icon="map"
+              label={getLabel("state")}
+              value={farmer?.state}
+              onPress={() => handleOpenEdit("state", getLabel("state"), farmer?.state || "")}
+            />
+            <DetailRow
+              icon="calendar"
+              last
+              label={getLabel("memberSince")}
+              value={memberSinceStr}
+              showChevron={false}
+            />
+          </View>
+        )}
+
+        {currentView === "farms" && (
+          <View style={styles.farmsContainer}>
+            <Text style={styles.sectionHeading}>{getLabel("yourFarms")}</Text>
+
+            {farms.map((farm) => (
+              <Pressable
+                key={farm.id}
+                style={styles.farmListItem}
+                onPress={() => {
+                  setSelectedFarm(farm);
+                  setCurrentView("farm_detail");
+                }}
+              >
+                <View style={styles.farmListIllustration}>
+                  <FarmIllustration />
+                </View>
+                <View style={styles.farmListContent}>
+                  <Text style={styles.farmListName}>{farm.name || "Unnamed Farm"}</Text>
+                  <Text style={styles.farmListLocation}>{farm.location || "Location not set"}</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#9ca3af" />
+              </Pressable>
+            ))}
+
+            <Text style={styles.tapFarmHint}>{getLabel("tapFarmHint")}</Text>
+          </View>
+        )}
+
+        {currentView === "farm_detail" && selectedFarm && (
+          <View style={styles.cardContainer}>
+            <DetailRow
+              icon="home"
+              label={getLabel("farmName")}
+              value={selectedFarm.name}
+              onPress={() => handleOpenEdit("farmName", getLabel("farmName"), selectedFarm.name)}
+            />
+            <DetailRow
+              icon="map-pin"
+              label={getLabel("farmAddress")}
+              value={selectedFarm.location}
+              onPress={() => handleOpenEdit("farmAddress", getLabel("farmAddress"), selectedFarm.location || "")}
+            />
+            <DetailRow
+              icon="cow"
+              iconType="material"
+              last
+              label={t.totalAnimals}
+              value={selectedFarmAnimalsCount.toString()}
+              showChevron={false}
+            />
+          </View>
+        )}
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            {language === "ta"
+              ? "அப்செக் டெய்ரி — விவசாயிகளுக்காக, விவசாயிகளால்"
+              : language === "hi"
+                ? "अपचेक डेयरी — किसानों के लिए, किसानों द्वारा"
+                : "Upcheck Dairy — For Farmers, By Farmers"}
+          </Text>
+        </View>
+      </ScrollView>
+
+      {/* Language sheet — all six, each in its own script */}
+      <Modal
+        visible={languageSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLanguageSheetVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setLanguageSheetVisible(false)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>{t.language}</Text>
+            {(Object.keys(LANGUAGE_NATIVE) as Language[]).map((code) => {
+              const selected = code === language;
+              return (
+                <Pressable
+                  key={code}
+                  style={[styles.langRow, selected && styles.langRowActive]}
+                  onPress={() => {
+                    setLanguage(code);
+                    setLanguageSheetVisible(false);
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.langNative, selected && styles.langNativeActive]}>
+                      {LANGUAGE_NATIVE[code].name}
+                    </Text>
+                    <Text style={styles.langEnglish}>{LANGUAGE_NATIVE[code].english}</Text>
+                  </View>
+                  {selected && <Feather name="check" size={18} color="#16a34a" />}
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Editing Modal */}
+      <Modal
+        visible={editModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.modalContent}
+          >
+            <Text style={styles.modalTitle}>
+              {language === "ta" ? `${editingFieldLabel} திருத்தவும்` : language === "hi" ? `${editingFieldLabel} संपादित करें` : `Edit ${editingFieldLabel}`}
+            </Text>
+
+            <TextInput
+              style={styles.modalInput}
+              value={editingFieldValue}
+              onChangeText={setEditingFieldValue}
+              placeholder={language === "ta" ? "உள்ளிடவும்..." : language === "hi" ? "दर्ज करें..." : `Enter ${editingFieldLabel.toLowerCase()}`}
+              placeholderTextColor="#9ca3af"
+              autoFocus={true}
+              keyboardType={
+                editingField === "phone" ? "phone-pad" :
+                  editingField === "email" ? "email-address" :
+                    "default"
+              }
+              autoCapitalize={editingField === "email" ? "none" : "sentences"}
+            />
+
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                onPress={() => setEditModalVisible(false)}
+                disabled={saving}
+              >
+                <Text style={styles.modalBtnCancelText}>
+                  {language === "ta" ? "ரத்து செய்" : language === "hi" ? "रद्द करें" : "Cancel"}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnSave]}
+                onPress={handleModalSave}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalBtnSaveText}>
+                    {language === "ta" ? "சேமி" : language === "hi" ? "சहेजें" : "Save"}
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+interface ProfileOptionProps {
+  last?: boolean;
+  icon: string;
+  iconType?: "feather" | "material";
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  iconBgColor?: string;
+  iconColor?: string;
+}
+
+function ProfileOption({
+  last,
+  icon,
+  iconType = "feather",
+  title,
+  subtitle,
+  onPress,
+  iconBgColor = "#f0fdf4",
+  iconColor = "#16a34a",
+}: ProfileOptionProps) {
+  return (
+    <Pressable style={[styles.optionRow, last && styles.optionRowLast]} onPress={onPress}>
+      <View style={[styles.optionIconWrap, { backgroundColor: iconBgColor }]}>
+        {iconType === "material" ? (
+          <MaterialCommunityIcons name={icon as any} size={18} color={iconColor} />
+        ) : (
+          <Feather name={icon as any} size={18} color={iconColor} />
+        )}
+      </View>
+      <View style={styles.optionContent}>
+        <Text style={styles.optionTitle}>{title}</Text>
+        <Text style={styles.optionSubtitle}>{subtitle}</Text>
+      </View>
+      <Feather name="chevron-right" size={18} color="#9ca3af" />
+    </Pressable>
+  );
+}
+
+interface DetailRowProps {
+  last?: boolean;
+  icon: string;
+  iconType?: "feather" | "material";
+  label: string;
+  value: string | null | undefined;
+  onPress?: () => void;
+  showChevron?: boolean;
+}
+
+function DetailRow({ icon, iconType = "feather", label, value, onPress, showChevron = true, last }: DetailRowProps) {
+  return (
+    <Pressable style={[styles.detailRow, last && styles.detailRowLast]} onPress={onPress} disabled={!onPress}>
+      <View style={styles.detailIconWrap}>
+        {iconType === "material" ? (
+          <MaterialCommunityIcons name={icon as any} size={18} color="#16a34a" />
+        ) : (
+          <Feather name={icon as any} size={18} color="#16a34a" />
+        )}
+      </View>
+      <View style={styles.detailContent}>
+        <Text style={styles.detailLabel}>{label}</Text>
+        {/* An empty field reads as a dash with no hint that it can be filled.
+            Say so, and style it as absent rather than as a value. */}
+        <Text style={[styles.detailValue, !value && styles.detailValueEmpty]}>
+          {value || (onPress ? "Tap to add" : "Not set")}
+        </Text>
+      </View>
+      {showChevron && <Feather name="chevron-right" size={16} color="#9ca3af" />}
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f8fafc" },
+  content: { paddingHorizontal: 16, paddingTop: 8, gap: 16 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#edf2f7",
+  },
+  backBtn: { padding: 4 },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
+
+  // Profile Card
+  gradientCard: {
+    borderRadius: 14,
+    padding: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#dcfce7",
+  },
+  profileCardContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  avatarShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  avatarText: { fontSize: 24, fontWeight: "800", color: "#fff" },
+  profileDetails: {
+    marginLeft: 14,
+    flex: 1,
+    gap: 3,
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  // The name is the heading of the screen; it was the same size as a list
+  // row title while a 9px badge sat under it.
+  farmerName: { fontSize: 20, fontWeight: "800", color: "#111827", flexShrink: 1 },
+  profileEmail: { fontSize: 13, color: "#4b5563" },
+  profileMeta: { fontSize: 12, color: "#6b7280" },
+
+  // Right Farm Card in header
+
+  // Landscape Svg
+
+  // Stats Row
+  statsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    alignItems: "center",
+  },
+  statIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+  statNum: { fontSize: 26, fontWeight: "800", color: "#111827", lineHeight: 30 },
+  statLabel: { fontSize: 11, fontWeight: "600", color: "#6b7280", marginTop: 2, textAlign: "center" },
+
+  // Options Menu List
+  optionsContainer: {
+    backgroundColor: "#ffffff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    overflow: "hidden",
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#9ca3af",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  optionRowLast: { borderBottomWidth: 0 },
+  optionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  optionIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  optionContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  optionTitle: { fontSize: 14, fontWeight: "700", color: "#1a202c" },
+  optionSubtitle: { fontSize: 12, color: "#6b7280", marginTop: 2 },
+
+  // Sub-view Cards
+  cardContainer: {
+    backgroundColor: "#ffffff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    overflow: "hidden",
+  },
+  detailRowLast: { borderBottomWidth: 0 },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  detailIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#f0fdf4",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  detailLabel: { fontSize: 11, color: "#718096", fontWeight: "500" },
+  detailValue: { fontSize: 14, fontWeight: "700", color: "#1f2937", marginTop: 1 },
+  detailValueEmpty: { fontWeight: "500", color: "#9ca3af" },
+
+  // Farms List View
+  farmsContainer: {
+    gap: 12,
+  },
+  sectionHeading: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#16a34a",
+    marginLeft: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  farmListItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#edf2f7",
+    padding: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  farmListIllustration: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#f0fdf4",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  farmListContent: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  farmListName: { fontSize: 15, fontWeight: "700", color: "#1a202c" },
+  farmListLocation: { fontSize: 12, color: "#718096", marginTop: 2 },
+  tapFarmHint: {
+    fontSize: 11,
+    color: "#9ca3af",
+    fontStyle: "italic",
+    textAlign: "center",
+    marginTop: 4,
+  },
+
+  // Footer
+  footer: { alignItems: "center", marginTop: 20 },
+  footerText: { color: "#a0aec0", fontSize: 11, textAlign: "center" },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#ffffff",
+    width: "100%",
+    maxWidth: 320,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  modalTitle: { fontSize: 16, fontWeight: "700", color: "#1a202c", marginBottom: 14 },
+  langRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  langRowActive: { backgroundColor: "#f0fdf4" },
+  langNative: { fontSize: 16, fontWeight: "600", color: "#1f2937" },
+  langNativeActive: { color: "#16a34a" },
+  langEnglish: { fontSize: 12, color: "#9ca3af", marginTop: 1 },
+  modalInput: {
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: "#1a202c",
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8,
+  },
+  modalBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 70,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBtnCancel: { backgroundColor: "#f7fafc", borderWidth: 1, borderColor: "#e2e8f0" },
+  modalBtnCancelText: { color: "#4a5568", fontWeight: "600", fontSize: 13 },
+  modalBtnSave: { backgroundColor: "#16a34a" },
+  modalBtnSaveText: { color: "#ffffff", fontWeight: "600", fontSize: 13 },
+});

@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Body, Inject } from "@nestjs/common";
 import { AuthService } from "../services/auth.service";
 import { Public, GetUser } from "../../common/decorators/auth.decorators";
+import type { PublicFarmer } from "../../common/public-farmer";
 import type { Farmer } from "@workspace/db";
 import { Throttle } from "@nestjs/throttler";
 import {
@@ -10,7 +11,7 @@ import {
   LoginDto,
   RefreshDto,
   ResetPasswordDto,
-  Login2faDto,
+  GoogleLoginDto,
 } from "../dto";
 
 @Controller("auth")
@@ -57,6 +58,14 @@ export class AuthController {
     return this.authService.login(body.email.trim().toLowerCase(), body.password);
   }
 
+  /** Sign in (or auto-register) with a Google ID token from the mobile app */
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post("google")
+  async googleLogin(@Body() body: GoogleLoginDto) {
+    return this.authService.googleLogin(body.idToken, body.intent);
+  }
+
   /** Exchange a refresh token for a new access token */
   @Public()
   @Post("refresh")
@@ -64,9 +73,22 @@ export class AuthController {
     return this.authService.refresh(body.userId, body.refreshToken);
   }
 
+  /**
+   * Revoke every refresh token for the caller.
+   *
+   * Clearing tokens on the device alone is not a logout: the refresh token
+   * stays valid for 30 days, so anyone who recovered it could keep minting
+   * access tokens long after the user believed they had signed out.
+   */
+  @Post("logout")
+  async logout(@GetUser() user: PublicFarmer) {
+    await this.authService.logout(user.id);
+    return { message: "Signed out" };
+  }
+
   /** Return the currently authenticated farmer (requires Bearer token) */
   @Get("me")
-  async getMe(@GetUser() user: Farmer) {
+  async getMe(@GetUser() user: PublicFarmer) {
     return user;
   }
 
@@ -80,13 +102,5 @@ export class AuthController {
       body.otp.trim(),
       body.newPassword
     );
-  }
-
-  /** Verify TOTP code (2FA) */
-  @Public()
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
-  @Post("verify-2fa")
-  async verify2fa(@Body() body: Login2faDto) {
-    return this.authService.verify2fa(body.tempToken, body.token);
   }
 }

@@ -1,4 +1,5 @@
 import React from "react";
+import { AuthedImage } from "../../../../components/AuthedImage";
 import { View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
@@ -43,7 +44,7 @@ export function RecentAnimalsCard({
             >
               <View style={styles.animalLeft}>
                 {animal.photoUri ? (
-                  <Image source={{ uri: animal.photoUri }} style={styles.avatar} />
+                  <AuthedImage uri={animal.photoUri} style={styles.avatar} />
                 ) : (
                   <View style={[styles.avatar, { backgroundColor: animal.avatarColor }]}>
                     <Text style={styles.avatarText}>{animal.name.charAt(0).toUpperCase()}</Text>

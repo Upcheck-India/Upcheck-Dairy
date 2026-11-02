@@ -12,6 +12,7 @@ export class IncomeEntry {
   fatPercentage: number | null;
   snfPercentage: number | null;
   notes: string | null;
+  attachmentUrl: string | null;
   createdAt: Date;
 
   constructor(data: {
@@ -26,6 +27,7 @@ export class IncomeEntry {
     fatPercentage: number | null;
     snfPercentage: number | null;
     notes: string | null;
+    attachmentUrl: string | null;
     createdAt: Date;
   }) {
     this.id = data.id;
@@ -39,6 +41,7 @@ export class IncomeEntry {
     this.fatPercentage = data.fatPercentage;
     this.snfPercentage = data.snfPercentage;
     this.notes = data.notes;
+    this.attachmentUrl = data.attachmentUrl;
     this.createdAt = data.createdAt;
   }
 
@@ -62,6 +65,7 @@ export class ExpenseEntry {
   category: ExpenseCategory;
   description: string;
   amount: number;
+  attachmentUrl: string | null;
   createdAt: Date;
 
   constructor(data: {
@@ -71,6 +75,7 @@ export class ExpenseEntry {
     category: ExpenseCategory;
     description: string;
     amount: number;
+    attachmentUrl: string | null;
     createdAt: Date;
   }) {
     this.id = data.id;
@@ -79,6 +84,7 @@ export class ExpenseEntry {
     this.category = data.category;
     this.description = data.description;
     this.amount = data.amount;
+    this.attachmentUrl = data.attachmentUrl;
     this.createdAt = data.createdAt;
   }
 

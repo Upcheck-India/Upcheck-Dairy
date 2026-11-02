@@ -69,7 +69,7 @@ export default function VoiceButton({ onPress }: VoiceButtonProps) {
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
         >
-          <Feather name="mic" size={26} color="#fff" />
+          <Feather name="grid" size={26} color="#fff" />
         </Pressable>
       </Animated.View>
     </View>

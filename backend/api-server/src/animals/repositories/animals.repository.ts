@@ -1,7 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { DatabaseService } from "../../database/database.service";
 import { animals, type Animal, type InsertAnimal } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 @Injectable()
 export class AnimalsRepository {
@@ -21,6 +21,51 @@ export class AnimalsRepository {
       .select()
       .from(animals)
       .where(eq(animals.farmId, farmId));
+  }
+
+  /** Returns all farm animals with the latest milk entry attached (null when none exists). */
+  async findByFarmWithLatestMilk(
+    farmId: string,
+  ): Promise<(Animal & { lastMilkEntry: { quantity: number; session: string } | null })[]> {
+    const rows = await this.dbService.drizzle
+      .select({
+        // All standard Animal columns (mapped to camelCase by Drizzle)
+        id: animals.id,
+        farmId: animals.farmId,
+        name: animals.name,
+        type: animals.type,
+        breed: animals.breed,
+        tagNumber: animals.tagNumber,
+        photoUri: animals.photoUri,
+        healthStatus: animals.healthStatus,
+        notes: animals.notes,
+        birthDate: animals.birthDate,
+        nextVaccinationDate: animals.nextVaccinationDate,
+        nextDeliveryDate: animals.nextDeliveryDate,
+        lactationNumber: animals.lactationNumber,
+        lastCalvingDate: animals.lastCalvingDate,
+        expectedCalvingDate: animals.expectedCalvingDate,
+        isPregnant: animals.isPregnant,
+        bodyConditionScore: animals.bodyConditionScore,
+        weightKg: animals.weightKg,
+        shed: animals.shed,
+        status: animals.status,
+        gender: animals.gender,
+        createdAt: animals.createdAt,
+        updatedAt: animals.updatedAt,
+        // Scalar correlated subquery: latest milk entry for this animal
+        lastMilkEntry: sql<{ quantity: number; session: string } | null>`(
+          SELECT json_build_object('quantity', me.quantity::float, 'session', me.session)
+          FROM   milk_entries me
+          WHERE  me.animal_id = animals.id
+          ORDER  BY me.date DESC
+          LIMIT  1
+        )`,
+      })
+      .from(animals)
+      .where(eq(animals.farmId, farmId));
+
+    return rows as (Animal & { lastMilkEntry: { quantity: number; session: string } | null })[];
   }
 
   async findByTag(farmId: string, tagNumber: string): Promise<Animal | null> {

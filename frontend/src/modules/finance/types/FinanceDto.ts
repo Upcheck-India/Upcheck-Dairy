@@ -12,6 +12,7 @@ export interface IncomeEntryResponseDto {
   fatPercentage: string | number | null;
   snfPercentage: string | number | null;
   notes: string | null;
+  attachmentUrl?: string | null;
   createdAt: string;
 }
 
@@ -26,6 +27,7 @@ export interface CreateIncomeEntryRequestDto {
   fatPercentage?: number;
   snfPercentage?: number;
   notes?: string;
+  attachmentUrl?: string | null;
 }
 
 export interface ExpenseEntryResponseDto {
@@ -35,6 +37,7 @@ export interface ExpenseEntryResponseDto {
   category: ExpenseCategory;
   description: string;
   amount: string | number;
+  attachmentUrl?: string | null;
   createdAt: string;
 }
 
@@ -44,4 +47,5 @@ export interface CreateExpenseEntryRequestDto {
   category: ExpenseCategory;
   description: string;
   amount: number;
+  attachmentUrl?: string | null;
 }
